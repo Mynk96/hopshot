@@ -556,7 +556,7 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;str
 
   <!-- 7. UPGRADE -->
   <section class="screen" id="s-upgrade" data-title="Plans">
-    <p class="note"><b>S9 Plans sheet.</b> Shown when the trial ends, from the tray menu and from Sync-locked options. Buttons open the matching Polar checkout in the browser. No free plan: everyone starts with a 7-day trial of everything.</p>
+    <p class="note"><b>S9 Plans sheet.</b> Shown when the trial ends, from the tray menu and from Sync-locked options. Buttons open the matching Stripe checkout in the browser. No free plan: everyone starts with a 7-day trial of everything.</p>
     <div class="stage-fit"><div class="stage" id="stage7">
       <div class="wall"></div>
       <div class="scrim"></div>
@@ -577,11 +577,11 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;str
             <button class="btn" style="width:100%;justify-content:center;height:34px">Buy Lifetime</button>
           </div>
           <div style="flex:1;border:2px solid var(--accent);border-radius:12px;padding:12px">
-            <div class="price" style="margin:0 0 4px"><b>+$24</b><span>/year</span></div><div style="color:var(--text-2);font-size:12px;margin-bottom:10px">on top of Lifetime · <a href="#" style="color:var(--accent-text)">or $2.99 monthly</a></div>
+            <div class="price" style="margin:0 0 4px"><b>+$24</b><span>/year</span></div><div style="color:var(--text-2);font-size:12px;margin-bottom:10px">on top of Lifetime · cancel anytime</div>
             <button class="btn primary" style="width:100%;justify-content:center;height:34px">Buy Lifetime + Sync</button>
           </div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center"><button class="btn ghost sm" data-goto="s-settings" data-tab="license">I have a key</button><span class="trust" style="margin:0"><i data-i="lock"></i>Secure checkout by Polar · 14-day refund</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><button class="btn ghost sm" data-goto="s-settings" data-tab="license">Already bought? Restore</button><span class="trust" style="margin:0"><i data-i="lock"></i>Secure checkout by Stripe · 14-day refund</span></div>
         <p style="color:var(--text-3);font-size:11.5px;margin:10px 0 0">Cancel Sync anytime: the app keeps working, only cloud features stop.</p>
       </div>
     </div></div>
@@ -841,7 +841,7 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;str
         <div class="group"><div class="srow"><div class="l">Auto-sync captures to my devices<small>End-to-end encrypted · deleted after your expiry setting</small></div>${sw(true,'Auto-sync')}</div></div>
         <div style="display:flex;gap:8px"><button class="btn primary">${icon('smartphone')}Pair a phone</button><button class="btn">${icon('monitor')}Link another computer</button></div>`
         : `<h3>Devices</h3><div class="plan"><div class="p"><b>Your shelf on your phone</b><div style="color:var(--text-2)">Pair once and new captures appear on your phone automatically. Send photos back to this computer too.</div></div><button class="btn primary" data-goto="s-upgrade">Add Sync</button></div><p style="color:var(--text-2)">Without Sync you can still send any item with a QR code: hover a card → ${icon('smartphone').replace('class="i"','class="i" style="display:inline;vertical-align:-3px"')}.</p>`,
-      license: `<h3>License</h3><div class="plan"><span class="mark lg"></span><div class="p"><b>${pro?'Hopshot Lifetime + Sync':'Hopshot Lifetime'}</b><div style="color:var(--text-2)">${pro?'Sync renews on 1 Oct 2027 · activated on 1 of 3 computers':'Activated on 1 of 3 computers · all 1.x updates'}</div></div>${pro?'<button class="btn sm">Manage subscription</button>':'<button class="btn primary" data-goto="s-upgrade">Add Sync — $24/year</button>'}</div><div class="group"><div class="srow"><div class="l">License key<small>HOPSHOT-8F2K-••••-••••-Q7XD</small></div><button class="btn sm">Deactivate this computer</button></div></div>`,
+      license: `<h3>License</h3><div class="plan"><span class="mark lg"></span><div class="p"><b>${pro?'Hopshot Lifetime + Sync':'Hopshot Lifetime'}</b><div style="color:var(--text-2)">${pro?'Sync renews on 1 Oct 2027 · activated on 1 of 3 computers':'Activated on 1 of 3 computers · all 1.x updates'}</div></div>${pro?'<button class="btn sm">Manage subscription</button>':'<button class="btn primary" data-goto="s-upgrade">Add Sync — $24/year</button>'}</div><div class="group"><div class="srow"><div class="l">Purchased with<small>you@example.com · this Mac + 1 other computer (of 3)</small></div><button class="btn sm">Manage computers</button></div></div>`,
       privacy: `<h3>Privacy</h3><div class="group">
         <div class="srow"><div class="l">Share anonymous usage stats<small>Counts like "captures per day". Never images, names or links.</small></div>${sw(false,'Usage stats')}</div>
         <div class="srow"><div class="l">Send crash reports</div>${sw(false,'Crash reports')}</div></div>

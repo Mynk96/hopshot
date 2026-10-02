@@ -135,7 +135,7 @@ Link: `https://hopshot.xyz/?ref=ih`
 > I'm validating a small desktop utility (screenshots → floating shelf → drag into any site → synced to phone → auto-deleted). I'm torn on pricing and would like outside opinions:
 >
 > - **$19 one-time**: the app forever, local features only
-> - **+$24/year (or $2.99/mo)**: optional Sync add-on (paired phone, phone→laptop, shelf across computers). Cancel and the app keeps working.
+> - **+$24/year**: optional Sync add-on (paired phone, phone→laptop, shelf across computers). Cancel and the app keeps working.
 > - No free plan, but a 7-day free trial of everything
 >
 > My logic: charge once for what costs nothing to run, and charge yearly only for the servers. Too complicated? Would you rather see a single subscription, or a single one-time price?

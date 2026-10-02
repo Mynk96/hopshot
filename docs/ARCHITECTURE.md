@@ -19,14 +19,15 @@ This is the build spec that goes with `PRD.md`. It's written so Claude Code can 
 │   ├─ R2 bucket     : encrypted blobs (d/…, v/…)                          │
 │   ├─ D1 (SQLite)   : drops, vaults, devices, invites, items, usage       │
 │   ├─ Durable Object: VaultHub (one per vault, WebSocket fan-out)         │
-│   └─ Cron (15 min) : delete expired rows + objects                       │
+│   ├─ Cron (15 min) : delete expired rows + objects                       │
+│   └─ Cron (daily)  : Sync renewal reminder emails (Resend)               │
 │  hopshot.xyz      — Pages (Astro): landing · /d/:id viewer · /app PWA    │
 └───────────────▲──────────────────────────────────────────────────────────┘
                 │ HTTPS (decrypts in the browser)
 ┌───────────────┴──────────── Phone ──────────────────────────────────────┐
 │  Browser / installed PWA: viewer, pairing, feed, upload                  │
 └──────────────────────────────────────────────────────────────────────────┘
-Payments: Polar (checkout + license keys). The Worker proxies license calls.
+Payments: Stripe (Checkout, Billing, customer portal, webhooks). Licenses live in D1.
 ```
 
 **Main principle:** the server is a dumb, short-lived store for **encrypted** bytes. All keys live on user devices, and the server can't see images or file names.
@@ -44,7 +45,7 @@ Payments: Polar (checkout + license keys). The Worker proxies license calls.
 | Drag-out | `@crabnebula/tauri-plugin-drag` (`drag-rs`) | Native file drag on macOS + Windows, works with Tauri v2 |
 | Clipboard | `arboard` crate (image + text) | Reliable image clipboard on both OSes |
 | Hotkeys | `tauri-plugin-global-shortcut` | Official |
-| Other Tauri plugins | `autostart`, `updater`, `single-instance`, `store`, `notification`, `opener`, `positioner`, `log` | Official |
+| Other Tauri plugins | `autostart`, `updater`, `single-instance`, `deep-link` (`hopshot://` links), `store`, `notification`, `opener`, `positioner`, `log` | Official |
 | Local DB | `rusqlite` (bundled) | Tiny, reliable |
 | Secrets | `keyring` crate | macOS Keychain / Windows Credential Manager |
 | Crypto | `aes-gcm`, `rand`, `sha2`, `base64` | AES-256-GCM |
@@ -54,7 +55,7 @@ Payments: Polar (checkout + license keys). The Worker proxies license calls.
 | Web | **Astro** + React islands + `@vite-pwa/astro`, deployed on Cloudflare Pages | Fast landing page (SEO) plus the app pages in one project |
 | Phone QR scanner | `qr-scanner` (npm) | For the iOS home-screen re-pair flow |
 | QR generation | `qrcode` (npm) in desktop UI | — |
-| Payments / licensing | **Polar** (merchant of record, license keys, India payouts) | Fallback: Lemon Squeezy |
+| Payments / licensing | **Stripe** (Checkout, Billing subscriptions, customer portal) through the `stripe` npm SDK in the Worker; purchases and licensed computers tracked by the Worker (no user-facing keys); email through **Resend** | Fallback: a merchant of record (e.g. Polar) if tax handling becomes a burden |
 | CI/CD | GitHub Actions + `tauri-apps/tauri-action`, `wrangler` | Builds Mac on macOS runners |
 | Monorepo | pnpm workspaces | — |
 
@@ -98,8 +99,8 @@ hopshot/
 │                   d/[id].astro pair.astro app/index.astro
 ├─ services/
 │  └─ api/                       # Cloudflare Worker
-│     ├─ src/ index.ts routes/ { drops.ts vaults.ts pair.ts items.ts live.ts license.ts report.ts }
-│     │       do/VaultHub.ts  lib/ { auth.ts ratelimit.ts polar.ts ids.ts }
+│     ├─ src/ index.ts routes/ { drops.ts vaults.ts pair.ts items.ts live.ts license.ts billing.ts webhooks.ts admin.ts report.ts }
+│     │       do/VaultHub.ts  lib/ { auth.ts ratelimit.ts stripe.ts license.ts email.ts ids.ts }  emails/
 │     ├─ migrations/ 0001_init.sql
 │     └─ wrangler.toml
 └─ .github/workflows/ desktop-release.yml  api-deploy.yml  web-deploy.yml  ci.yml
@@ -219,7 +220,7 @@ CREATE INDEX idx_items_created ON items(created_at DESC);
 
 - **Expiry job:** runs at start and every 10 min. It deletes rows where `expires_at < now` along with their files, and enforces capacity (it drops the oldest *unpinned* items beyond the plan's capacity).
 - **Drag staging:** on drag start, hard-link (or copy) `captures/{id}.png` to `drag/{file_name}` so the drop target sees a friendly name. Then call `startDrag({ item: [stagedPath], icon: thumbPath })`.
-- **Secrets** (`keyring`, service `xyz.hopshot`): `license_key`, `license_activation_id`, `vault_id`, `vault_key`, `device_id`, `device_token`.
+- **Secrets** (`keyring`, service `xyz.hopshot`): `license_device_token`, `vault_id`, `vault_key`, `device_id`, `device_token`.
 
 ### 5.4 Tauri command surface (thin — logic stays in Rust modules)
 
@@ -230,7 +231,7 @@ save_item_as(id)                        reveal_item(id)
 start_capture(mode: 'region'|'screen')  overlay_commit(monitorId, rect) / overlay_cancel()
 send_drop(id, ttl) -> {url, expiresAt}  delete_drop(id)
 get_settings() / set_settings(patch)    get_plan() -> {plan: 'trial'|'expired'|'lifetime'|'sync', trialEndsAt?, syncRenewsAt?, limits}
-license_activate(key) / license_deactivate()
+license_buy(plan) / license_claim(token) / license_restore(email) / license_restore_verify(code) / license_remove_device(id)
 vault_create() / vault_invite() -> {pairUrl, expiresAt} / vault_devices() / vault_revoke(deviceId)
 permissions_status() -> {screen: 'granted'|'denied'|'unknown'} / permissions_open_settings()
 ```
@@ -263,7 +264,7 @@ URL fragments (`#…`) are never sent to the server. The web app must **never** 
 
 ## 7. API (Cloudflare Worker, `https://api.hopshot.xyz/v1`)
 
-Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 32 random bytes (base64url) and are stored as SHA-256 hashes. Plan is attached via `X-Hopshot-License: {licenseKey}` plus `X-Hopshot-Activation: {activationId}` (validated against Polar and cached for 24 h in D1). All request/response bodies are JSON except blobs (`application/octet-stream`). Errors use the shape `{ "error": { "code": "limit_reached", "message": "…" } }`.
+Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 32 random bytes (base64url) and are stored as SHA-256 hashes. Plan is attached via `X-Hopshot-License: {licenseDeviceToken}` (checked against the `license_devices`, `licenses` and `subscriptions` tables in D1; no external call). All request/response bodies are JSON except blobs (`application/octet-stream`). Errors use the shape `{ "error": { "code": "limit_reached", "message": "…" } }`.
 
 ### 7.1 Drops (QR send + share links)
 
@@ -301,20 +302,82 @@ Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 3
 - Server → client events: `{"type":"item.created","item":{…}}`, `{"type":"item.deleted","id":"…"}`, `{"type":"device.joined","device":{…}}`, `{"type":"device.revoked","deviceId":"…"}`.
 - Clients fall back to polling `GET …/items?since=` every 15 s if the socket drops.
 
-### 7.5 Trial and license (proxy to Polar)
+### 7.5 Trial, licenses and billing (Stripe)
 
 **Trial:** the desktop records its first-launch time locally (keychain) and calls `POST /trial/start {installId}` once → `{trialEndsAt}`. The server keeps `trials(install_id, started_at)` so cloud features (drops, vault) stop at the same moment. Reinstall abuse is possible and acceptable at this price.
 
-**Polar setup:** product *Hopshot Lifetime* (one-time, license-key benefit, 3 activations) and product *Hopshot Sync* (subscription, yearly + monthly prices). The Worker resolves the plan from the license key, then checks whether the same Polar customer has an active Sync subscription (cache 24 h; honour `paymentGraceDays`).
+**Stripe setup** (test mode first, then live; the India account used for pre-orders, payouts in INR):
+
+| Product | Price | Lookup key | Metadata |
+|---|---|---|---|
+| Hopshot Lifetime | one-time, $12 at launch, later $19 | `lifetime` | `plan=lifetime` |
+| Hopshot Lifetime + Sync | one-time, $19 | `bundle` | `plan=bundle`, `sync_days=365` |
+| Hopshot Sync | recurring, $24/year | `sync_yearly` | `plan=sync` |
+
+Code refers to prices only by **lookup key**. To change a price (e.g. Lifetime $12 → $19), create a new Price in the dashboard and transfer the lookup key to it; no deploy. Turn on the **customer portal** (update card, invoices, cancel at period end; no plan switching). Turn on Stripe's built-in emails for receipts, failed payments and expiring cards, plus Smart Retries. Turn **off** Stripe's free-trial reminder emails: Hopshot sends its own, and "trial" is the wrong word for an included year.
+
+**Checkout** is created by the Worker, so the website and the app never hold Stripe keys:
+
+- `GET /buy/{lifetime|bundle}?ref=` → Checkout Session with `mode=payment`, `customer_creation=always`, `billing_address_collection=required`, name collection on, `client_reference_id=ref`, `metadata.plan`, `success_url=https://hopshot.xyz/thanks?s={CHECKOUT_SESSION_ID}`, `cancel_url=https://hopshot.xyz/#pricing` → `303`. Stripe India requires the customer's name and billing address on export payments.
+- `POST /billing/sync-checkout` (device token header) → for a Lifetime owner without Sync: Checkout Session with `mode=subscription`, price `sync_yearly`, `customer` = their Stripe customer. If they already have a trialing or paused Sync subscription, return the add-card link instead.
+- `GET /billing/add-card?t={token}` → Checkout Session with `mode=setup` for that customer. On completion, set the card as the Sync subscription's default payment method and resume it if paused.
+- `POST /billing/portal` (device token header) and `GET /billing/manage?t={token}` → customer portal session → `303`.
+
+**Licenses without keys** (`lib/license.ts`). A license is one paid Lifetime or bundle purchase, owned by the Stripe customer (the checkout email); one per Checkout Session, idempotent on the session ID. Users never see it. Each computer holds a **license device token** (32 random bytes in the keychain, stored hashed in `license_devices`) and sends it as `X-Hopshot-License`. A computer gets its token in one of three ways:
+
+1. **In-app purchase (no input):** `POST /buy/start {plan, installId, label}` creates a `claims` row and a Checkout Session with `client_reference_id = claimId`, and returns `{url, claimId}`. The app opens the URL and polls `GET /claims/{claimId}?installId=` every 3 s (up to 30 min, resumed at next launch). When the webhook marks the claim paid, the poll returns the device token once.
+2. **Link (website buyers, founders):** `hopshot://activate?t={token}`, signed, valid 30 days, reusable until the computer limit. The thanks page (`GET /buy/session/{id}`) and the `license_ready` email carry it, as a normal https link `https://hopshot.xyz/activate#t=…` that opens the app (and offers the download if it isn't installed). The desktop registers the `hopshot` scheme with `tauri-plugin-deep-link` and calls `POST /license/claim`.
+3. **Restore (new computer, reinstall):** `POST /license/restore {email, installId}` always returns `202`; if that email owns a license, it emails a 6-digit code (10 min, 5 attempts) and an activation link. `POST /license/restore/verify {email, code, installId, label}` returns the device token.
+
+**3 computers, tracked automatically:** registering again from the same `install_id` reuses its slot. A 4th computer takes the slot of a device not seen for 30+ days (that device is marked removed and falls back to the trial-ended state at its next check). If all 3 were seen within 30 days, the API returns `409 device_limit` with `{pendingId, devices: [{id, label, lastSeenAt}]}`, and the app asks which to remove, then calls `POST /license/claim/finish {pendingId, removeDeviceId}`. `GET /license/status` updates `last_seen_at`; the app calls it at launch and every 7 days.
+
+**Webhook** `POST /webhooks/stripe` (secret `STRIPE_WEBHOOK_SECRET`; verify with `stripe.webhooks.constructEventAsync` and `Stripe.createSubtleCryptoProvider()`; record event IDs in `stripe_events` and skip duplicates):
+
+| Event | Action |
+|---|---|
+| `checkout.session.completed`, `mode=payment`, paid | upsert `customers`; create the license and mark the matching claim (`client_reference_id`) paid; for `plan=bundle`, create the Sync subscription through the API: price `sync_yearly`, `trial_end = now + sync_days`, no payment method, `trial_settings.end_behavior.missing_payment_method = pause`; send `license_ready` |
+| `checkout.session.completed`, `mode=subscription` | upsert `customers` and `subscriptions` (a Lifetime owner added Sync) |
+| `checkout.session.completed`, `mode=setup` | attach the card as the subscription's default payment method; resume it if paused |
+| `customer.subscription.created / updated / deleted / paused / resumed` | upsert `subscriptions` (status, `trial_end`, `current_period_end`, `cancel_at_period_end`, `has_payment_method`); on `paused`, send the "Sync has paused" email |
+| `charge.refunded` (full) | license → `refunded`; cancel the included Sync subscription |
+| `charge.dispute.created` | license → `revoked`; email founder@hopshot.xyz |
+
+**Resolving the plan:** an `active` license → `lifetime`, upgraded to `sync` if the same customer has a subscription that is `trialing` or `active`, or `past_due` for at most `paymentGraceDays`. Everything is read from D1: no external call, no cache.
+
+**Renewal emails (PRD F8.8):** a daily cron at 09:00 UTC; `lib/email.ts` sends through Resend from `Hopshot <founder@hopshot.xyz>`; `emails_sent` makes every send idempotent.
+
+| Email | Who | When |
+|---|---|---|
+| `license_ready` | new license | on purchase or founder import: **Open in Hopshot** button + "restore with this email on other computers" |
+| `restore_code` | restore request | immediately: 6-digit code + activation link |
+| `sync_year_ending` | `trialing`, no card | 7 days before `trial_end` |
+| `sync_paused` | subscription paused | on the `paused` webhook |
+| `sync_renewal_notice` | `active`, card on file, not cancelling | 30 days before `current_period_end` |
+
+Email links use a signed token valid for 30 days (`REMINDER_TOKEN_SECRET`). Reminder emails (not receipts or renewal notices) carry an unsubscribe link. Templates live in `services/api/src/emails/` (HTML + text). `GET /admin/emails/preview` (admin token) lists what the cron would send today.
+
+**Founders and testers:** `POST /admin/licenses` (`ADMIN_TOKEN`) with `{email, name?, plan: "lifetime"|"bundle", source: "founder"|"comp", syncStartsAt?}` creates or reuses the Stripe customer, creates the license and, for `bundle`, the Sync subscription with `trial_end = syncStartsAt + 365 days`, then sends `license_ready`. On launch day, `scripts/export-founders.mjs` lists the paid pre-order sessions into `founders.csv`, and each row is imported with `syncStartsAt` = the launch date (as the pre-order terms promise).
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/license/activate` | `{key, label}` → calls Polar's license-key activate API → `{plan:"lifetime"|"sync", activationId, syncRenewsAt?}`. Enforces 3 activations (configure the limit on the Polar product). |
-| `POST` | `/license/validate` | `{key, activationId}` → `{plan, valid, syncRenewsAt?}` |
 | `POST` | `/trial/start` | `{installId}` → `{trialEndsAt}` (idempotent) |
-| `POST` | `/license/deactivate` | `{key, activationId}` → `204` |
+| `POST` | `/buy/start` | `{plan, installId, label}` → `{url, claimId}` (in-app purchase) |
+| `GET` | `/claims/{claimId}` | `?installId=` → `{status:"pending"}`, or once paid `{deviceToken, plan}` (returned once) |
+| `POST` | `/license/claim` | `{token, installId, label}` → `{deviceToken, plan, syncStatus?, syncEndsAt?}` or `409 device_limit` |
+| `POST` | `/license/claim/finish` | `{pendingId, removeDeviceId}` → same as claim |
+| `POST` | `/license/restore` | `{email, installId}` → always `202` (3/hour per email and per IP) |
+| `POST` | `/license/restore/verify` | `{email, code, installId, label}` → same as claim |
+| `GET` | `/license/status` | device token → `{plan, valid, syncStatus?, syncEndsAt?, email, devices}` |
+| `POST` | `/license/devices/remove` | device token, `{id}` → `204` |
+| `GET` | `/buy/{lifetime|bundle}` | → `303` to Stripe Checkout |
+| `GET` | `/buy/session/{id}` | thanks page → `{plan, activateUrl}` for a paid session created less than 24 h ago |
+| `POST` | `/billing/sync-checkout`, `/billing/portal` | device token → `{url}` |
+| `GET` | `/billing/add-card`, `/billing/manage` | `?t={token}` → `303` |
+| `POST` | `/webhooks/stripe` | → `200` |
+| `POST` | `/admin/licenses` | admin token; founders and testers |
+| `GET` | `/reminders/stop` | `?t={token}` → stops reminder emails |
 
-Check Polar's current license-key API docs when implementing. Keep all Polar-specific code in `lib/polar.ts` so switching to Lemon Squeezy only touches one file.
+Keep all Stripe calls in `lib/stripe.ts` (the `stripe` npm SDK with its fetch HTTP client). Worker secrets (`wrangler secret put`): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `REMINDER_TOKEN_SECRET`, `ADMIN_TOKEN`, with test-mode values in a separate wrangler environment. Check Stripe's current Checkout, Billing (trials, pause) and webhook docs when implementing. Test with the Stripe CLI (`stripe listen`) and a **test clock** to run through the 365-day period.
 
 ### 7.6 Misc
 
@@ -333,7 +396,7 @@ CREATE TABLE drops (
 CREATE INDEX idx_drops_expires ON drops(expires_at);
 
 CREATE TABLE vaults (
-  id TEXT PRIMARY KEY, license_key_hash TEXT NOT NULL, created_at INTEGER NOT NULL
+  id TEXT PRIMARY KEY, owner TEXT NOT NULL, created_at INTEGER NOT NULL   -- owner = license id, or 'trial:{installId}'
 );
 CREATE TABLE devices (
   id TEXT PRIMARY KEY, vault_id TEXT NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,
@@ -353,12 +416,53 @@ CREATE TABLE items (
 CREATE INDEX idx_items_vault_created ON items(vault_id, created_at DESC);
 CREATE INDEX idx_items_expires ON items(expires_at);
 
-CREATE TABLE licenses (
-  key_hash TEXT PRIMARY KEY, plan TEXT NOT NULL CHECK (plan IN ('lifetime','sync')),
-  valid INTEGER NOT NULL, sync_renews_at INTEGER, checked_at INTEGER NOT NULL
+CREATE TABLE customers (
+  stripe_customer_id TEXT PRIMARY KEY, email TEXT NOT NULL, name TEXT,
+  created_at INTEGER NOT NULL, reminders_off_at INTEGER
 );
+CREATE INDEX idx_customers_email ON customers(email);
+CREATE TABLE licenses (
+  id TEXT PRIMARY KEY, customer_id TEXT NOT NULL REFERENCES customers(stripe_customer_id),
+  plan TEXT NOT NULL CHECK (plan IN ('lifetime','bundle')),
+  source TEXT NOT NULL CHECK (source IN ('checkout','founder','comp')),
+  checkout_session_id TEXT UNIQUE, payment_intent_id TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','refunded','revoked')),
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX idx_licenses_customer ON licenses(customer_id);
+CREATE INDEX idx_licenses_pi ON licenses(payment_intent_id);
+CREATE TABLE license_devices (
+  id TEXT PRIMARY KEY, license_id TEXT NOT NULL REFERENCES licenses(id), install_id TEXT NOT NULL,
+  label TEXT, token_hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL, removed_at INTEGER
+);
+CREATE INDEX idx_license_devices_license ON license_devices(license_id);
+CREATE TABLE claims (                -- in-app purchases and pending 4th-computer choices
+  id_hash TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('purchase','device_limit')),
+  install_id TEXT NOT NULL, label TEXT, plan TEXT, checkout_session_id TEXT, license_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending', delivered_at INTEGER, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
+);
+CREATE TABLE restore_codes (
+  email TEXT NOT NULL, install_id TEXT NOT NULL, code_hash TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0, expires_at INTEGER NOT NULL, PRIMARY KEY (email, install_id)
+);
+CREATE TABLE subscriptions (
+  stripe_subscription_id TEXT PRIMARY KEY, customer_id TEXT NOT NULL,
+  status TEXT NOT NULL,                 -- trialing | active | past_due | paused | canceled | ...
+  trial_end INTEGER, current_period_end INTEGER, past_due_since INTEGER,
+  cancel_at_period_end INTEGER NOT NULL DEFAULT 0, has_payment_method INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX idx_subscriptions_customer ON subscriptions(customer_id);
 CREATE TABLE trials (
   install_id TEXT PRIMARY KEY, started_at INTEGER NOT NULL, ip_hash TEXT
+);
+CREATE TABLE stripe_events (
+  id TEXT PRIMARY KEY, type TEXT NOT NULL, received_at INTEGER NOT NULL
+);
+CREATE TABLE emails_sent (           -- period_key = the renewal date, so yearly notices repeat each year
+  subject_id TEXT NOT NULL, kind TEXT NOT NULL, period_key TEXT NOT NULL DEFAULT '',
+  sent_at INTEGER NOT NULL, PRIMARY KEY (subject_id, kind, period_key)
 );
 CREATE TABLE usage (
   day TEXT NOT NULL, subject TEXT NOT NULL, kind TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0,
@@ -374,6 +478,7 @@ CREATE TABLE reports (
 - **Cron every 15 min:** select expired `drops`/`items`, delete their R2 objects, then the rows; delete used or expired `invites`; drop `usage` rows older than 7 days.
 - **R2 lifecycle rule** as a safety net: delete objects under the `d/` and `v/` prefixes 8 days after upload (the maximum TTL is 7 days).
 - R2 keys: `d/{dropId}` and `v/{vaultId}/{itemId}`.
+- **Cron daily (09:00 UTC):** Sync renewal reminders (§7.5).
 
 ### 7.9 Abuse and rate limits
 
@@ -435,7 +540,8 @@ CREATE TABLE reports (
 | Microsoft Store individual account | Free |
 | Domain | ~$10–20 / year |
 | Cloudflare (Workers, R2, D1, DO, Pages) | $0–5 / month at launch scale (Workers Paid $5/mo recommended for headroom) |
-| Polar fees | ~5% + $0.50 per sale |
+| Stripe fees (India account, international cards) | ~4.3% + 2% currency conversion per payment; +0.7% on subscription payments |
+| Resend (email) | Free tier at launch volume |
 | Windows OV certificate (optional, later) | $150–300 / year |
 
 Storage cost per user is negligible: everything is deleted within ≤ 7 days, images are capped at 10 MB, and R2 has no egress fees.

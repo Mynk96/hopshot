@@ -26,7 +26,7 @@
 **Install / update / license**
 - [ ] Clean install on a fresh user account; uninstall leaves no files outside app-data
 - [ ] Update from the previous version via the updater (direct builds)
-- [ ] Activate / deactivate license; a 4th computer is refused with a clear message
+- [ ] Buying in the app unlocks it with no input; the **Open in Hopshot** link and email restore both work; a 4th computer takes an unused slot or asks which computer to remove
 - [ ] Store MSIX installs and runs; the updater is disabled in the Store build
 
 ---
@@ -43,7 +43,8 @@
 | Short description | "Hopshot puts every screenshot on a floating shelf. Drag it into any website, send it to your phone, and it's gone in 24 hours. Mac & Windows." |
 | Landing page | Live, with Download (7-day trial) + Lifetime and Sync checkout; FAQ covers privacy, SmartScreen, macOS permission and refunds |
 | Support | founder@hopshot.xyz + a short FAQ; canned replies for the top 5 questions |
-| Launch discount | Lifetime $15 (instead of $19) for 7 days, via a Polar discount |
+| Launch pricing | Lifetime $12 and Lifetime + Sync $19 for a limited launch period, then $19 / $43; change a price by moving its Stripe lookup key (no deploy). Site buttons go to `https://api.hopshot.xyz/v1/buy/{lifetime|bundle}?ref=…` |
+| Founders | Launch day: run `scripts/export-founders.mjs`, import each row with `POST /admin/licenses` (syncStartsAt = launch date); keys go out by email automatically. Then switch the site's pre-order buttons to the `/buy` links |
 
 ---
 

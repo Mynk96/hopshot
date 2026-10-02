@@ -19,3 +19,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# founder lists (emails + codes) never go in git
+founders*.csv

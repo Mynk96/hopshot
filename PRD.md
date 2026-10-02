@@ -187,12 +187,14 @@ Sections: **General** (launch at login, hotkeys, after-capture actions, theme) �
 |---|---|
 | F8.1 | **7-day free trial of everything** (including Sync) starts on first launch: no account, no card. A small "Trial · 5 days left" chip shows in the shelf footer. |
 | F8.1a | **When the trial ends** without a purchase, capture is paused; the shelf stays readable and draggable until its items expire, and a plans screen offers Lifetime or Lifetime + Sync. Paired phones stop receiving new items. |
-| F8.2 | **Buy** opens the Polar checkout in the browser. The license key is emailed and shown on the success page. **Add Sync** opens the Sync subscription checkout for the same customer. |
-| F8.3 | **Activate:** paste the key in Settings → License. Up to **3 computers** per license; the user can deactivate a computer from Settings. |
+| F8.2 | **Buy** opens Stripe Checkout in the browser (`api.hopshot.xyz/v1/buy/{lifetime|bundle}`) for **Lifetime** or **Lifetime + Sync** (Lifetime plus the first year of Sync, paid once). Checkout asks for name and billing address (required for export payments from India). There is **no license key**: the purchase belongs to the checkout email and unlocks the app automatically (F8.3). **Add Sync** (Lifetime owners) opens Stripe Checkout for the $24/year subscription for the same customer. **Manage Sync** opens the Stripe customer portal (card, invoices, cancel). |
+| F8.3 | **Activation without keys.** Each computer gets a hidden device token kept in the OS keychain. **(a) Bought in the app:** the app unlocks by itself a few seconds after payment; no input. **(b) Bought on the website (and founders):** the thanks page and the purchase email have an **Open in Hopshot** button that unlocks the app in one click. **(c) New computer or reinstall:** "Already bought? Restore" → enter the purchase email → click the link in the email (or type its 6-digit code). **3 computers per purchase, counted automatically:** a 4th computer silently takes the slot of one unused for 30+ days; only if all 3 are in use does the app ask which one to remove. Settings → License lists the computers, each with Remove. |
 | F8.4 | **Offline:** the license is re-checked every 7 days; paid plans keep working for 30 days offline. |
 | F8.5 | Paid features unlock instantly; no restart. |
-| F8.7 | **Sync lapses:** if the subscription is cancelled or a payment fails (7-day grace), Sync features stop at the end of the paid period. Lifetime features keep working forever. Items already on the user's devices stay until they expire. |
-| F8.6 | Deep-link activation (`hopshot://activate?key=…`) from the checkout success page. — **P1** |
+| F8.7 | **Sync lapses:** if Sync is cancelled, its included year ends without a card, or a renewal payment fails (Stripe retries; 7-day grace), Sync features stop at the end of the paid period. Lifetime features keep working forever. Items already on the user's devices stay until they expire. |
+| F8.6 | If Hopshot isn't installed yet when the user clicks **Open in Hopshot**, the page offers the download; the link keeps working after install (valid 30 days, for up to 3 computers). |
+| F8.8 | **Sync renewal at $24/year.** **(a) Included year** (Lifetime + Sync buyers, and $19 founders from the public launch date): Sync starts as a Stripe subscription with 365 free days and **no card on file**, so nobody is charged by surprise. Hopshot emails **7 days before** the year ends, and the app shows a reminder in the shelf footer; both link to a page where the user adds a card. Adding a card any time before the end keeps Sync running, and the first $24 charge happens on the end date (no lost days). With no card, the subscription pauses on the end date, Hopshot emails "Sync has paused (the app keeps working)", and adding a card later resumes it. **(b) Paid yearly Sync** auto-renews; Hopshot emails **30 days before** each renewal with the date, the amount and a one-click manage/cancel link. Reminder emails have a "stop these reminders" link; renewal notices for paid subscriptions are always sent. |
+| F8.9 | **Refunds** (14 days after purchase): refunding a payment in Stripe revokes its license automatically and cancels any included Sync; the app falls back to the trial-ended state at its next check. |
 
 ### F9 — Updates (P0)
 
@@ -209,7 +211,7 @@ On computer A: Settings → Devices → "Link another computer" shows a 12-chara
 
 No free plan. Everyone starts with a **7-day free trial of everything**, then picks one of two options.
 
-| | **Lifetime: $19 once** | **Sync add-on: $24/year** (or $2.99/month) |
+| | **Lifetime: $19 once** ($12 at launch) | **Sync add-on: $24/year** |
 |---|---|---|
 | What it is | The app, forever, on up to 3 computers | Cloud features on top of Lifetime (requires Lifetime) |
 | Hotkey capture, shelf, drag out, copy | ✅ | ✅ |
@@ -222,19 +224,21 @@ No free plan. Everyone starts with a **7-day free trial of everything**, then pi
 | Updates | all 1.x updates | all 1.x updates |
 | If you stop paying | — | Cloud features stop; Lifetime keeps working |
 
-**Founder pre-order (validation phase only):** $19 = Lifetime + the first year of Sync (normally $43). Limited to the first 200 buyers, with a full refund at any time until 14 days after the app ships.
+**Lifetime + Sync bundle:** Lifetime plus the first year of Sync, paid once; Sync then continues at $24/year only if the buyer adds a card (F8.8).
 
-**Launch week:** Lifetime $15 (regular $19). Founder buyers already have a better deal.
+**Founder pre-order (validation phase only):** $19 = Lifetime + the first year of Sync (normally $43). Limited to the first 200 buyers, with a full refund at any time until 14 days after the app ships. On launch day, founders get an email with an **Open in Hopshot** button, created automatically from their Stripe payments (and $19 founders get their Sync year, starting that day); there is nothing to redeem or type.
+
+**Launch pricing:** Lifetime **$12** and Lifetime + Sync **$19** (Lifetime + the first year of Sync), the same as founder prices, for a limited launch period. After that: Lifetime $19 and Lifetime + Sync $43 (or a small bundle discount). The site shows $19 / $43 struck through, so the price must actually go up when the launch period ends.
 
 **Pricing reasons**
 
 - **One-time for what costs nothing to run, subscription for what does.** Local features have no running cost, so they're sold once. Sync uses servers every day, so it's billed yearly. CleanShot X uses the same split (one-time app + cloud subscription).
 - **Sync is an add-on, not a separate app plan.** Nobody loses the app if they cancel, which makes the subscription an easy yes and keeps support simple.
 - **No free plan, but a full trial.** A free plan mostly attracts people who never pay. A 7-day trial of everything (including Sync) shows the full "wow" (capture on laptop → appears on phone) and then asks for money.
-- **Yearly first.** Polar charges roughly 5% + $0.50 per payment: about 7% of a $24 yearly payment but about 22% of a $2.99 monthly one. Show yearly by default; monthly is a small link.
+- **Yearly only at launch.** One Sync price is simpler to explain and to remind people about. A monthly price can be added later as a second Stripe Price without code changes.
 - **Comparable prices:** Gyazo Pro is $4.99/month; CleanShot X is about $35 one-time plus a monthly cloud plan; Dropover and Yoink are under $15 one-time. $19 + $24/year sits in the middle.
-- **Merchant of record: Polar.** It handles global VAT/GST, supports payouts to India, and supports one-time products, subscriptions and license keys. **Lemon Squeezy** is the fallback (India payouts via PayPal).
-- **Net per sale** ≈ $17.55 for Lifetime at $19, and ≈ $22.30 per yearly Sync payment.
+- **Payments: Stripe, directly.** BAS Technologies is the seller, and Hopshot tracks purchases and computers itself (no license keys). Foreign sales are exports of services, zero-rated for GST under a LUT; Indian customers pay 18% GST. EU/UK VAT on consumer sales is a known, accepted risk at launch: revisit with the CA if EU/UK sales grow, and move to a merchant of record (e.g. Polar) if it becomes a burden.
+- **Net per sale** (Stripe India, international card in USD: 4.3% + 2% currency conversion, plus 0.7% Stripe Billing on subscriptions): ≈ $11.25 for Lifetime at $12, ≈ $17.80 for Lifetime + Sync at $19, ≈ $22.30 per yearly Sync renewal.
 - **Rough revenue picture:** 100 Lifetime buyers = $1,900 once. 100 Sync subscribers = about $2,400 every year (~$200 a month recurring).
 - A 2.x major version *may* be a paid upgrade later. Say "all 1.x updates included" on the pricing page and nothing more.
 
@@ -246,7 +250,7 @@ No free plan. Everyone starts with a **7-day free trial of everything**, then pi
 |---|---|
 | **Performance** | Idle RAM < 80 MB · idle CPU ≈ 0% · overlay appears < 300 ms after the hotkey · cold start < 1.5 s · installer < 15 MB |
 | **Privacy** | Images leave the device only when the user sends/shares them or has turned on auto-sync. Everything is end-to-end encrypted, the server stores only ciphertext, and keys never reach the server. No accounts. |
-| **Security** | Device tokens, the vault key and the license key are stored in the OS keychain (macOS Keychain / Windows Credential Manager). Tokens are hashed on the server. All traffic uses TLS. Uploads are rate-limited per IP and per vault. |
+| **Security** | Device tokens, the vault key and the license device token are stored in the OS keychain (macOS Keychain / Windows Credential Manager). Tokens are hashed on the server. All traffic uses TLS. Uploads are rate-limited per IP and per vault. |
 | **Retention** | Server deletes drops and vault items at expiry. A storage lifecycle rule acts as a second safety net. Invites expire after 10 min. |
 | **Reliability** | If the network fails, the local shelf keeps working; uploads retry 3 times with backoff and then show a clear error. |
 | **Accessibility** | Full keyboard control of the shelf and settings, visible focus rings, contrast ≥ 4.5:1, respects reduced-motion. |
@@ -315,7 +319,7 @@ Test on both **macOS** and **Windows** in Chrome, Edge and Safari (Mac only) plu
 |---|---|
 | 1 | Desktop core: tray app, hotkey, capture overlay (Mac + Win), shelf, drag-out, copy, expiry |
 | 2 | Backend + encrypted drops + QR send + viewer page; settings; onboarding |
-| 3 | Trial + licensing (Polar Lifetime + Sync), vault pairing, phone web app (feed + upload), live sync; packaging/signing; private beta (20 users) |
+| 3 | Trial + licensing (Stripe: Lifetime, Lifetime + Sync, Sync renewals), vault pairing, phone web app (feed + upload), live sync; packaging/signing; private beta (20 users) |
 | 4 | Fix beta issues, landing page, Store listing, launch assets → **launch week** |
 
 Details: `BUILD_PLAN.md`. Launch checklist: `docs/LAUNCH.md`.
@@ -325,6 +329,6 @@ Details: `BUILD_PLAN.md`. Launch checklist: `docs/LAUNCH.md`.
 ## 13. Open questions
 
 1. Trademark search for "Hopshot" (USPTO/WIPO) and Microsoft Store name reservation.
-2. Store version pricing: the Store listing is a free download with the in-app 7-day trial and Polar checkout (Microsoft allows non-game apps to use their own payment system; confirm current Store policy before submitting).
+2. Store version pricing: the Store listing is a free download with the in-app 7-day trial and Stripe checkout (Microsoft allows non-game apps to use their own payment system; confirm current Store policy before submitting).
 3. Founder pre-order: cap at 200 buyers or at 7 days, whichever comes first?
 4. Is it worth making Window capture (F1.6) P0 for Mac users, who expect it from ⌘⇧4 + Space?

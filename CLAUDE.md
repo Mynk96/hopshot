@@ -21,7 +21,7 @@ config/limits.json   ← the ONLY place plan limits live
 marketing/           pre-launch landing page (static, deployed by Cloudflare Pages from marketing/site), demo assets, posts
 ```
 
-`marketing/` is hand-maintained and live in production. Don't change it unless a task says so.
+`marketing/` is hand-maintained and live in production. Don't change it unless a task says so. The root `wrangler.jsonc` deploys `marketing/site` to hopshot.xyz on every push to `main`. Don't modify or replace it; the API Worker gets its own config in `services/api/`.
 
 ## Commands
 

@@ -17,7 +17,7 @@ Everything needed to build and launch **Hopshot** with Claude Code: a small Mac 
 ## Start here
 
 1. Create an empty folder, copy this pack into it, and run `git init && git add . && git commit -m "Product pack"`.
-2. Do **Day 0** in `BUILD_PLAN.md` (Apple, Microsoft Partner Center, Cloudflare, Polar), because some approvals take days.
+2. Do **Day 0** in `BUILD_PLAN.md` (Apple, Microsoft Partner Center, Cloudflare, Stripe, Resend), because some approvals take days.
 3. Open the folder in Claude Code and paste **Prompt 0.1** from `BUILD_PLAN.md`.
 
 Product name: **Hopshot** · domain: **hopshot.xyz**.

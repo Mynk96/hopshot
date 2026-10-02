@@ -166,7 +166,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **General:** Launch at login · Capture hotkey · Show shelf hotkey · After capture: [✓] Copy to clipboard [✓] Show shelf · Theme: System / Light / Dark.
 - **Shelf:** Position Left/Right · Auto-hide 4s/8s/15s/Never · Keep items 1h / **24h** / 7d · Remove after drag · Catch other screenshots (P1).
 - **Devices:** paired list (icon, name, last seen, Revoke) · `Pair a phone` · `Link another computer` (P1) · Auto-sync captures to my devices.
-- **License:** plan card (Trial · N days left / Lifetime / Lifetime + Sync with renewal date), key field + Activate, "Deactivate this computer", `Buy Hopshot` or `Add Sync` or `Manage subscription`.
+- **License:** plan card (Trial · N days left / Lifetime / Lifetime + Sync with renewal date) and the purchase email; **Computers (n of 3)** with Remove on each; `Buy Hopshot`, `Add Sync` or `Manage subscription`; during the trial, **Already bought? Restore**. No key field anywhere.
 - **Privacy:** Anonymous usage stats (off) · Crash reports (off) · `Delete all my cloud data` (danger, with a confirm step).
 - **About:** version, Check for updates, Website, Support email, Licenses.
 
@@ -180,9 +180,11 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 ### S9 — Plans sheet
 
 - Two columns, **Lifetime** vs **Lifetime + Sync** (the table from PRD §7, trimmed to the 6 most important rows). Lifetime owners see only the Sync column.
-- Price block: **$19 once** (launch week ~~$19~~ $15) · **+ $24/year for Sync** ("or $2.99 monthly" as a small link).
-- Buttons: `Buy Lifetime` · `Buy Lifetime + Sync` (primary) · `I have a key`.
-- Trust line: "Secure checkout by Polar · 14-day refund".
+- Price block: **Lifetime $12** (launch price, later $19) · **Lifetime + Sync $19** (includes the first year of Sync, then $24/year, optional). Lifetime owners see only **Add Sync · $24/year**.
+- Buttons: `Buy Lifetime` · `Buy Lifetime + Sync` (primary) · `Already bought? Restore`.
+- After a Buy click the sheet shows "Finish paying in your browser…" and unlocks by itself when payment completes ("You're all set"). Restore: email field → "Check your email" → the link opens the app, or a 6-digit code field.
+- Fourth computer: "Hopshot is on 3 computers. Remove one to use it here." with the list (name, last used) and Remove buttons.
+- Trust line: "Secure checkout by Stripe · 14-day refund".
 
 ---
 
