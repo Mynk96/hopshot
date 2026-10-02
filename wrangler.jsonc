@@ -1,0 +1,11 @@
+// Cloudflare deploy config for the hopshot.xyz landing page.
+// Workers Builds runs `npx wrangler deploy` on every push to main and serves
+// the static files in marketing/site. "name" must match the Worker's name in
+// the Cloudflare dashboard.
+{
+  "name": "hopshot",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./marketing/site"
+  }
+}

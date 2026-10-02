@@ -1,0 +1,21 @@
+# dependencies & builds
+node_modules/
+dist/
+build/
+.astro/
+target/
+.wrangler/
+.turbo/
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
