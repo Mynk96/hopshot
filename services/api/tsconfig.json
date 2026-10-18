@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    // worker-configuration.d.ts (committed, regenerate with `pnpm cf-typegen`) supplies the
+    // workerd runtime types; the pool-workers types supply the `cloudflare:test` module.
+    "types": ["node", "@cloudflare/vitest-pool-workers/types"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts", "worker-configuration.d.ts"]
+}
