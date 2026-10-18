@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Base capability for Hopshot's windows.",
+  "windows": [
+    "settings",
+    "shelf",
+    "overlay-*"
+  ],
+  "permissions": [
+    "core:default",
+    "drag:default",
+    "dialog:default",
+    "opener:default",
+    "autostart:default"
+  ]
+}
