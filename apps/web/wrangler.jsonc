@@ -1,0 +1,27 @@
+{
+  // Config for the Astro web app, deployed as a Worker with static assets.
+  //
+  // The Cloudflare adapter generates dist/server/wrangler.json at build time and merges
+  // this on top, so the Worker name and the SESSION binding live here rather than being
+  // regenerated with defaults on every build.
+  //
+  // NOT to be confused with the repo-root wrangler.jsonc, which deploys the marketing site
+  // to hopshot.xyz. This one is apps/web only.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hopshot-web",
+  "compatibility_date": "2026-10-06",
+  "observability": { "enabled": true },
+
+  // The viewer is what a QR code points at, so it carries the brand. A subdomain keeps it
+  // off the apex, which the separate marketing Worker serves — see the root wrangler.jsonc.
+  "routes": [{ "pattern": "app.hopshot.xyz", "custom_domain": true }],
+
+  // Astro's session store. Nothing in Hopshot uses sessions yet, but the adapter binds it
+  // unconditionally and deploy fails without an id.
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "62b1367e469b4e0da03d5e6a5f289703"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+---
+import { DropViewer } from "../../components/DropViewer.tsx";
+import Base from "../../layouts/Base.astro";
+
+/**
+ * Drop viewer (DESIGN S6, ARCHITECTURE §8).
+ *
+ * The key arrives in the URL **fragment**, which browsers never transmit. The server sees
+ * the id in the path and nothing else — never the key (CLAUDE.md rule 1).
+ *
+ * Server-rendered rather than prerendered: a drop id is 128 random bits, so there is no
+ * build-time list of paths to generate. The response itself is a static shell; all the work
+ * happens in the island.
+ */
+export const prerender = false;
+
+const { id } = Astro.params;
+---
+
+<Base title="Hopshot">
+  <!-- client:only — the island needs location.hash, which does not exist during SSR. -->
+  <DropViewer client:only="react" id={id!} />
+</Base>
