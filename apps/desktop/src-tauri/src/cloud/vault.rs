@@ -95,6 +95,38 @@ pub fn credentials() -> Result<Option<VaultCredentials>, VaultError> {
     Ok(secrets::vault_credentials()?)
 }
 
+/// What `POST /trial/start` reports back (ARCHITECTURE §7.5).
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Trial {
+    pub started_at: i64,
+    pub ends_at: i64,
+    pub days: u32,
+    pub active: bool,
+}
+
+/// Record the start of the 7-day trial, server-side (PRD F8).
+///
+/// Deliberately non-fatal. A failure here is worth a log line but not a thrown error: the
+/// call that follows is the one that actually decides whether the user is allowed a vault,
+/// and it reports the real reason in the DESIGN §5 voice. Turning a flaky trial ping into
+/// the user's error message would hide that.
+pub fn ensure_trial(install_id: &str) {
+    match client::post_json::<_, Trial>(
+        "/trial/start",
+        &serde_json::json!({}),
+        &[("X-Hopshot-Install", install_id)],
+    ) {
+        Ok(trial) => log::info!(
+            "trial: {} ({} day(s), ends {})",
+            if trial.active { "active" } else { "ended" },
+            trial.days,
+            trial.ends_at
+        ),
+        Err(error) => log::warn!("could not record the trial start: {error}"),
+    }
+}
+
 fn require_credentials() -> Result<VaultCredentials, VaultError> {
     credentials()?.ok_or(VaultError::NotPaired)
 }
@@ -110,6 +142,12 @@ pub fn create(install_id: &str, device_name: &str) -> Result<VaultCredentials, V
         device_name: &'a str,
         kind: &'a str,
     }
+
+    // Without this the vault cannot be created at all: `resolvePlan` reads the `trials`
+    // table, `lifetime.vault` is false, and `POST /vaults` answers 403. Idempotent on the
+    // install id, so re-posting returns the original start date rather than extending the
+    // trial (ARCHITECTURE §7.5).
+    ensure_trial(install_id);
 
     let enrolment: Enrolment = client::post_json(
         "/vaults",
