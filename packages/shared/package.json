@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./limits": "./src/limits.ts",
     "./brand": "./src/brand.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./controls.css": "./src/controls.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

@@ -1,10 +1,20 @@
 ---
 import Base from "../layouts/Base.astro";
+import Pair from "../components/Pair.tsx";
+
+/*
+ * PRD F4.1 — the page a pairing QR opens.
+ *
+ * `client:only` rather than `client:load`: everything this screen decides depends on
+ * `location.hash`, `navigator` and IndexedDB, none of which exist during the build. Rendering
+ * it on the server would emit a flash of the wrong state — usually "this link is incomplete",
+ * because the server cannot see a fragment at all.
+ *
+ * The page stays prerendered: it is a static shell around one island, and the fragment never
+ * reaches the server by design.
+ */
 ---
 
-<Base title="Pair your phone">
-  <main class="mx-auto max-w-2xl p-8">
-    <h1 class="text-display">Pair your phone</h1>
-    <p class="mt-4 text-body text-text-2">Reads #code.key and calls POST /pair (ARCHITECTURE §8). Phase 5. The fragment is never sent to the server or logged.</p>
-  </main>
+<Base title="Pair your phone" noindex appShell>
+  <Pair client:only="react" />
 </Base>

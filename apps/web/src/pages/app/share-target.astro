@@ -1,0 +1,29 @@
+---
+import Base from "../../layouts/Base.astro";
+
+/*
+ * PRD F4.6 — the Android share target.
+ *
+ * In normal operation the service worker intercepts this POST and the request never reaches
+ * the server (see public/sw.js). This page is the fallback for the one case where it can:
+ * a share attempted before the worker has ever activated, i.e. before /app has been opened
+ * once. Without it, Android shows a bare 404 from inside the share sheet.
+ */
+export const prerender = false;
+
+if (Astro.request.method === "POST") {
+  // The body cannot be handed to a page, so there is nothing to do but send them into the
+  // app, where the worker will exist for next time.
+  return Astro.redirect("/app", 303);
+}
+---
+
+<Base title="Hopshot" noindex appShell>
+  <main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-3 p-6">
+    <h1 class="text-heading">Open Hopshot first</h1>
+    <p class="text-body text-text-2">
+      Open Hopshot once from your Home Screen, then sharing to it will work.
+    </p>
+    <a class="btn btn-primary self-start" href="/app">Open Hopshot</a>
+  </main>
+</Base>

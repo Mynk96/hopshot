@@ -4,18 +4,51 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description?: string;
+  /** Keep this page out of search results: /pair and /app are per-device, not content. */
+  noindex?: boolean;
+  /** The phone app wants the full viewport and its own chrome colour. */
+  appShell?: boolean;
 }
 
-const { title, description = "Screenshots that clean up after themselves." } = Astro.props;
+const {
+  title,
+  description = "Screenshots that clean up after themselves.",
+  noindex = false,
+  appShell = false,
+} = Astro.props;
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      `viewport-fit=cover` lets the app shell paint under the iPhone notch and home
+      indicator; the safe-area insets are then handled in CSS.
+    -->
+    <meta
+      name="viewport"
+      content={
+        appShell
+          ? "width=device-width, initial-scale=1, viewport-fit=cover"
+          : "width=device-width, initial-scale=1"
+      }
+    />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {
+      appShell && (
+        <>
+          <meta name="theme-color" content="#1c1c21" />
+          <link rel="manifest" href="/manifest.webmanifest" />
+          {/* iOS ignores the manifest's display mode and reads this instead. */}
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="apple-mobile-web-app-title" content="Hopshot" />
+        </>
+      )
+    }
   </head>
   <body class="min-h-dvh bg-surface-solid text-text">
     <slot />
