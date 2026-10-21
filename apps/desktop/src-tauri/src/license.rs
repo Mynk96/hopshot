@@ -16,7 +16,6 @@ pub fn open_checkout<R: Runtime>(_app: &AppHandle<R>, plan: Plan) {
     log::info!("license::open_checkout({plan:?}) — stub until Phase 4");
 }
 
-/// Stub: PRD F5.1 pairing starts here. Phase 5.
-pub fn start_pairing<R: Runtime>(_app: &AppHandle<R>) {
-    log::info!("license::start_pairing() — stub until Phase 5");
-}
+// `start_pairing` is gone: pairing is implemented in `cloud::vault` and reached through
+// Settings -> Devices. The stub here was wired to the tray menu, so the menu item silently
+// did nothing.

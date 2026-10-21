@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../shelf/icons";
 import { Devices } from "./Devices";
@@ -28,6 +29,19 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 
 export default function Settings() {
   const [tab, setTab] = useState<Tab>("general");
+
+  /*
+   * The tray's "Pair phone…" opens this window and asks for a tab (DESIGN S1). Rust emits
+   * the event rather than the window being opened at a URL, because the window already
+   * exists and is only revealed — reloading it to carry a query string would throw away
+   * whatever the user had open.
+   */
+  useEffect(() => {
+    const subscription = listen<Tab>("settings:tab", (event) => setTab(event.payload));
+    return () => {
+      void subscription.then((off) => off());
+    };
+  }, []);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [conflicts, setConflicts] = useState<HotkeyConflict[]>([]);
   const [plan, setPlan] = useState<PlanStatus | null>(null);

@@ -69,7 +69,19 @@ pub fn base_url() -> String {
 /// silently and the app falls back to production, which does not resolve yet. One line at
 /// startup turns that into something you can see.
 pub fn log_endpoints() {
-    log::info!("API base: {}", base_url());
+    let base = base_url();
+    if base == DEFAULT_BASE {
+        log::info!("API base: {base}");
+    } else {
+        /*
+         * An override is the single most likely reason for every request failing at once —
+         * a stale value survives in a shell profile long after the host it names has gone.
+         * `hopshot-api.mayank-harsani.workers.dev` is the specific trap here: it stopped
+         * serving the moment the Worker moved to a custom domain, and now answers every
+         * path with Cloudflare's plain-text "error code: 1042".
+         */
+        log::warn!("API base OVERRIDDEN to {base} via HOPSHOT_API_BASE (production is {DEFAULT_BASE})");
+    }
 }
 
 fn agent() -> ureq::Agent {

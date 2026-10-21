@@ -23,7 +23,7 @@ use std::borrow::Cow;
 
 use tauri::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{http, AppHandle, Manager, Runtime, WebviewWindow};
+use tauri::{http, AppHandle, Emitter, Manager, Runtime, WebviewWindow};
 
 use crate::limits::Plan;
 use crate::settings::Settings;
@@ -346,7 +346,15 @@ fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
         menu_id::CAPTURE_SCREEN => capture::start(app, capture::Mode::Screen),
         menu_id::SHOW_SHELF => shelf::show(app),
         menu_id::SEND_LAST => shelf::send_last_to_phone(app),
-        menu_id::PAIR_PHONE => license::start_pairing(app),
+        menu_id::PAIR_PHONE => {
+            // Settings -> Devices is where pairing lives (DESIGN S7); the tray item is a
+            // shortcut to it. It used to call a stub that only wrote a log line, so the
+            // menu item appeared to do nothing at all.
+            if let Err(error) = show_settings_window(app) {
+                log::error!("could not open Settings to pair: {error}");
+            }
+            let _ = app.emit("settings:tab", "devices");
+        }
         menu_id::BUY => license::open_checkout(app, license::current_plan(app)),
         menu_id::SETTINGS => {
             if let Err(error) = show_settings_window(app) {
