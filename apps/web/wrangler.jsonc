@@ -12,6 +12,11 @@
   "compatibility_date": "2026-10-06",
   "observability": { "enabled": true },
 
+  // Serve /pair and /app without the default 307 to /pair/. A pairing QR encodes the vault
+  // key in its fragment, and a redirect on that path relies on the client carrying the
+  // fragment across it — every browser does, but a QR scanner app need not be a browser.
+  "assets": { "html_handling": "drop-trailing-slash" },
+
   // The viewer is what a QR code points at, so it carries the brand. A subdomain keeps it
   // off the apex, which the separate marketing Worker serves — see the root wrangler.jsonc.
   "routes": [{ "pattern": "app.hopshot.xyz", "custom_domain": true }],

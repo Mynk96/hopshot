@@ -3,7 +3,7 @@
 //! ```text
 //! item PNG ─▶ fresh 256-bit key ─▶ HOP1 seal ─▶ POST /drops/{id}?ttl=
 //!          ─▶ store {dropId, key, deleteToken, expiresAt} on the item row
-//!          ─▶ https://hopshot.xyz/d/{id}#{key}
+//!          ─▶ https://app.hopshot.xyz/d/{id}#{key}
 //! ```
 //!
 //! **The key is never sent anywhere.** It is generated here, used to seal, written to the
@@ -19,8 +19,15 @@ use crate::crypto::{self, EnvelopeError, Kind};
 use crate::shelf::store::StoreError;
 use crate::shelf::ShelfError;
 
-/// Where the viewer lives (ARCHITECTURE §6). Overridable so a Pages preview can be tested.
-const DEFAULT_VIEWER_BASE: &str = "https://hopshot.xyz";
+/// Where the viewer and the phone app live.
+///
+/// **Not the apex.** ARCHITECTURE §8 writes these URLs as `hopshot.xyz/d/:id` and
+/// `hopshot.xyz/pair`, but the apex is served by the separate marketing Worker (see the
+/// repo-root wrangler.jsonc), which has no such routes — a QR pointing there 404s. The Astro
+/// app is deployed to `app.hopshot.xyz`, so that is what the codes have to encode.
+///
+/// Overridable via `HOPSHOT_VIEWER_BASE` so a preview deployment can be tested.
+const DEFAULT_VIEWER_BASE: &str = "https://app.hopshot.xyz";
 
 #[derive(Debug, Error)]
 pub enum DropError {
@@ -52,14 +59,14 @@ struct CreatedDrop {
 #[serde(rename_all = "camelCase")]
 pub struct Drop {
     pub id: String,
-    /// `https://hopshot.xyz/d/{id}#{key}` — the key is in the fragment.
+    /// `https://app.hopshot.xyz/d/{id}#{key}` — the key is in the fragment.
     pub url: String,
     pub expires_at: i64,
     /// The QR as an inline SVG, rendered in Rust so the UI stays a view (rule 3).
     pub qr_svg: String,
 }
 
-/// Viewer base URL. `HOPSHOT_VIEWER_BASE` points a staging build at a Pages preview.
+/// Viewer base URL. `HOPSHOT_VIEWER_BASE` points a staging build at a preview deployment.
 ///
 /// Shared with `cloud::vault`, which builds the pairing URL against the same host — two
 /// copies could drift and send a staging build's pairing QR to production.
@@ -200,6 +207,21 @@ pub fn install_id<R: Runtime>(app: &AppHandle<R>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression: the default was the apex, which the marketing Worker serves. Every
+    /// pairing QR and share link 404'd because neither /pair nor /d/ exists there.
+    #[test]
+    fn the_viewer_base_is_not_the_marketing_apex() {
+        // Only meaningful without the override, which is the normal case.
+        if std::env::var("HOPSHOT_VIEWER_BASE").is_ok() {
+            return;
+        }
+
+        assert_eq!(viewer_base(), "https://app.hopshot.xyz");
+        assert_ne!(viewer_base(), "https://hopshot.xyz");
+        // And no trailing slash, since every caller appends a path beginning with `/`.
+        assert!(!viewer_base().ends_with('/'));
+    }
 
     #[test]
     fn the_url_puts_the_key_in_the_fragment() {

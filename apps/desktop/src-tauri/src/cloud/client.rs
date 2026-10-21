@@ -69,6 +69,16 @@ pub fn base_url() -> String {
 /// silently and the app falls back to production, which does not resolve yet. One line at
 /// startup turns that into something you can see.
 pub fn log_endpoints() {
+    // The viewer base is the same trap and the more damaging one: it is baked into every QR
+    // code, so a stale value produces codes that 404 on a phone with nothing wrong on this
+    // machine to point at.
+    let viewer = crate::cloud::drops::viewer_base();
+    if std::env::var("HOPSHOT_VIEWER_BASE").is_ok() {
+        log::warn!("viewer base OVERRIDDEN to {viewer} via HOPSHOT_VIEWER_BASE");
+    } else {
+        log::info!("viewer base: {viewer}");
+    }
+
     let base = base_url();
     if base == DEFAULT_BASE {
         log::info!("API base: {base}");

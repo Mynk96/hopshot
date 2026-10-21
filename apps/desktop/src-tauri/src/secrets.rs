@@ -91,21 +91,31 @@ pub struct VaultCredentials {
 /// someone edited by hand; treating that as "not paired" is the only safe reading, because
 /// a token without its key can reach the server but cannot decrypt anything it finds.
 pub fn vault_credentials() -> Result<Option<VaultCredentials>, SecretError> {
-    let (Some(vault_id), Some(device_id), Some(device_token), Some(vault_key)) = (
+    Ok(assemble(
         get(VAULT_ID)?,
         get(DEVICE_ID)?,
         get(DEVICE_TOKEN)?,
         get(VAULT_KEY)?,
-    ) else {
-        return Ok(None);
-    };
+    ))
+}
 
-    Ok(Some(VaultCredentials {
-        vault_id,
-        device_id,
-        device_token,
-        vault_key,
-    }))
+/// The all-or-nothing rule, as a pure function.
+///
+/// Separated from [`vault_credentials`] so it can be tested without touching the real
+/// keychain: a test that wrote to the live `vault-id` entry to simulate a partial set would
+/// overwrite — and on cleanup delete — an actual pairing.
+fn assemble(
+    vault_id: Option<String>,
+    device_id: Option<String>,
+    device_token: Option<String>,
+    vault_key: Option<String>,
+) -> Option<VaultCredentials> {
+    Some(VaultCredentials {
+        vault_id: vault_id?,
+        device_id: device_id?,
+        device_token: device_token?,
+        vault_key: vault_key?,
+    })
 }
 
 /// Store a fresh enrolment. Written key-first: a token with no key is useless, so if this is
@@ -161,14 +171,31 @@ mod tests {
         delete(&name).expect("second delete");
     }
 
+    /// A token without its key could reach the server but decrypt nothing, so a partial set
+    /// has to read as "not paired" rather than half-working.
+    ///
+    /// Tests [`assemble`] rather than [`vault_credentials`] on purpose. The previous version
+    /// of this test wrote a dummy value to the live `vault-id` entry and deleted it on
+    /// cleanup, which destroyed a real pairing on any machine that had one — and failed
+    /// whenever the other three entries existed, which is exactly when it mattered.
     #[test]
     fn a_partial_credential_set_reads_as_not_paired() {
-        // Written directly rather than through save_*, to simulate an interrupted write.
-        set(VAULT_ID, "vault-partial").expect("write the id");
-        let loaded = vault_credentials().expect("load");
-        let _ = delete(VAULT_ID);
+        let full = assemble(
+            Some("vault".into()),
+            Some("device".into()),
+            Some("token".into()),
+            Some("key".into()),
+        );
+        assert!(full.is_some());
 
-        // A token without its key could talk to the server but decrypt nothing.
-        assert!(loaded.is_none(), "a partial set must not look like a pairing");
+        // Every one of the four missing on its own must read as not paired.
+        let present = || Some("x".to_string());
+        assert!(assemble(None, present(), present(), present()).is_none());
+        assert!(assemble(present(), None, present(), present()).is_none());
+        assert!(assemble(present(), present(), None, present()).is_none());
+        assert!(
+            assemble(present(), present(), present(), None).is_none(),
+            "a vault key is the one that cannot be re-derived"
+        );
     }
 }
