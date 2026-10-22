@@ -167,6 +167,38 @@ pub fn delete_cloud_data(app: AppHandle) -> Result<(), String> {
     cloud::vault::delete_everything().map_err(|error| error.to_string())
 }
 
+/// Which phones this item can be sent to without a QR (DESIGN S4).
+///
+/// Empty means nothing is paired, and the send sheet shows a QR instead.
+#[tauri::command]
+pub fn paired_phones(app: AppHandle) -> Result<Vec<String>, String> {
+    let _ = &app;
+    // Offline is not an error here: it just means we cannot confirm a phone, and the sheet
+    // falls back to the QR, which is the safe default.
+    Ok(cloud::vault::paired_phones().unwrap_or_default())
+}
+
+/// `send_to_phones(id)` — put the item in the vault so it lands on the paired phones.
+///
+/// Returns the names it reached. An empty list means nothing was paired and the caller
+/// should offer the QR.
+#[tauri::command]
+pub fn send_to_phones(app: AppHandle, id: String) -> Result<Vec<String>, String> {
+    cloud::vault::send_to_phones(&app, &id).map_err(|error| error.to_string())
+}
+
+/// Widen the shelf while the send sheet is open (DESIGN S4 wants a 260 px popover, which
+/// does not fit in a 208 px window), and narrow it again on close.
+#[tauri::command]
+pub fn set_shelf_wide(app: AppHandle, wide: bool, height: f64) {
+    let width = if wide {
+        shelf::SHELF_WIDTH_WITH_SHEET
+    } else {
+        shelf::SHELF_WIDTH
+    };
+    shelf::set_size(&app, width, height);
+}
+
 /// Did the OS give the shelf a backdrop? Decides glass vs. solid (DESIGN §7).
 #[tauri::command]
 pub fn shelf_has_vibrancy(app: AppHandle) -> bool {

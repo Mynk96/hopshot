@@ -322,15 +322,27 @@ pub fn toggle<R: Runtime>(app: &AppHandle<R>) {
 
 /// Resize the shelf to fit its content, up to DESIGN S3's 80% of the screen.
 pub fn set_height<R: Runtime>(app: &AppHandle<R>, logical_height: f64) {
+    set_size(app, SHELF_WIDTH, logical_height);
+}
+
+/// Resize the shelf and re-park it.
+///
+/// The width is a parameter because of the send sheet: DESIGN S4 specifies a 260 px popover,
+/// which cannot fit inside a 208 px window — the QR ends up around 148 px, too dense for a
+/// phone camera to lock onto. The shelf widens while that sheet is open and returns to
+/// [`SHELF_WIDTH`] when it closes.
+pub fn set_size<R: Runtime>(app: &AppHandle<R>, logical_width: f64, logical_height: f64) {
     let Some(window) = app.get_webview_window(SHELF_WINDOW) else {
         return;
     };
-    let _ = window.set_size(tauri::LogicalSize::new(SHELF_WIDTH, logical_height));
+    let _ = window.set_size(tauri::LogicalSize::new(logical_width, logical_height));
     let _ = position(app, &window);
 }
 
 /// DESIGN S3: 208 px wide.
-const SHELF_WIDTH: f64 = 208.0;
+pub const SHELF_WIDTH: f64 = 208.0;
+/// Wide enough for DESIGN S4's 260 px send sheet, plus the shelf's own padding.
+pub const SHELF_WIDTH_WITH_SHEET: f64 = 300.0;
 /// DESIGN S3: 12 px from the screen edge.
 const SHELF_MARGIN: f64 = 12.0;
 

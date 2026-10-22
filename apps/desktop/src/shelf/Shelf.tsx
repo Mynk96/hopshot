@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "./icons";
 import { ItemCard } from "./ItemCard";
 import { MoreMenu } from "./MoreMenu";
-import { QrPopover } from "./QrPopover";
+import { SendSheet } from "./SendSheet";
 import { useAutoHide } from "./useAutoHide";
 import { useShelfKeys } from "./useShelfKeys";
 import type { ShelfItem, Toast } from "./types";
@@ -304,7 +304,7 @@ export default function Shelf() {
       <Footer count={items.length} />
 
       {qrFor && (
-        <QrPopover itemId={qrFor} onClose={() => setQrFor(null)} onToast={flash} />
+        <SendSheet itemId={qrFor} onClose={() => setQrFor(null)} onToast={flash} />
       )}
 
       {menuItem && (

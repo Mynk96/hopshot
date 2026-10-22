@@ -379,6 +379,61 @@ pub fn sync_capture_in_background<R: tauri::Runtime>(
     });
 }
 
+/// The paired phones this item could be sent to, newest pairing last.
+///
+/// Empty when nothing is paired, which is what makes the send sheet fall back to a QR.
+pub fn paired_phones() -> Result<Vec<String>, VaultError> {
+    let Some(_credentials) = credentials()? else {
+        return Ok(Vec::new());
+    };
+
+    Ok(devices()?
+        .into_iter()
+        .filter(|device| device.kind == "phone")
+        .map(|device| device.name)
+        .collect())
+}
+
+/// Send one shelf item straight to the paired phones (DESIGN S4, PRD F3).
+///
+/// This is what "Send to phone" should do once a phone exists: the item goes into the vault
+/// and appears in the phone's feed within seconds, with no QR to scan and no public link
+/// created at all. The QR path is for the un-paired case and for sharing with other people.
+///
+/// Returns the names it went to, so the UI can say "Sent to Mayank's iPhone".
+pub fn send_to_phones<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    item_id: &str,
+) -> Result<Vec<String>, VaultError> {
+    let credentials = require_credentials()?;
+
+    let phones = paired_phones()?;
+    if phones.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let store = crate::shelf::store(app).map_err(|_| VaultError::NotPaired)?;
+    let item = store.get(item_id).map_err(|_| VaultError::NotPaired)?;
+
+    let png = std::fs::read(&item.path)
+        .map_err(|error| VaultError::Client(ClientError::Protocol(error.to_string())))?;
+
+    let settings = crate::settings::load(app).unwrap_or_default();
+    let meta = ItemMeta {
+        name: item.file_name.clone(),
+        mime: "image/png".to_string(),
+        w: item.width,
+        h: item.height,
+        created_at: item.created_at,
+        origin: Some(hostname()),
+    };
+
+    let (vault_item_id, _) = upload(&credentials, &png, &meta, &settings.item_ttl)?;
+    log::info!("sent {item_id} to {} phone(s) as {vault_item_id}", phones.len());
+
+    Ok(phones)
+}
+
 /// A friendly name for this computer, for the devices list and the "from" badge.
 pub fn hostname() -> String {
     for key in ["COMPUTERNAME", "HOSTNAME", "HOST"] {
