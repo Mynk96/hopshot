@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::{capture, cloud, hotkeys, settings, shelf};
+use crate::{capture, cloud, hotkeys, license, settings, shelf};
 
 /// Settings plus whatever Hopshot failed to bind, so the Settings screen can show both in
 /// one round trip (PRD F1.1: "Conflicts are detected and shown in Settings").
@@ -165,6 +165,34 @@ pub fn revoke_device(app: AppHandle, device_id: String) -> Result<(), String> {
 pub fn delete_cloud_data(app: AppHandle) -> Result<(), String> {
     cloud::live::stop(&app);
     cloud::vault::delete_everything().map_err(|error| error.to_string())
+}
+
+/* ── Licence and the computer limit (PRD F8.3, DESIGN S9) ─────────────────── */
+
+/// `license_status()` — may this computer run, and on what plan?
+///
+/// `None` means never licensed, which is the normal state during the trial.
+#[tauri::command]
+pub fn license_status(app: AppHandle) -> Result<Option<license::LicenseStatus>, String> {
+    let _ = &app;
+    license::status().map_err(|error| error.to_string())
+}
+
+/// DESIGN S9 "Move it here?" — free another computer and license this one.
+#[tauri::command]
+pub fn license_move_here(
+    app: AppHandle,
+    release_device_id: String,
+) -> Result<license::LicenseStatus, String> {
+    let _ = &app;
+    license::move_here(&release_device_id).map_err(|error| error.to_string())
+}
+
+/// DESIGN S9 "Remove one to use it here" — free a slot on a Sync licence.
+#[tauri::command]
+pub fn license_remove_computer(app: AppHandle, device_id: String) -> Result<(), String> {
+    let _ = &app;
+    license::remove_computer(&device_id).map_err(|error| error.to_string())
 }
 
 /// Which phones this item can be sent to without a QR (DESIGN S4).

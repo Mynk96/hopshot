@@ -130,7 +130,9 @@ mod tests {
         assert_eq!(l.lifetime.shelf_capacity, 100);
         assert_eq!(l.lifetime.drops_per_day, 10);
         assert_eq!(l.lifetime.max_image_bytes, 10_485_760);
-        assert_eq!(l.lifetime.max_computers, 3);
+        // PRD F8.3: Lifetime is one computer; three come with Sync.
+        assert_eq!(l.lifetime.max_computers, 1);
+        assert_eq!(l.sync.max_computers, 3);
         assert!(!l.lifetime.vault);
         assert_eq!(l.lifetime.item_ttl_options, ["1h", "24h", "7d"]);
         assert_eq!(l.lifetime.drop_ttl_options, ["24h"]);

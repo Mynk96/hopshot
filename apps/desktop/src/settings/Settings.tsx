@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../shelf/icons";
 import { Devices } from "./Devices";
+import { License } from "./License";
 import { HotkeyRecorder } from "./HotkeyRecorder";
 import { Row, Segmented, Switch } from "./controls";
 import type { AppSettings, HotkeyConflict, PlanStatus, Tab } from "./types";
@@ -10,9 +11,8 @@ import type { AppSettings, HotkeyConflict, PlanStatus, Tab } from "./types";
 /**
  * Settings (DESIGN S7, 720x520, sidebar + content), matching `design/mockups.html`.
  *
- * General, Shelf and Devices are live. License, Privacy and About are placeholders for
- * Phases 4–5, shown so the sidebar is honest about what exists rather than hiding sections
- * that are coming.
+ * General, Shelf, Devices, License and About are live. Privacy is a placeholder, shown so
+ * the sidebar is honest about what exists rather than hiding a section that is coming.
  *
  * Every write goes through `set_settings`, which validates, persists and re-binds the
  * global shortcuts in one call — so the UI never has to keep its own copy in sync.
@@ -151,7 +151,7 @@ export default function Settings() {
         )}
         {tab === "shelf" && <Shelf settings={settings} plan={plan} onUpdate={update} />}
         {tab === "devices" && <Devices settings={settings} onUpdate={update} />}
-        {tab === "license" && <Placeholder title="License" phase="Phase 4" />}
+        {tab === "license" && <License />}
         {tab === "privacy" && <Placeholder title="Privacy" phase="Phase 7" />}
         {tab === "about" && <About />}
       </main>

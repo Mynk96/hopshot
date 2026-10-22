@@ -8,8 +8,8 @@ import { newToken, sha256Hex } from "./ids.ts";
  *
  * **There is no licence key.** A purchase belongs to the checkout email, and the app unlocks
  * itself by polling the `claim` it created before opening Checkout (F8.3). What the app
- * stores is a *device token* — one row in `license_devices` — which is what the 3-computer
- * limit counts.
+ * stores is a *device token* — one row in `license_devices` — which is what the computer
+ * limit counts: one on Lifetime, three while Sync is active (PRD F8.3).
  *
  * Tokens are only ever stored hashed, like every other credential here, so a database dump
  * cannot be replayed against the API.
@@ -56,15 +56,20 @@ export async function planForDeviceToken(
 
   if (!row || row.removed_at !== null || row.status !== "active") return "expired";
 
-  // Seen recently enough to keep the slot warm for the devices list.
+  /*
+   * Only a device inside the limit keeps its slot warm. Touching unconditionally would make
+   * whichever device polled last the "most recently seen" one, so the over-limit set would
+   * flip on every poll instead of settling — and an over-limit machine would keep stealing
+   * the licence back from the one the user actually chose.
+   */
+  const status = await deviceStatus(env, token, now);
+  if (!status.valid) return "expired";
+
   await touchDevice(env, token, now);
 
-  /*
-   * The bundle is Lifetime plus the first year of Sync. Whether that year is still running
-   * is a `subscriptions` question, which arrives with the recurring-renewal work; until
-   * then a bundle is Sync, which is correct for every buyer in their first year.
-   */
-  return row.plan === "bundle" ? "sync" : "lifetime";
+  // `deviceStatus` has already worked out whether Sync is live, so a bundle whose year has
+  // lapsed correctly reports `lifetime` rather than keeping Sync forever.
+  return status.plan;
 }
 
 async function touchDevice(env: Env, token: string, now: number): Promise<void> {
@@ -142,7 +147,246 @@ export async function readClaim(
   return { state: "pending" };
 }
 
-/* ── Device slots: the automatic 3-computer limit (PRD F8) ────────────────── */
+/* ── The computer limit (PRD F8.3, ARCHITECTURE §7.5) ────────────────────── */
+
+/** A year of Sync comes with the bundle, paid once (PRD §7). */
+const BUNDLE_SYNC_MS = 365 * 86_400_000;
+
+/**
+ * Is Sync currently active for this licence?
+ *
+ * Two ways it can be, and both are needed:
+ *
+ * 1. A `subscriptions` row that is `trialing`/`active`, or `past_due` but still inside
+ *    `paymentGraceDays` — a failed card should not take someone's computers away the same
+ *    afternoon.
+ * 2. A `bundle` licence inside its first year. The bundle *is* "Lifetime plus the first year
+ *    of Sync, paid once", and no subscription exists until the buyer adds a card, so without
+ *    this every bundle buyer would be capped at one computer from day one.
+ */
+export async function syncActive(
+  env: Env,
+  license: Pick<LicenseRow, "customer_id" | "plan" | "created_at">,
+  now = Date.now(),
+): Promise<boolean> {
+  if (license.plan === "bundle" && now < license.created_at + BUNDLE_SYNC_MS) {
+    return true;
+  }
+
+  const row = await env.DB.prepare(
+    `SELECT status, past_due_since FROM subscriptions
+      WHERE customer_id = ?1
+      ORDER BY updated_at DESC LIMIT 1`,
+  )
+    .bind(license.customer_id)
+    .first<{ status: string; past_due_since: number | null }>();
+
+  if (!row) return false;
+  if (row.status === "trialing" || row.status === "active") return true;
+
+  if (row.status === "past_due") {
+    const grace = limits.sync.paymentGraceDays * 86_400_000;
+    // A null `past_due_since` means we do not know when it started; treat it as just now
+    // rather than as expired, so a data gap favours the customer.
+    return now < (row.past_due_since ?? now) + grace;
+  }
+
+  return false;
+}
+
+/**
+ * How many computers this licence may run on (PRD F8.3).
+ *
+ * Three with Sync, one without. `vaultLimitsFor` in `plan.ts` derives the same two numbers
+ * straight from `limits.json` by plan name — they have to agree, and the
+ * `the_two_limit_paths_agree` test pins that.
+ */
+export async function computerLimit(
+  env: Env,
+  license: Pick<LicenseRow, "customer_id" | "plan" | "created_at">,
+  now = Date.now(),
+): Promise<number> {
+  return (await syncActive(env, license, now))
+    ? limits.sync.maxComputers
+    : limits.lifetime.maxComputers;
+}
+
+/** Load a licence by id, or `null`. */
+export async function licenseById(env: Env, id: string): Promise<LicenseRow | null> {
+  return env.DB.prepare(
+    "SELECT id, customer_id, plan, status, created_at FROM licenses WHERE id = ?1",
+  )
+    .bind(id)
+    .first<LicenseRow>();
+}
+
+export type DeviceRow = {
+  id: string;
+  install_id: string;
+  label: string | null;
+  last_seen_at: number;
+};
+
+/** What `GET /license/status` answers. */
+export type DeviceStatus =
+  | {
+      valid: true;
+      plan: PlanName;
+      licenseId: string;
+      deviceId: string;
+      limit: number;
+      syncActive: boolean;
+    }
+  | {
+      valid: false;
+      reason: "unknown" | "revoked" | "over_limit";
+      plan: PlanName;
+      licenseId?: string;
+      deviceId?: string;
+      limit?: number;
+      /** The other computers, most recently seen first, for the DESIGN S9 chooser. */
+      devices?: { id: string; label: string; lastSeenAt: number; isSelf: boolean }[];
+    };
+
+/**
+ * Whether this device may currently run, and why not if it may not (PRD F8.3).
+ *
+ * When the limit drops — a bundle's Sync year ends, or a subscription lapses — the licence
+ * can legitimately have more slots than it is now allowed. Rather than picking a victim at
+ * random or locking everybody out, the **most recently seen** devices up to the limit stay
+ * valid and the rest are told `over_limit` with the list, so the user chooses where it runs.
+ */
+export async function deviceStatus(
+  env: Env,
+  token: string,
+  now = Date.now(),
+): Promise<DeviceStatus> {
+  const row = await env.DB.prepare(
+    `SELECT d.id AS device_id, d.license_id AS license_id, d.removed_at AS removed_at,
+            l.customer_id AS customer_id, l.plan AS plan, l.status AS status,
+            l.created_at AS created_at
+       FROM license_devices d
+       JOIN licenses l ON l.id = d.license_id
+      WHERE d.token_hash = ?1`,
+  )
+    .bind(await sha256Hex(token))
+    .first<{
+      device_id: string;
+      license_id: string;
+      removed_at: number | null;
+      customer_id: string;
+      plan: "lifetime" | "bundle";
+      status: string;
+      created_at: number;
+    }>();
+
+  if (!row) return { valid: false, reason: "unknown", plan: "expired" };
+
+  // Removed here or refunded upstream: both mean this machine stops working.
+  if (row.removed_at !== null || row.status !== "active") {
+    return { valid: false, reason: "revoked", plan: "expired" };
+  }
+
+  const license = {
+    customer_id: row.customer_id,
+    plan: row.plan,
+    created_at: row.created_at,
+  };
+  const sync = await syncActive(env, license, now);
+  const limit = sync ? limits.sync.maxComputers : limits.lifetime.maxComputers;
+  const plan: PlanName = sync ? "sync" : "lifetime";
+
+  const devices = await devicesOn(env, row.license_id);
+  const allowed = devices.slice(0, limit).map((device) => device.id);
+
+  if (!allowed.includes(row.device_id)) {
+    return {
+      valid: false,
+      reason: "over_limit",
+      plan,
+      licenseId: row.license_id,
+      deviceId: row.device_id,
+      limit,
+      devices: devices.map((device) => ({
+        id: device.id,
+        label: device.label ?? "A computer",
+        lastSeenAt: device.last_seen_at,
+        isSelf: device.id === row.device_id,
+      })),
+    };
+  }
+
+  return {
+    valid: true,
+    plan,
+    licenseId: row.license_id,
+    deviceId: row.device_id,
+    limit,
+    syncActive: sync,
+  };
+}
+
+/**
+ * "Move it here" — free another computer's slot and keep this one (DESIGN S9).
+ *
+ * The caller proves it owns a slot on the licence by presenting its own device token, so one
+ * licence holder cannot evict a stranger's machine.
+ */
+export async function moveHere(
+  env: Env,
+  token: string,
+  releaseDeviceId: string,
+  now = Date.now(),
+): Promise<{ ok: boolean; reason?: string }> {
+  const mine = await env.DB.prepare(
+    `SELECT id, license_id FROM license_devices
+      WHERE token_hash = ?1 AND removed_at IS NULL`,
+  )
+    .bind(await sha256Hex(token))
+    .first<{ id: string; license_id: string }>();
+
+  if (!mine) return { ok: false, reason: "unknown" };
+  if (mine.id === releaseDeviceId) return { ok: false, reason: "same_device" };
+
+  const target = await env.DB.prepare(
+    `SELECT id FROM license_devices
+      WHERE id = ?1 AND license_id = ?2 AND removed_at IS NULL`,
+  )
+    .bind(releaseDeviceId, mine.license_id)
+    .first<{ id: string }>();
+
+  if (!target) return { ok: false, reason: "not_found" };
+
+  await env.DB.batch([
+    env.DB.prepare("UPDATE license_devices SET removed_at = ?2 WHERE id = ?1").bind(
+      releaseDeviceId,
+      now,
+    ),
+    // Freshening this one is what makes it the most recently seen, so the very next status
+    // check sees it inside the limit.
+    env.DB.prepare("UPDATE license_devices SET last_seen_at = ?2 WHERE id = ?1").bind(
+      mine.id,
+      now,
+    ),
+  ]);
+
+  return { ok: true };
+}
+
+/** Active slots on a licence, most recently seen first. */
+export async function devicesOn(env: Env, licenseId: string): Promise<DeviceRow[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, install_id, label, last_seen_at FROM license_devices
+       WHERE license_id = ?1 AND removed_at IS NULL
+       ORDER BY last_seen_at DESC`,
+  )
+    .bind(licenseId)
+    .all<DeviceRow>();
+
+  return results ?? [];
+}
+
+/* ── Device slots: the automatic computer limit (PRD F8.3) ────────────────── */
 
 export type SlotResult =
   | { ok: true; deviceToken: string; plan: PlanName }
@@ -162,15 +406,14 @@ export async function claimDeviceSlot(
   label: string,
   now = Date.now(),
 ): Promise<SlotResult> {
-  const license = await env.DB.prepare(
-    "SELECT id, plan, status FROM licenses WHERE id = ?1",
-  )
-    .bind(licenseId)
-    .first<LicenseRow>();
+  const license = await licenseById(env, licenseId);
 
   if (!license || license.status !== "active") {
     return { ok: false, reason: "full", computers: [] };
   }
+
+  // PRD F8.3: one computer on Lifetime, three while Sync is active.
+  const limit = await computerLimit(env, license, now);
 
   const plan: PlanName = license.plan === "bundle" ? "sync" : "lifetime";
 
@@ -211,8 +454,8 @@ export async function claimDeviceSlot(
     .bind(licenseId)
     .all<{ id: string; label: string | null; last_seen_at: number }>();
 
-  if (results.length >= limits.lifetime.maxComputers) {
-    // PRD: "Hopshot is on 3 computers. Remove one to use it here." — the UI needs the list.
+  if (results.length >= limit) {
+    // PRD: "Hopshot is on N computers. Remove one to use it here." — the UI needs the list.
     return {
       ok: false,
       reason: "full",

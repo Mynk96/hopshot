@@ -26,6 +26,9 @@ pub const DEVICE_TOKEN: &str = "device-token";
 pub const VAULT_ID: &str = "vault-id";
 /// This device's id inside the vault.
 pub const DEVICE_ID: &str = "device-id";
+/// The licence device token (PRD F8.3). Keyed separately from the vault token: a licence
+/// survives unpairing every phone, and unpairing must not take the purchase with it.
+pub const LICENSE_TOKEN: &str = "license-token";
 
 #[derive(Debug, Error)]
 pub enum SecretError {

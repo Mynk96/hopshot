@@ -6,9 +6,12 @@ import { fail } from "../lib/errors.ts";
 import { sha256Hex, timingSafeEqual } from "../lib/ids.ts";
 import {
   claimDeviceSlot,
+  computerLimit,
   createClaim,
+  deviceStatus,
+  licenseById,
   licenseForEmail,
-  planForDeviceToken,
+  moveHere,
   readClaim,
   removeDevice,
   RESTORE_MAX_ATTEMPTS,
@@ -81,10 +84,11 @@ license.get("/claims/:claim", async (c) => {
 
   if (!slot.ok) {
     // PRD: "Hopshot is on 3 computers. Remove one to use it here."
+    const license = await licenseById(c.env, state.licenseId);
     return c.json(
       {
         status: "device_limit",
-        maxComputers: limits.lifetime.maxComputers,
+        maxComputers: license ? await computerLimit(c.env, license) : limits.lifetime.maxComputers,
         computers: slot.computers,
         licenseId: state.licenseId,
       },
@@ -95,23 +99,62 @@ license.get("/claims/:claim", async (c) => {
   return c.json({ status: "ready", deviceToken: slot.deviceToken, plan: slot.plan });
 });
 
-/** `GET /license/status` — what plan this device token is on (re-checked every 7 days). */
+/**
+ * `GET /license/status` — may this computer run, and on what plan (PRD F8.3)?
+ *
+ * The interesting answer is `over_limit`: when Sync ends, a licence can hold more slots than
+ * it is now allowed. The most recently seen devices up to the limit stay valid and the rest
+ * get the list, so the user picks where Hopshot runs instead of us choosing for them
+ * (DESIGN S9).
+ */
 license.get("/status", async (c) => {
   const header = c.req.header("Authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   if (!token) return fail(c, "unauthorized", "This request needs its device token.");
 
-  const plan = await planForDeviceToken(c.env, token);
+  const status = await deviceStatus(c.env, token);
 
   return c.json(
     {
-      plan,
+      ...status,
       recheckDays: limits.server.licenseRecheckDays,
       offlineGraceDays: limits.server.licenseOfflineGraceDays,
     },
     200,
     { "Cache-Control": "no-store" },
   );
+});
+
+/**
+ * `POST /license/move-here` — free another computer's slot and keep this one (DESIGN S9).
+ *
+ * Authenticated with this device's own token, so a licence holder can only move their own
+ * licence around and not evict a stranger.
+ */
+license.post("/move-here", async (c) => {
+  const header = c.req.header("Authorization") ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  if (!token) return fail(c, "unauthorized", "This request needs its device token.");
+
+  const body = await c.req.json<{ releaseDeviceId?: string }>().catch(() => null);
+  const release = body?.releaseDeviceId?.trim();
+  if (!release) return fail(c, "bad_request", "Choose which computer to free up.");
+
+  const result = await moveHere(c.env, token, release);
+
+  if (!result.ok) {
+    if (result.reason === "same_device") {
+      return fail(c, "bad_request", "That's this computer.");
+    }
+    if (result.reason === "not_found") {
+      return fail(c, "not_found", "That computer isn't on this licence.");
+    }
+    return fail(c, "unauthorized", "That device token isn't valid.");
+  }
+
+  // Re-read so the caller gets the plan it has just become entitled to.
+  const status = await deviceStatus(c.env, token);
+  return c.json(status);
 });
 
 /** `DELETE /license/devices/{id}` — free a slot so a fourth computer can take it. */
@@ -254,10 +297,11 @@ license.post("/restore/verify", async (c) => {
   );
 
   if (!slot.ok) {
+    const license = await licenseById(c.env, licenseId);
     return c.json(
       {
         status: "device_limit",
-        maxComputers: limits.lifetime.maxComputers,
+        maxComputers: license ? await computerLimit(c.env, license) : limits.lifetime.maxComputers,
         computers: slot.computers,
         licenseId,
       },

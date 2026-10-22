@@ -9,7 +9,7 @@
     "dropTtlOptions": ["24h"],
     "dropsPerDay": 10,
     "maxImageBytes": 10485760,
-    "maxComputers": 3,
+    "maxComputers": 1,
     "vault": false
   },
   "sync": {
