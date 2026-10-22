@@ -17,16 +17,13 @@ import PhoneApp from "../../components/PhoneApp.tsx";
 <Base title="Hopshot" noindex appShell>
   <PhoneApp client:only="react" />
 
-  <script is:inline>
-    // Registered here rather than in the island so the worker is installing while React is
-    // still hydrating — on a cold Home Screen launch that is most of the startup time.
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch((error) => {
-          // An app that cannot cache its shell still works online; it is not worth failing.
-          console.warn("the service worker did not register", error);
-        });
-      });
-    }
+  {/*
+    No `is:inline`. Astro bundles this and emits it with a `src`, which plain
+    `script-src 'self'` allows; an inline version needs a hash that Astro only generates for
+    its own island scripts, so it was blocked by the CSP and the worker never registered.
+  */}
+  <script>
+    import { registerServiceWorker } from "../../lib/register-sw.ts";
+    registerServiceWorker();
   </script>
 </Base>

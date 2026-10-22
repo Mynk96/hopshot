@@ -14,6 +14,7 @@ import {
   type Credentials,
   type FeedItem,
 } from "../lib/vault.ts";
+import InstallPrompt from "./InstallPrompt.tsx";
 import Scanner from "./Scanner.tsx";
 
 /**
@@ -213,6 +214,10 @@ export default function PhoneApp() {
           }}
         />
       )}
+
+      {/* PRD F4.2: offer the install rather than expecting the user to find Chrome's menu.
+          Renders nothing when already installed or previously dismissed. */}
+      {view.name === "feed" && <InstallPrompt />}
 
       {view.name === "feed" ? (
         <Feed items={items} onOpen={(item) => setView({ name: "item", item })} />

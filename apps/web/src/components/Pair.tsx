@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import InstallPrompt from "./InstallPrompt.tsx";
 import {
   isIos,
   isStandalone,
@@ -80,12 +81,9 @@ export default function Pair() {
 
         // Drop the fragment before navigating, so the key is not left in history.
         history.replaceState(null, "", window.location.pathname);
+        // Deliberately no auto-redirect: the install offer lives on this screen, and
+        // bouncing to /app a second later would snatch it away mid-tap.
         setPhase({ name: "paired" });
-
-        // A beat on the success screen, then into the feed.
-        setTimeout(() => {
-          if (!cancelled) window.location.replace("/app");
-        }, 1200);
       } catch (error) {
         if (cancelled) return;
         setPhase({
@@ -113,11 +111,17 @@ export default function Pair() {
       )}
 
       {phase.name === "paired" && (
-        <Centered
-          icon="check"
-          title="Paired"
-          body="Screenshots from your computer will show up here."
-        />
+        <>
+          <Centered
+            icon="check"
+            title="Paired"
+            body="Screenshots from your computer will show up here."
+            action={{ label: "Open Hopshot", href: "/app" }}
+          />
+          {/* The moment right after success is when someone will actually accept an
+              install, so offer it here rather than only on the feed. */}
+          <InstallPrompt />
+        </>
       )}
 
       {phase.name === "already-paired" && (
