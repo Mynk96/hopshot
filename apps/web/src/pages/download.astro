@@ -1,5 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+// The version comes from the file that names the installer, so the two can never disagree.
+// Keeping a second copy here is what made this button 404 in the first place; CI now runs
+// scripts/check-version.mjs to hold every copy of the number together.
+import tauriConf from "../../../desktop/src-tauri/tauri.conf.json";
 
 /*
  * Download (PRD §9, ARCHITECTURE §9).
@@ -13,8 +17,12 @@ import Base from "../layouts/Base.astro";
  * build would be worse than saying "not yet".
  */
 
-/** Bumped per release. The asset name has to match what the release workflow uploads. */
-const version = "0.1.0";
+const version = tauriConf.version;
+
+/*
+ * The exact asset `.github/workflows/release.yml` uploads — Tauri's own NSIS naming, so the
+ * workflow does not get to choose it and this string has to match byte for byte.
+ */
 const installer = `https://github.com/Mynk96/hopshot/releases/download/v${version}/Hopshot_${version}_x64-setup.exe`;
 ---
 

@@ -48,6 +48,52 @@
 
 ---
 
+## 2a. Cutting a release
+
+The Download button builds its URL from `apps/desktop/src-tauri/tauri.conf.json` — the same
+file that names the installer — so there is one version number, not two. `scripts/check-version.mjs`
+runs in CI and holds `tauri.conf.json`, `Cargo.toml` and `apps/desktop/package.json` to it.
+
+To release:
+
+1. Bump the version in all three files (the check will tell you if you miss one):
+
+   ```bash
+   node scripts/check-version.mjs
+   ```
+
+2. Commit, push, and tag:
+
+   ```bash
+   git tag v0.1.0 && git push origin v0.1.0
+   ```
+
+3. `.github/workflows/release.yml` runs `cargo test` and `clippy -D warnings`, then builds
+   `--bundles nsis` and **drafts** a GitHub release holding
+   `Hopshot_<version>_x64-setup.exe` and its `.sha256`.
+
+4. **Install it once from the draft release** — click through the SmartScreen warning exactly
+   as a buyer will — then press Publish. The download page starts resolving immediately.
+
+A tag that disagrees with `tauri.conf.json` fails the workflow before anything is built, which
+is the specific mistake that would publish an installer no one can reach. `workflow_dispatch`
+rehearses the whole build and uploads nothing.
+
+### Not done yet
+
+- **Code signing.** The installer is unsigned, so SmartScreen warns on first run. `/download`
+  and the release notes both say so plainly, which PRD §9 asks for on the direct channel. An
+  OV certificate (~$200/yr) removes the warning only after it builds reputation; an EV one
+  removes it immediately. Worth revisiting once there is revenue to point at.
+- **The updater.** `tauri.conf.json` has no updater plugin and the `store` Cargo feature that
+  disables it is still a stub, so there is no in-app update path — v0.1.x users will have to
+  download the next version by hand. Enabling it needs a signing keypair generated with
+  `tauri signer generate`; the private key goes in GitHub Actions secrets as
+  `TAURI_SIGNING_PRIVATE_KEY` and must never be committed. Until then, keep the release notes
+  honest about how to update.
+
+---
+
 ## 2b. Stripe and secrets setup (do once, before the first real sale)
 
 Hopshot has no licence keys, so Stripe *is* the licensing system: a verified webhook is the

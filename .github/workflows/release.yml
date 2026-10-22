@@ -1,0 +1,109 @@
+name: Release
+
+# Windows only, which is the launch scope (PRD §9). A macOS leg goes here when there is a Mac
+# to build and notarise on; adding an untested one now would publish a binary nobody has run.
+on:
+  push:
+    tags: ["v*"]
+  # So the whole thing can be rehearsed without creating a tag. A dispatch run uploads
+  # nothing — it only proves the build works.
+  workflow_dispatch:
+
+permissions:
+  contents: write # creating the release and uploading the installer
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # never kill a half-uploaded release
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          key: release-x86_64-pc-windows-msvc
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Before anything is built: the download page builds its URL from tauri.conf.json, so a
+      # tag that disagrees with it would publish an installer nobody can reach.
+      - name: Check the tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node scripts/check-version.mjs "${{ github.ref_name }}"
+
+      - name: Check every copy of the version agrees
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: node scripts/check-version.mjs
+
+      # The gate. A release build is slow, and shipping a binary whose tests were never run is
+      # how a broken installer reaches the one page that has to work.
+      - run: cargo test
+        working-directory: apps/desktop/src-tauri
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: apps/desktop/src-tauri
+
+      # `--bundles nsis` rather than tauri.conf.json's "all": the MSI is not what the download
+      # page offers, and the Store build is packaged separately as MSIX (ARCHITECTURE §9).
+      - name: Build the installer
+        run: pnpm -F desktop tauri build --bundles nsis
+
+      - name: Checksum
+        shell: bash
+        working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
+        run: |
+          for file in *-setup.exe; do
+            sha256sum "$file" | tee "$file.sha256"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hopshot-windows
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*
+          if-no-files-found: error
+
+      # Published as a **draft**. The binary is unsigned, so SmartScreen will warn about it —
+      # the one thing worth doing before it is public is installing it once from the release
+      # itself and clicking through that warning, exactly as a buyer will. Publishing is then
+      # one click in the GitHub UI, and the download page starts working the moment it lands.
+      # `gh` ships on the runner, so no third-party action gets `contents: write` and the
+      # release binary. The notes are written here rather than generated, because "SmartScreen
+      # will warn you" is the single most useful sentence on this page.
+      - name: Draft the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
+        run: |
+          set -euo pipefail
+
+          cat > notes.md <<'NOTES'
+          Hopshot for Windows 10/11, 64-bit.
+
+          The installer is **unsigned**, so Windows SmartScreen will warn the first time:
+          **More info -> Run anyway**. Verify the download against its `.sha256` if you would
+          rather check it yourself.
+
+          Free for 7 days with everything unlocked - no account, no card.
+          NOTES
+
+          # --draft so an unsigned binary is never public until it has been installed once
+          # from the release itself. Publishing is then one click, and the download page
+          # starts resolving the moment it lands.
+          gh release create "${{ github.ref_name }}"             --draft             --title "Hopshot ${{ github.ref_name }}"             --notes-file notes.md             *-setup.exe *-setup.exe.sha256
