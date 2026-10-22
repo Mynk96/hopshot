@@ -178,6 +178,18 @@ pub fn license_status(app: AppHandle) -> Result<Option<license::LicenseStatus>, 
     license::status().map_err(|error| error.to_string())
 }
 
+/// `license_buy("lifetime" | "bundle")` — open Stripe Checkout and start polling (PRD F8.2).
+///
+/// Returns as soon as the browser is open. The unlock arrives on `license:changed`, because
+/// it depends on the user finishing payment in a window we do not control.
+#[tauri::command]
+pub fn license_buy(app: AppHandle, plan: String) -> Result<(), String> {
+    if plan != "lifetime" && plan != "bundle" {
+        return Err("That isn't something you can buy.".to_string());
+    }
+    license::buy(&app, &plan).map_err(|error| error.to_string())
+}
+
 /// DESIGN S9 "Move it here?" — free another computer and license this one.
 #[tauri::command]
 pub fn license_move_here(

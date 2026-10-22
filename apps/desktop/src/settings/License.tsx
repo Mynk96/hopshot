@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import { OverLimit, type LicenseStatus } from "./OverLimit";
 
@@ -27,9 +28,35 @@ export function License() {
     }
   }, []);
 
+  const [buying, setBuying] = useState<string | null>(null);
+
   useEffect(() => {
     void refresh();
+
+    /*
+     * The unlock arrives asynchronously: the user pays in a browser window we do not
+     * control, and Rust reports through this event once the claim poll collects a token.
+     * Without it the pane would sit on "Finish paying in your browser" until reopened.
+     */
+    const subscription = listen("license:changed", () => {
+      setBuying(null);
+      void refresh();
+    });
+    return () => {
+      void subscription.then((off) => off());
+    };
   }, [refresh]);
+
+  const buy = async (plan: "lifetime" | "bundle") => {
+    setBuying(plan);
+    setError(null);
+    try {
+      await invoke("license_buy", { plan });
+    } catch (reason) {
+      setError(String(reason));
+      setBuying(null);
+    }
+  };
 
   if (status === "loading") {
     return <p className="text-small text-text-2">Checking your licence…</p>;
@@ -46,9 +73,39 @@ export function License() {
       {error && <p className="text-small text-text-2">{error}</p>}
 
       {status === null && (
-        <p className="text-body text-text-2">
-          You're on the free trial. Everything is unlocked, including Sync.
-        </p>
+        <>
+          <p className="text-body text-text-2">
+            You&apos;re on the free trial. Everything is unlocked, including Sync.
+          </p>
+
+          {/* DESIGN S9 price block, at the launch prices from PRD §7. */}
+          {buying ? (
+            <p className="text-body text-text-2">Finish paying in your browser…</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => void buy("lifetime")}
+                >
+                  Buy Lifetime · $12
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => void buy("bundle")}
+                >
+                  Buy Lifetime + Sync · $19
+                </button>
+              </div>
+              <span className="text-caption text-text-3">
+                Lifetime covers one computer. Sync adds three computers, three phones and
+                longer links, and includes the first year.
+              </span>
+            </div>
+          )}
+        </>
       )}
 
       {status?.valid && (

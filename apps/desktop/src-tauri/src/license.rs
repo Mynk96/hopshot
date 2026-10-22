@@ -9,6 +9,8 @@
 //! answers `over_limit` to all but the most recently seen device. The UI then offers DESIGN
 //! S9's choice rather than silently locking a machine out.
 
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
 
@@ -120,9 +122,121 @@ pub fn current_plan<R: Runtime>(_app: &AppHandle<R>) -> Plan {
     Plan::Trial
 }
 
+/* ── Buying (PRD F8.2, F8.3) ──────────────────────────────────────────────── */
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BuyStarted {
+    claim: String,
+    url: String,
+}
+
+/// What the claim poll can come back with.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ClaimPoll {
+    status: String,
+    #[serde(default)]
+    device_token: Option<String>,
+    #[serde(default)]
+    plan: Option<String>,
+}
+
+/// How long to keep polling a checkout the user may have abandoned.
+const POLL_FOR: Duration = Duration::from_secs(20 * 60);
+const POLL_EVERY: Duration = Duration::from_secs(2);
+
+/**
+ * Start a purchase: open Stripe Checkout in the browser and poll for the result (PRD F8.2).
+ *
+ * There is no licence key to type. The claim created here is carried through Checkout in
+ * metadata, the webhook marks it ready, and the poll below collects a device token — so the
+ * app unlocks itself while the user is still looking at the browser (F8.3).
+ *
+ * Returns once the browser is open; the polling runs on a thread and reports through
+ * `license:changed`.
+ */
+pub fn buy<R: Runtime>(app: &AppHandle<R>, plan: &str) -> Result<(), ClientError> {
+    let install_id = crate::cloud::drops::install_id(app);
+
+    let started: BuyStarted = client::post_json(
+        &format!("/license/buy/{plan}"),
+        &serde_json::json!({}),
+        &[("X-Hopshot-Install", install_id.as_str())],
+    )?;
+
+    // Opened before polling starts, so the user is never waiting on us first.
+    {
+        use tauri_plugin_opener::OpenerExt;
+        if let Err(error) = app.opener().open_url(&started.url, None::<&str>) {
+            log::error!("could not open checkout in the browser: {error}");
+            return Err(ClientError::Protocol(
+                "Hopshot couldn't open your browser.".into(),
+            ));
+        }
+    }
+
+    let handle = app.clone();
+    let claim = started.claim;
+    std::thread::spawn(move || poll_claim(&handle, &install_id, &claim));
+
+    Ok(())
+}
+
+/// Poll until the purchase lands, the window closes, or the server says the limit is full.
+fn poll_claim<R: Runtime>(app: &AppHandle<R>, install_id: &str, claim: &str) {
+    let deadline = std::time::Instant::now() + POLL_FOR;
+
+    while std::time::Instant::now() < deadline {
+        std::thread::sleep(POLL_EVERY);
+
+        let polled: Result<ClaimPoll, ClientError> = client::get_json_with(
+            &format!("/license/claims/{claim}"),
+            &[("X-Hopshot-Install", install_id)],
+        );
+
+        match polled {
+            Ok(result) if result.status == "ready" => {
+                let Some(token) = result.device_token else {
+                    log::error!("the claim was ready but carried no device token");
+                    return;
+                };
+
+                if let Err(error) = store_token(&token) {
+                    log::error!("could not store the licence token: {error}");
+                    return;
+                }
+
+                log::info!("licensed: {}", result.plan.as_deref().unwrap_or("unknown"));
+                let _ = tauri::Emitter::emit(app, "license:changed", &result.plan);
+                return;
+            }
+            Ok(result) if result.status == "pending" => {}
+            Ok(result) => {
+                // `device_limit` — the purchase worked but every slot is taken (PRD F8.3).
+                log::info!("claim came back as {}", result.status);
+                let _ = tauri::Emitter::emit(app, "license:changed", &result.status);
+                return;
+            }
+            Err(ClientError::Offline) => {
+                // Keep waiting: the payment may well be going through regardless.
+            }
+            Err(error) => {
+                log::warn!("claim poll failed: {error}");
+                return;
+            }
+        }
+    }
+
+    log::info!("stopped waiting for the checkout to complete");
+}
+
 /// PRD F8.2 opens Stripe Checkout in the browser.
-pub fn open_checkout<R: Runtime>(_app: &AppHandle<R>, plan: Plan) {
-    log::info!("license::open_checkout({plan:?}) — the buy flow lands with the plans sheet");
+pub fn open_checkout<R: Runtime>(app: &AppHandle<R>, plan: Plan) {
+    let product = if plan.includes_sync() { "bundle" } else { "lifetime" };
+    if let Err(error) = buy(app, product) {
+        log::warn!("could not start checkout: {error}");
+    }
 }
 
 #[cfg(test)]

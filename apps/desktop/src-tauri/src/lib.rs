@@ -96,6 +96,7 @@ pub fn run() {
             commands::send_drop,
             commands::delete_drop,
             commands::license_status,
+            commands::license_buy,
             commands::license_move_here,
             commands::license_remove_computer,
             commands::paired_phones,

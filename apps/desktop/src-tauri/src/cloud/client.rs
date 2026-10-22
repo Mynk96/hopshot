@@ -94,6 +94,27 @@ pub fn log_endpoints() {
     }
 }
 
+/**
+ * The licence token, for `X-Hopshot-License`.
+ *
+ * Read here rather than passed in by callers so no request can forget it: the server
+ * resolves the plan from this header, and a missing one reads as `expired` the moment the
+ * trial runs out — which would 403 a paying customer's sends.
+ *
+ * Read straight from the keychain rather than through `license.rs`, which depends on this
+ * module; the other direction would be circular.
+ */
+fn license_header() -> Option<String> {
+    match crate::secrets::get(crate::secrets::LICENSE_TOKEN) {
+        Ok(token) => token,
+        Err(error) => {
+            // Not fatal: the trial covers an unlicensed install, and the server decides.
+            log::warn!("could not read the licence token for a request: {error}");
+            None
+        }
+    }
+}
+
 fn agent() -> ureq::Agent {
     ureq::Agent::config_builder()
         .timeout_global(Some(TIMEOUT))
@@ -146,6 +167,9 @@ pub fn post_bytes<T: DeserializeOwned>(
         .header("Content-Type", "application/octet-stream")
         .header("Content-Length", &body.len().to_string());
 
+    if let Some(token) = license_header() {
+        request = request.header("X-Hopshot-License", &token);
+    }
     for (name, value) in headers {
         request = request.header(*name, *value);
     }
@@ -204,11 +228,38 @@ pub fn post_json<B: serde::Serialize, T: DeserializeOwned>(
         .header("Content-Type", "application/json")
         .header("Content-Length", &payload.len().to_string());
 
+    if let Some(token) = license_header() {
+        request = request.header("X-Hopshot-License", &token);
+    }
     for (name, value) in headers {
         request = request.header(*name, *value);
     }
 
     match request.send(&payload[..]) {
+        Ok(mut response) => read_json(&url, response.status().as_u16(), &mut response),
+        Err(error) => Err(classify(&url, error)),
+    }
+}
+
+/// `GET {path}` returning JSON with arbitrary headers.
+///
+/// Separate from [`get_json`] because the claim poll authenticates with the install id, not
+/// a bearer token — it is asking for the token it does not have yet.
+pub fn get_json_with<T: DeserializeOwned>(
+    path: &str,
+    headers: &[(&str, &str)],
+) -> Result<T, ClientError> {
+    let url = format!("{}{path}", base_url());
+    let mut request = agent().get(&url);
+
+    if let Some(token) = license_header() {
+        request = request.header("X-Hopshot-License", &token);
+    }
+    for (name, value) in headers {
+        request = request.header(*name, *value);
+    }
+
+    match request.call() {
         Ok(mut response) => read_json(&url, response.status().as_u16(), &mut response),
         Err(error) => Err(classify(&url, error)),
     }
