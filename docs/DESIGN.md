@@ -215,7 +215,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - Price block: **Lifetime $12** (launch price, later $19) · **Lifetime + Sync $19** (includes the first year of Sync, then $24/year, optional). Lifetime owners see only **Add Sync · $24/year**.
 - Buttons: `Buy Lifetime` · `Buy Lifetime + Sync` (primary) · `Already bought? Restore`.
 - After a Buy click the sheet shows "Finish paying in your browser…" and unlocks by itself when payment completes ("You're all set"). Restore: email field → "Check your email" → the link opens the app, or a 6-digit code field.
-- Over the computer limit. **Lifetime (1):** "Hopshot is active on {other computer}. Move it here?" with **Move here** (primary) and a small link **Add Sync to use up to 3 computers**. **Sync or founder (3):** "Hopshot is on 3 computers. Remove one to use it here." with the list (name, last used) and Remove buttons. After Sync ends, extra computers show the Lifetime version with **Renew Sync** as the link.
+- Over the computer limit. **Lifetime (1):** "Hopshot is active on {other computer}. Move it here?" with **Move here** (primary) and a small link **Add Sync to use up to 3 computers**. **Lifetime + Sync (3):** "Hopshot is on 3 computers. Remove one to use it here." with the list (name, last used) and Remove buttons. After Sync ends, extra computers show the Lifetime version with **Renew Sync** as the link.
 - Trust line: "Secure checkout by Stripe · 14-day refund".
 
 ---
