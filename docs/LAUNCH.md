@@ -26,7 +26,7 @@
 **Install / update / license**
 - [ ] Clean install on a fresh user account; uninstall leaves no files outside app-data
 - [ ] Update from the previous version via the updater (direct builds)
-- [ ] Buying in the app unlocks it with no input; the **Open in Hopshot** link and email restore both work; a computer over the limit (Lifetime 1, Lifetime + Sync 3, founders 3) takes an unused slot or asks which computer to move from; ending Sync leaves only the most recent computer licensed
+- [ ] Buying in the app unlocks it with no input; the **Open in Hopshot** link and email restore both work; a computer over the limit (Lifetime 1, Lifetime + Sync 3) takes an unused slot or asks which computer to move from; ending Sync leaves only the most recent computer licensed
 - [ ] Store MSIX installs and runs; the updater is disabled in the Store build
 
 ---
@@ -45,6 +45,85 @@
 | Support | founder@hopshot.xyz + a short FAQ; canned replies for the top 5 questions |
 | Launch pricing | Lifetime $12 and Lifetime + Sync $19 for a limited launch period, then $19 / $43; change a price by moving its Stripe lookup key (no deploy). Site buttons go to `https://api.hopshot.xyz/v1/buy/{lifetime|bundle}?ref=…` |
 | Founders | Launch day: run `scripts/export-founders.mjs`, import each row with `POST /admin/licenses` (syncStartsAt = launch date); keys go out by email automatically. Then switch the site's pre-order buttons to the `/buy` links |
+
+---
+
+## 2b. Stripe and secrets setup (do once, before the first real sale)
+
+Hopshot has no licence keys, so Stripe *is* the licensing system: a verified webhook is the
+only thing that mints a licence. Everything below has to exist before the buy buttons work.
+
+### Three Prices
+
+| Env var | What | Mode |
+|---|---|---|
+| `STRIPE_PRICE_LIFETIME` | $12 launch ($19 after) | one-time |
+| `STRIPE_PRICE_BUNDLE` | $19 launch ($43 after) — Lifetime **and** the first year of Sync | one-time |
+| `STRIPE_PRICE_SYNC_YEARLY` | $24/year | **recurring, yearly** |
+
+Price ids are not secrets; they live in `services/api/wrangler.toml` under `[vars]`. Give each
+one a **lookup key** so a price change is a dashboard edit rather than a deploy.
+
+The bundle is deliberately a one-time price, not a subscription with a trial: the $19 is
+charged at checkout, and the card is saved (`setup_future_usage: off_session`) so that the
+renewal a year later is one click. **Nothing renews automatically** — see §2c.
+
+### Three secrets
+
+Never in `wrangler.toml`, never in the repo:
+
+```bash
+npx wrangler secret put STRIPE_SECRET_KEY --config services/api/wrangler.toml
+```
+
+Also `STRIPE_WEBHOOK_SECRET` and `RESEND_API_KEY` the same way.
+
+### Webhook endpoint
+
+`https://api.hopshot.xyz/v1/webhooks/stripe`, subscribed to exactly these:
+
+- `checkout.session.completed` — mints the licence and fulfils the claim the app is polling
+- `charge.refunded`, `charge.dispute.created` — deactivate it again
+- `customer.subscription.created`, `.updated`, `.deleted` — keep `subscriptions` in step
+- `invoice.paid`, `invoice.payment_failed` — start and clear the `past_due` grace window
+
+Then enable the **Customer Portal** (Settings → Billing → Customer portal), which is what
+Settings → License → Manage Sync opens. Allow cancellation and payment-method updates.
+
+## 2c. How the Sync renewal works (PRD F8.8)
+
+The bundle includes the first year of Sync. It does **not** auto-renew — that is a deliberate
+product decision, not a missing feature:
+
+1. A daily 09:00 UTC cron finds bundles whose year ends within 10 days.
+2. Each gets **one** email (deduplicated per licence per year through `emails_sent`) with a
+   single-use link: *"Nothing will be charged. If you want to keep syncing…"*
+3. The link burns the token and redirects into Checkout for `STRIPE_PRICE_SYNC_YEARLY`,
+   against the saved card.
+4. If they do nothing, Sync stops: phones unpair and the computer limit drops from 3 to 1.
+   **Lifetime keeps working forever** — shelf, capture, drag-out and share links.
+
+Settings → License shows the end date while Sync is live, so nobody learns about it on the day.
+
+### Verify it before launch
+
+Run the test clock. It fast-forwards a simulated year in about a minute and charges a
+year-old card, which is the one thing code review cannot tell you:
+
+```bash
+STRIPE_SECRET_KEY=sk_test_... STRIPE_PRICE_SYNC_YEARLY=price_... node scripts/test-renewal-clock.mjs
+```
+
+`FAIL=1` uses a card that declines off-session, to exercise the `past_due` path and the
+`limits.sync.paymentGraceDays` window. The script refuses to run against a live key and
+deletes its test clock (and the customer, charge and subscription with it) when it finishes.
+
+### India / RBI
+
+Recurring card mandates on Indian cards need an e-mandate, and registration fails above
+₹15,000 without additional authentication. $24/year is well inside that, but confirm with
+Stripe support that your account can take recurring INR mandates before relying on renewal
+revenue.
 
 ---
 

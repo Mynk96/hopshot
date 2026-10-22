@@ -29,6 +29,7 @@ export function License() {
   }, []);
 
   const [buying, setBuying] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void refresh();
@@ -46,6 +47,23 @@ export function License() {
       void subscription.then((off) => off());
     };
   }, [refresh]);
+
+  /*
+   * PRD F8.8: the bundle's year of Sync does not renew itself. Showing the date is what keeps
+   * that honest — the customer learns when their phones stop pairing from this pane, not from
+   * the day it happens.
+   */
+  const manageSync = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await invoke("license_manage_sync");
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const buy = async (plan: "lifetime" | "bundle") => {
     setBuying(plan);
@@ -118,6 +136,31 @@ export function License() {
               ? "Covers one computer at a time."
               : `Covers up to ${status.limit} computers.`}
           </span>
+
+          {status.syncActive && status.syncEndsAt && (
+            <span className="text-small text-text-2">
+              Sync runs until {formatDate(status.syncEndsAt)}. Nothing renews on its own —
+              we&apos;ll email you before then.
+            </span>
+          )}
+
+          {!status.syncActive && (
+            <span className="text-small text-text-2">
+              Sync is off, so phones and extra computers are paused. The rest of Hopshot is
+              yours for good.
+            </span>
+          )}
+
+          {status.plan === "sync" && (
+            <button
+              type="button"
+              className="btn btn-secondary mt-2 self-start"
+              disabled={busy}
+              onClick={() => void manageSync()}
+            >
+              {busy ? "Opening…" : "Manage Sync"}
+            </button>
+          )}
         </div>
       )}
 
@@ -132,4 +175,13 @@ export function License() {
       </p>
     </section>
   );
+}
+
+/** "4 March 2027" — a plain date, because a countdown would read as pressure. */
+function formatDate(at: number): string {
+  return new Date(at).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }

@@ -13,12 +13,18 @@ import {
   licenseForEmail,
   moveHere,
   readClaim,
+  redeemRenewalToken,
   removeDevice,
   RESTORE_MAX_ATTEMPTS,
   RESTORE_TTL_MS,
 } from "../lib/license.ts";
 import { clientIp, hashIp } from "../lib/ratelimit.ts";
-import { createCheckout, type Purchasable } from "../lib/stripe.ts";
+import {
+  billingPortal,
+  createCheckout,
+  createRenewalCheckout,
+  type Purchasable,
+} from "../lib/stripe.ts";
 
 /**
  * Buying, claiming and restoring (PRD F8, ARCHITECTURE §7.5).
@@ -182,6 +188,74 @@ license.delete("/devices/:deviceId", async (c) => {
 
   await removeDevice(c.env, target, c.req.param("deviceId"));
   return c.body(null, 204);
+});
+
+/**
+ * `GET /license/renew/{token}` — the link in the renewal email (PRD F8.8).
+ *
+ * Redirects straight into Stripe Checkout for the $24/year price against the existing
+ * customer, so the card saved at purchase is offered and renewing is one click.
+ *
+ * A GET that redirects rather than a POST because it is reached from an email client, which
+ * cannot post. The token is single-use and burned on redemption, so a forwarded email cannot
+ * start a second checkout — and nothing is charged until the customer completes Checkout.
+ */
+license.get("/renew/:token", async (c) => {
+  const redeemed = await redeemRenewalToken(c.env, c.req.param("token"));
+
+  if (!redeemed) {
+    // Deliberately vague and non-destructive: an expired link should read as "ask again",
+    // not as an error the customer has to decode.
+    return c.redirect(`${webOrigin(c.env)}/pricing?renew=expired`, 303);
+  }
+
+  try {
+    const session = await createRenewalCheckout(
+      c.env,
+      redeemed.customerId,
+      c.req.param("token"),
+      webOrigin(c.env),
+    );
+    return c.redirect(session.url, 303);
+  } catch (error) {
+    console.warn("could not open the renewal checkout", error);
+    return c.redirect(`${webOrigin(c.env)}/pricing?renew=failed`, 303);
+  }
+});
+
+/**
+ * `POST /license/portal` — "Manage Sync" (PRD F8.2).
+ *
+ * Returns a Stripe-hosted billing-portal URL for the app to open in the browser. Cancelling,
+ * changing the card and the invoice history all live there, so none of it has to exist in
+ * Hopshot — and the app never handles a payment detail.
+ *
+ * Authenticated with this device's own token: the customer is whoever the token's licence
+ * belongs to, never a customer id supplied by the caller.
+ */
+license.post("/portal", async (c) => {
+  const header = c.req.header("Authorization") ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  if (!token) return fail(c, "unauthorized", "This request needs its device token.");
+
+  const row = await c.env.DB.prepare(
+    `SELECT l.customer_id AS customer_id
+       FROM license_devices d
+       JOIN licenses l ON l.id = d.license_id
+      WHERE d.token_hash = ?1 AND d.removed_at IS NULL`,
+  )
+    .bind(await sha256Hex(token))
+    .first<{ customer_id: string }>();
+
+  if (!row) return fail(c, "unauthorized", "That device token isn't valid.");
+
+  try {
+    const session = await billingPortal(c.env, row.customer_id, `${webOrigin(c.env)}/thanks`);
+    return c.json({ url: session.url });
+  } catch (error) {
+    console.warn("could not open the billing portal", error);
+    return fail(c, "server_error", "Billing couldn't be opened. Try again shortly.");
+  }
 });
 
 /* ── Restore (PRD F8: "Already bought? Restore") ──────────────────────────── */

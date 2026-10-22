@@ -3,6 +3,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:
 // file:// URLs, so the schema has to arrive as a string.
 import schema from "../migrations/0001_init.sql?raw";
 import pairingSchema from "../migrations/0002_pairing.sql?raw";
+import renewalSchema from "../migrations/0003_renewals.sql?raw";
 import worker from "../src/index.ts";
 
 /**
@@ -44,8 +45,8 @@ export async function applyMigrations(): Promise<void> {
   // before stripping them turns half a sentence into a statement.
   //
   // Applied in order, like `wrangler d1 migrations apply`, because 0002 references
-  // vaults(id).
-  const statements = [schema, pairingSchema].flatMap((sql) =>
+  // vaults(id) and 0003 references licenses(id).
+  const statements = [schema, pairingSchema, renewalSchema].flatMap((sql) =>
     sql
       .replace(/--[^\n]*/g, "")
       .split(";")

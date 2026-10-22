@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import { sweep } from "./lib/cleanup.ts";
+import { sendRenewalNotices } from "./lib/renewals.ts";
 import { apiCors } from "./lib/cors.ts";
 
 import { admin } from "./routes/admin.ts";
@@ -74,7 +75,12 @@ export default {
         );
         break;
       case "0 9 * * *":
-        // Sync renewal reminders (ARCHITECTURE §7.5) arrive in Phase 4.
+        // PRD F8.8: ask whether to continue Sync. Nothing renews itself.
+        ctx.waitUntil(
+          sendRenewalNotices(env).then((sent) => {
+            if (sent > 0) console.log(`sent ${sent} Sync renewal notice(s)`);
+          }),
+        );
         break;
       default:
         console.warn("unhandled cron trigger", event.cron);

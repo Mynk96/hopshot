@@ -108,6 +108,53 @@ export async function sendReceipt(
 }
 
 /**
+ * "Sync renews in 10 days — confirm?" (PRD F8.8).
+ *
+ * Deduplicated per licence per year through `once`, keyed on the renewal year, so the daily
+ * cron can run every day inside the notice window and still send exactly one email — and
+ * next year's notice is a separate row rather than being suppressed by this one.
+ *
+ * The copy has to be unambiguous that nothing is charged unless they act, because that is
+ * the actual behaviour and the opposite of what most renewal emails mean.
+ */
+export async function sendRenewalNotice(
+  env: Env,
+  email: string,
+  licenseId: string,
+  periodKey: string,
+  confirmUrl: string,
+  renewalAt: number,
+): Promise<void> {
+  const on = new Date(renewalAt).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+  await once(env, licenseId, "sync_renewal", periodKey, () =>
+    send(
+      env,
+      email,
+      "Your year of Hopshot Sync ends soon",
+      [
+        `Your included year of Sync ends on ${on}.`,
+        "",
+        "Nothing will be charged. If you want to keep syncing to your phone and using up to",
+        "three computers, confirm here and it continues at $24/year:",
+        "",
+        confirmUrl,
+        "",
+        "If you do nothing, Sync simply stops and the rest of Hopshot keeps working — your",
+        "shelf, capture, drag-out and share links are all yours for good.",
+        "",
+        "Hopshot",
+      ].join("\n"),
+    ),
+  );
+}
+
+/**
  * A six-digit restore code.
  *
  * Not deduplicated by `once`: asking again is how someone recovers from a lost email, and

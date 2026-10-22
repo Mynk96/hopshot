@@ -100,6 +100,7 @@ pub fn run() {
             commands::license_buy,
             commands::license_move_here,
             commands::license_remove_computer,
+            commands::license_manage_sync,
             commands::paired_phones,
             commands::send_to_phones,
             commands::set_shelf_wide,

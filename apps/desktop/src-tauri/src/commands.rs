@@ -213,6 +213,21 @@ pub fn license_remove_computer(app: AppHandle, device_id: String) -> Result<(), 
     license::remove_computer(&device_id).map_err(|error| error.to_string())
 }
 
+/// `license_manage_sync()` — open the Stripe billing portal in the browser (PRD F8.2).
+///
+/// Cancelling, changing the card and invoices all live on Stripe's side, so this is the whole
+/// of billing in the app. Rust opens the URL rather than handing it back, so the portal link
+/// never has to exist in the webview.
+#[tauri::command]
+pub fn license_manage_sync(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+
+    let url = license::billing_portal().map_err(|error| error.to_string())?;
+    app.opener()
+        .open_url(&url, None::<&str>)
+        .map_err(|error| error.to_string())
+}
+
 /// Which phones this item can be sent to without a QR (DESIGN S4).
 ///
 /// Empty means nothing is paired, and the send sheet shows a QR instead.

@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { limits } from "shared";
 
 import { claimDeviceSlot, createClaim, fulfilClaim, planForDeviceToken, recordPurchase, revokeByPaymentIntent } from "../src/lib/license.ts";
@@ -297,6 +297,81 @@ describe("GET /v1/license/status", () => {
       headers: { Authorization: "Bearer not-a-real-token" },
     });
     expect((await response.json<{ plan: string }>()).plan).toBe("expired");
+  });
+});
+
+describe("POST /v1/license/portal (Manage Sync)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("needs a device token", async () => {
+    const response = await send("/v1/license/portal", { method: "POST" });
+    expect(response.status).toBe(401);
+  });
+
+  it("refuses a token that was never issued", async () => {
+    const response = await send("/v1/license/portal", {
+      method: "POST",
+      headers: { Authorization: "Bearer not-a-real-token" },
+    });
+    expect(response.status).toBe(401);
+  });
+
+  /**
+   * The customer id is the one thing this route must never take from the caller: with it,
+   * anyone could open a portal session against somebody else's billing.
+   */
+  it("opens the portal for the token's own customer, not one from the request", async () => {
+    const licenseId = await recordPurchase(env, {
+      customerId: "cus_portal",
+      email: "portal@example.com",
+      plan: "bundle",
+      sessionId: "cs_portal",
+      paymentIntentId: "pi_portal",
+    });
+    const slot = await claimDeviceSlot(env, licenseId, "install-portal", "This PC");
+    expect(slot.ok).toBe(true);
+    if (!slot.ok) return;
+
+    let askedFor: string | null = null;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      expect(url).toContain("/billing_portal/sessions");
+      askedFor = new URLSearchParams(String(init?.body)).get("customer");
+      return Response.json({ url: "https://billing.stripe.com/session/test" });
+    });
+
+    const response = await send("/v1/license/portal", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${slot.deviceToken}` },
+      // Ignored, and that is the point.
+      body: JSON.stringify({ customerId: "cus_someone_else" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(askedFor).toBe("cus_portal");
+    expect((await response.json<{ url: string }>()).url).toContain("billing.stripe.com");
+  });
+
+  it("refuses a device that has been removed from the licence", async () => {
+    const licenseId = await recordPurchase(env, {
+      customerId: "cus_removed",
+      email: "removed@example.com",
+      plan: "bundle",
+      sessionId: "cs_removed",
+      paymentIntentId: "pi_removed",
+    });
+    const slot = await claimDeviceSlot(env, licenseId, "install-removed", "Old PC");
+    if (!slot.ok) return;
+
+    await env.DB.prepare("UPDATE license_devices SET removed_at = ?1 WHERE license_id = ?2")
+      .bind(Date.now(), licenseId)
+      .run();
+
+    const response = await send("/v1/license/portal", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${slot.deviceToken}` },
+    });
+    expect(response.status).toBe(401);
   });
 });
 

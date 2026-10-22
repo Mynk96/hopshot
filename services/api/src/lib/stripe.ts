@@ -141,6 +141,21 @@ export async function createCheckout(
       // So a repeat purchase by the same person reuses one customer record.
       customer_creation: "always",
       allow_promotion_codes: "true",
+
+      /*
+       * Save the card for the bundle only (PRD F8.8).
+       *
+       * The bundle includes the first year of Sync; around day 355 we ask whether to
+       * continue at $24/year, and that renewal needs a card already on file or the customer
+       * has to re-enter it a year later. Nothing is charged without confirmation — this
+       * stores the card, it does not authorise a future debit on its own.
+       *
+       * Not set for `lifetime`: there is nothing to renew, so keeping the card would be
+       * collecting more than the purchase needs.
+       */
+      ...(plan === "bundle"
+        ? { "payment_intent_data[setup_future_usage]": "off_session" }
+        : {}),
     },
     // One claim is one intent to buy: a double-submit cannot become two charges.
     `checkout:${claim}`,
@@ -149,6 +164,40 @@ export async function createCheckout(
 
 export async function readCheckout(env: Env, sessionId: string): Promise<CheckoutSession> {
   return get<CheckoutSession>(env, `/checkout/sessions/${encodeURIComponent(sessionId)}`);
+}
+
+/**
+ * A Checkout Session for the yearly Sync renewal (PRD F8.8).
+ *
+ * `mode=subscription` against the existing customer, so the card saved at purchase is
+ * offered and the renewal is one click. Reached only from a confirmed renewal token — Sync
+ * never renews without the customer saying yes.
+ */
+export async function createRenewalCheckout(
+  env: Env,
+  customerId: string,
+  token: string,
+  origin: string,
+): Promise<CheckoutSession> {
+  const price = (env as { STRIPE_PRICE_SYNC_YEARLY?: string }).STRIPE_PRICE_SYNC_YEARLY;
+  if (!price) throw new StripeError(500, "Sync renewal is not configured yet.");
+
+  return post<CheckoutSession>(
+    env,
+    "/checkout/sessions",
+    {
+      mode: "subscription",
+      customer: customerId,
+      "line_items[0][price]": price,
+      "line_items[0][quantity]": "1",
+      success_url: `${origin}/thanks?sync=1`,
+      cancel_url: `${origin}/pricing`,
+      // So the webhook can tie the subscription back to the licence it renews.
+      "subscription_data[metadata][renewal]": token,
+    },
+    // One token is one intent to renew: a double-click cannot create two subscriptions.
+    `renewal:${token}`,
+  );
 }
 
 /** The Stripe-hosted billing portal — "Manage Sync" (PRD F8.2). */

@@ -44,3 +44,12 @@ new_sqlite_classes = ["VaultHub"]
 # Every 15 min: delete expired drops/items and their R2 objects (ARCHITECTURE §7.8).
 # Daily 09:00 UTC: Sync renewal reminder emails (ARCHITECTURE §7.5).
 crons = ["*/15 * * * *", "0 9 * * *"]
+
+[vars]
+STRIPE_PRICE_LIFETIME = "price_1UTKyKSAaYIq0lX8kOyG4XUJ"
+STRIPE_PRICE_BUNDLE = "price_1UM4rpSAaYIq0lX8oRSba6nK"
+# The yearly Sync renewal (PRD F8.8). Only reached from a confirmed renewal link, so leaving
+# this unset makes renewals fail closed rather than charging anyone — nothing else breaks.
+STRIPE_PRICE_SYNC_YEARLY = "REPLACE_ME_price_sync_yearly"
+EMAIL_FROM = "Hopshot <founder@hopshot.xyz>"
+WEB_ORIGIN = "https://app.hopshot.xyz"

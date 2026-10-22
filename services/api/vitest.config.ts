@@ -15,6 +15,7 @@ export default defineConfig({
           STRIPE_SECRET_KEY: "sk_test_not_used",
           STRIPE_PRICE_LIFETIME: "price_lifetime_test",
           STRIPE_PRICE_BUNDLE: "price_bundle_test",
+          STRIPE_PRICE_SYNC_YEARLY: "price_sync_yearly_test",
           WEB_ORIGIN: "https://hopshot.xyz",
         },
       },

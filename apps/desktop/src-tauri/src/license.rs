@@ -41,6 +41,9 @@ pub struct LicenseStatus {
     pub limit: Option<u32>,
     #[serde(default)]
     pub sync_active: Option<bool>,
+    /// Unix ms when Sync lapses if nothing is renewed. Absent when Sync is already off.
+    #[serde(default)]
+    pub sync_ends_at: Option<i64>,
     #[serde(default)]
     pub devices: Option<Vec<LicensedComputer>>,
 }
@@ -108,6 +111,28 @@ pub fn remove_computer(device_id: &str) -> Result<(), ClientError> {
     };
 
     client::delete(&format!("/license/devices/{device_id}"), &token)
+}
+
+/// "Manage Sync" — a Stripe-hosted billing portal URL (PRD F8.2).
+///
+/// The app opens this in the browser rather than hosting any billing UI of its own, so no
+/// payment detail ever reaches Hopshot.
+pub fn billing_portal() -> Result<String, ClientError> {
+    let Some(token) = token() else {
+        return Err(ClientError::Protocol("this computer has no licence".into()));
+    };
+
+    #[derive(Deserialize)]
+    struct Portal {
+        url: String,
+    }
+
+    client::post_json::<_, Portal>(
+        "/license/portal",
+        &serde_json::json!({}),
+        &[("Authorization", &format!("Bearer {token}"))],
+    )
+    .map(|portal| portal.url)
 }
 
 /* ── Trial and the paused state (PRD F8.1, F8.1a) ─────────────────────────── */
