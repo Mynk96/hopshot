@@ -1,5 +1,7 @@
 import { limits, type PlanName, type Ttl } from "shared";
 
+import { planForDeviceToken } from "./license.ts";
+
 /**
  * Which plan a request is acting under, and what that plan allows (ARCHITECTURE §4, §7.9).
  *
@@ -17,24 +19,24 @@ export type PlanLimits = {
 export const TRIAL_MS = limits.trial.days * 86_400_000;
 
 /**
- * Resolve the caller's plan, from D1 only — never an external call (ARCHITECTURE §7.5).
+ * Resolve the caller's plan, from D1 only — never an external call (ARCHITECTURE §7.5), so a
+ * Stripe outage cannot lock out paying users.
  *
- * Order is §4's: expired → trial → lifetime → sync. A live trial wins over `lifetime`
- * because `limits.trial.includes === "sync"`: during the trial the user has everything,
- * and `limitsFor` maps trial onto the Sync caps below.
- *
- * The `lifetime` and `sync` branches read `licenses` / `license_devices` / `subscriptions`
- * and arrive with Phase 4.1 — they need Stripe to populate those tables. Until then a
- * caller with no live trial is treated as `lifetime`, which is what Phase 3.2 assumed and
- * what keeps drops working.
+ * `X-Hopshot-License` is the device token the app stored after buying or restoring.
  */
 export async function resolvePlan(request: Request, env: Env): Promise<PlanName> {
+  /*
+   * Order is §4's: a live trial wins, because `limits.trial.includes === "sync"` and during
+   * the trial the user has everything. A licence is checked second, and an absent or revoked
+   * one is `expired` — which is what makes a refund actually take the app away.
+   */
   const installId = request.headers.get("X-Hopshot-Install");
   if (installId && (await isTrialLive(env, installId))) return "trial";
 
-  // TODO(4.1): read X-Hopshot-License → license_devices → licenses/subscriptions for the
-  // real lifetime/sync/expired answer.
-  return "lifetime";
+  const token = request.headers.get("X-Hopshot-License");
+  if (token) return planForDeviceToken(env, token);
+
+  return "expired";
 }
 
 /**
@@ -60,18 +62,37 @@ export async function planForVault(
   // No vault means nothing to authorise; callers have already 401'd on the token by here.
   if (!row) return "expired";
 
-  const TRIAL_PREFIX = "trial:";
-  if (row.owner.startsWith(TRIAL_PREFIX)) {
-    const installId = row.owner.slice(TRIAL_PREFIX.length);
-    return (await isTrialLive(env, installId, now)) ? "trial" : "expired";
-  }
-
   /*
-   * A vault only exists because `POST /vaults` found `vault: true` on the creator's plan,
-   * so a non-trial owner is a Sync owner by construction. Phase 4.1 replaces this with a
-   * real read of `licenses`/`subscriptions`, which is also what will let Sync lapse (F8.7).
+   * `owner` records the install that created the vault, which is almost always during the
+   * trial. When that trial runs out the vault must *not* simply expire: the owner may have
+   * bought Lifetime + Sync in the meantime, and the owner column is not rewritten by a
+   * purchase. So a dead trial falls through to the licence that install now holds —
+   * otherwise a paying Sync customer loses their phone sync the moment the trial lapses.
    */
-  return "sync";
+  const installId = row.owner.replace(/^(trial|install):/, "");
+
+  if (await isTrialLive(env, installId, now)) return "trial";
+  return planForInstall(env, installId);
+}
+
+/**
+ * The plan an install holds by licence, ignoring the trial.
+ *
+ * Keyed on `install_id` rather than a token because the caller here is a *phone*, which has
+ * neither the licence token nor the install id — only the vault it belongs to.
+ */
+export async function planForInstall(env: Env, installId: string): Promise<PlanName> {
+  const row = await env.DB.prepare(
+    `SELECT l.plan AS plan FROM license_devices d
+       JOIN licenses l ON l.id = d.license_id
+      WHERE d.install_id = ?1 AND d.removed_at IS NULL AND l.status = 'active'
+      ORDER BY l.created_at DESC LIMIT 1`,
+  )
+    .bind(installId)
+    .first<{ plan: "lifetime" | "bundle" }>();
+
+  if (!row) return "expired";
+  return row.plan === "bundle" ? "sync" : "lifetime";
 }
 
 /** Is this install inside its 7-day trial (PRD F8, ARCHITECTURE §7.5)? */

@@ -41,7 +41,31 @@ drops.post("/:id", async (c) => {
     return fail(c, "bad_request", "That drop id isn't valid.");
   }
 
+  const installId = c.req.header("X-Hopshot-Install");
+  if (!installId) {
+    return fail(c, "bad_request", "This request is missing its install id.");
+  }
+
   const plan = await resolvePlan(c.req.raw, c.env);
+
+  /*
+   * PRD F8.1a: when the trial ends without a purchase, capture is paused. `limitsFor` maps
+   * an unknown plan onto the Lifetime caps, so without this gate an expired user kept a
+   * free 10 sends a day — the paywall would not have held.
+   *
+   * Checked *after* input validation, so a malformed request still reports what is actually
+   * wrong with it rather than being told to buy something.
+   *
+   * The shelf itself stays readable and draggable; that is local and nothing here touches it.
+   */
+  if (plan === "expired") {
+    return fail(
+      c,
+      "forbidden",
+      "Your trial has ended — your shelf is still here. Buy Hopshot to keep capturing.",
+    );
+  }
+
   const planLimits = limitsFor(plan);
 
   // TTL has to be allowed on this plan (ARCHITECTURE §7.1).
@@ -62,11 +86,6 @@ drops.post("/:id", async (c) => {
   const declared = Number(c.req.header("Content-Length") ?? "0");
   if (declared > planLimits.maxCiphertextBytes) {
     return fail(c, "too_large", "That image is too big to send. 10 MB is the limit.");
-  }
-
-  const installId = c.req.header("X-Hopshot-Install");
-  if (!installId) {
-    return fail(c, "bad_request", "This request is missing its install id.");
   }
 
   const now = Date.now();

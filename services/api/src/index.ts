@@ -45,8 +45,8 @@ v1.route("/vaults", live);
 v1.route("/pair", pair);
 v1.route("/trial", trial);
 v1.route("/license", license);
-v1.route("/billing", billing);
 v1.route("/webhooks", webhooks);
+v1.route("/billing", billing);
 v1.route("/admin", admin);
 v1.route("/report", report);
 

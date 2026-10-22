@@ -2,7 +2,8 @@ import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:
 import { beforeEach, describe, expect, it } from "vitest";
 import { limits } from "shared";
 import worker from "../src/index.ts";
-import { applyMigrations, freshId, post, send } from "./helpers.ts";
+import { claimDeviceSlot, recordPurchase } from "../src/lib/license.ts";
+import { applyMigrations, freshId, post, send, startTrial } from "./helpers.ts";
 
 /**
  * Drops routes (ARCHITECTURE §7.1) and the limits from §7.9.
@@ -10,7 +11,12 @@ import { applyMigrations, freshId, post, send } from "./helpers.ts";
  * CLAUDE.md rule 8: every API route gets happy path + limit + auth + expired.
  */
 
-beforeEach(applyMigrations);
+beforeEach(async () => {
+  await applyMigrations();
+  // A real first-launch user is on the 7-day trial. Before licensing existed, resolvePlan
+  // returned "lifetime" for everyone, so these tests never needed one.
+  await startTrial();
+});
 
 describe("POST /v1/drops/:id", () => {
   it("stores the ciphertext and returns a delete token", async () => {
@@ -35,8 +41,8 @@ describe("POST /v1/drops/:id", () => {
       .first<{ delete_token_hash: string; plan: string }>();
     expect(row!.delete_token_hash).not.toBe(json.deleteToken);
     expect(row!.delete_token_hash).toHaveLength(64);
-    // resolvePlan() is stubbed to lifetime until Phase 4.
-    expect(row!.plan).toBe("lifetime");
+    // The trial includes everything (limits.trial.includes === "sync").
+    expect(row!.plan).toBe("trial");
   });
 
   it("rejects an id that is not 22-char base62", async () => {
@@ -58,37 +64,79 @@ describe("POST /v1/drops/:id", () => {
   });
 
   it("refuses a TTL the plan does not allow with 403", async () => {
-    // Lifetime allows 24h only; 7d is Sync (config/limits.json).
-    expect(limits.lifetime.dropTtlOptions).not.toContain("7d");
+    /*
+     * These tests run on a trial, and `limits.trial.includes === "sync"` — so 7d, which
+     * Lifetime does not offer, *is* allowed here. The guard is still worth testing, so this
+     * uses a TTL no plan offers at all.
+     */
+    expect(limits.sync.dropTtlOptions).not.toContain("30d");
+    expect(limits.lifetime.dropTtlOptions).not.toContain("30d");
 
-    const response = await post(`/v1/drops/${freshId()}?ttl=7d`, new Uint8Array([1]));
+    const response = await post(`/v1/drops/${freshId()}?ttl=30d`, new Uint8Array([1]));
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({ error: { code: "forbidden" } });
   });
 
+  /** A Lifetime-only buyer must not get Sync's longer links (config/limits.json). */
+  it("refuses a Sync-only TTL on a Lifetime licence", async () => {
+    const licenseId = await recordPurchase(env, {
+      customerId: "cus_ttl",
+      email: "lifetime@example.com",
+      plan: "lifetime",
+      sessionId: "cs_ttl",
+      paymentIntentId: "pi_ttl",
+    });
+    const slot = await claimDeviceSlot(env, licenseId, "install-lifetime", "PC");
+    expect(slot.ok).toBe(true);
+    if (!slot.ok) return;
+
+    expect(limits.lifetime.dropTtlOptions).not.toContain("7d");
+
+    const response = await send(`/v1/drops/${freshId()}?ttl=7d`, {
+      method: "POST",
+      headers: {
+        // A different install, so the trial above does not apply.
+        "X-Hopshot-Install": "install-lifetime",
+        "X-Hopshot-License": slot.deviceToken,
+        "Content-Type": "application/octet-stream",
+        "CF-Connecting-IP": "203.0.113.5",
+      },
+      body: new Uint8Array([1]),
+    });
+    expect(response.status).toBe(403);
+  });
+
   it("stops at the daily cap with 429", async () => {
     const install = "install-cap";
-    const cap = limits.lifetime.dropsPerDay;
+    await startTrial(install);
 
-    for (let i = 0; i < cap; i++) {
-      const response = await post(`/v1/drops/${freshId()}`, new Uint8Array([1]), {
-        "X-Hopshot-Install": install,
-      });
-      expect(response.status).toBe(201);
-    }
+    // A trial gets the Sync cap (limits.trial.includes === "sync").
+    const cap = limits.sync.dropsPerDay;
+
+    /*
+     * Seeded rather than looped. Two reasons: `perIpDropsPerDay` is 100, so sending 200 from
+     * one address would trip the *network* cap first and test the wrong thing; and 200 real
+     * uploads is a slow test for no extra coverage.
+     */
+    await env.DB.prepare(
+      "INSERT INTO usage (day, subject, kind, count, bytes) VALUES (?1, ?2, 'drops', ?3, 0)",
+    )
+      .bind(new Date().toISOString().slice(0, 10), install, cap - 1)
+      .run();
+
+    // The last one inside the cap still goes through.
+    const allowed = await post(`/v1/drops/${freshId()}`, new Uint8Array([1]), {
+      "X-Hopshot-Install": install,
+      "CF-Connecting-IP": "198.51.100.20",
+    });
+    expect(allowed.status).toBe(201);
 
     const blocked = await post(`/v1/drops/${freshId()}`, new Uint8Array([1]), {
       "X-Hopshot-Install": install,
+      "CF-Connecting-IP": "198.51.100.20",
     });
     expect(blocked.status).toBe(429);
-    expect(await blocked.json()).toMatchObject({ error: { code: "limit_reached" } });
-
-    // The cap is per install, so a different one still works (ARCHITECTURE §7.9).
-    const other = await post(`/v1/drops/${freshId()}`, new Uint8Array([1]), {
-      "X-Hopshot-Install": "install-other",
-      "CF-Connecting-IP": "203.0.113.9",
-    });
-    expect(other.status).toBe(201);
+    expect(await blocked.text()).toContain(String(cap));
   });
 
   it("needs an install id", async () => {

@@ -18,8 +18,26 @@ export async function applyMigrations(): Promise<void> {
     "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'",
   ).all<{ name: string }>();
 
-  for (const table of tables.results ?? []) {
-    await env.DB.exec(`DROP TABLE IF EXISTS "${table.name}"`);
+  /*
+   * Dropped in dependency order by repetition rather than by a hand-maintained list: the
+   * licensing tables have foreign keys (licenses -> customers), so a fixed order rots the
+   * moment a table is added. Each pass drops whatever no longer has dependents, and the loop
+   * ends when a pass makes no progress.
+   */
+  let pending = (tables.results ?? []).map((table) => table.name);
+  while (pending.length > 0) {
+    const failed: string[] = [];
+    for (const name of pending) {
+      try {
+        await env.DB.exec(`DROP TABLE IF EXISTS "${name}"`);
+      } catch {
+        failed.push(name);
+      }
+    }
+    if (failed.length === pending.length) {
+      throw new Error(`could not drop: ${failed.join(", ")}`);
+    }
+    pending = failed;
   }
 
   // Comments go first: a `--` line in the header contains a semicolon, so splitting on `;`

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { sweep } from "../src/lib/cleanup.ts";
-import { applyMigrations, freshId, post, runCron, send } from "./helpers.ts";
+import { applyMigrations, freshId, post, runCron, send, startTrial } from "./helpers.ts";
 
 /**
  * The 15-minute retention cron (ARCHITECTURE §7.8).
@@ -10,7 +10,11 @@ import { applyMigrations, freshId, post, runCron, send } from "./helpers.ts";
  * rows only would leave blobs paying for storage with no pointer to them.
  */
 
-beforeEach(applyMigrations);
+beforeEach(async () => {
+  await applyMigrations();
+  // Posting a drop needs a plan now that resolvePlan is real (PRD F8.1a gates `expired`).
+  await startTrial();
+});
 
 async function expire(id: string): Promise<void> {
   await env.DB.prepare("UPDATE drops SET expires_at = ?2 WHERE id = ?1")
@@ -23,6 +27,7 @@ describe("retention sweep", () => {
     const expired = freshId();
     const live = freshId();
     await post(`/v1/drops/${expired}`, new Uint8Array([1]));
+    await startTrial("other");
     await post(`/v1/drops/${live}`, new Uint8Array([2]), { "X-Hopshot-Install": "other" });
     await expire(expired);
 
