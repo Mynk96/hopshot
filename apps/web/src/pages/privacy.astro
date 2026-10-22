@@ -1,10 +1,135 @@
 ---
 import Base from "../layouts/Base.astro";
+
+/*
+ * Privacy policy.
+ *
+ * Written from what the code actually does, not from a template: every claim here is
+ * checkable against the repo, and several are enforced by tests —
+ * `apps/web/e2e/key-never-leaks.spec.ts` proves the decryption key never reaches the
+ * network, and `test/sw-policy.test.ts` proves the service worker refuses to cache
+ * ciphertext or decrypted images.
+ *
+ * If the behaviour changes, this page has to change with it. It is a promise, not marketing.
+ */
+
+const updated = "21 October 2026";
 ---
 
-<Base title="Privacy">
-  <main class="mx-auto max-w-2xl p-8">
-    <h1 class="text-display">Privacy</h1>
-    <p class="mt-4 text-body text-text-2">Placeholder.</p>
+<Base
+  title="Privacy — Hopshot"
+  description="What Hopshot stores, what it doesn't, and where things go."
+>
+  <main class="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-16">
+    <header class="flex flex-col gap-2">
+      <h1 class="text-display">Privacy</h1>
+      <p class="text-small text-text-3">Last updated {updated}</p>
+    </header>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">The short version</h2>
+      <p class="text-body text-text-2">
+        Your screenshots stay on your computer. When you share one or send it to your phone,
+        it is encrypted on your device first, and the key never leaves it — so we hold bytes
+        we cannot read. Everything expires on its own.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">What stays local</h2>
+      <p class="text-body text-text-2">
+        Captures, their thumbnails and the shelf database live in Hopshot's own folder in your
+        user profile. Nothing is uploaded unless you share a screenshot or turn on phone sync.
+        Deleting an item deletes the file.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">What we store when you share</h2>
+      <p class="text-body text-text-2">
+        Sharing a screenshot or syncing it to your phone uploads it <em>already encrypted</em>
+        (AES-256-GCM). On our servers we hold:
+      </p>
+      <ul class="flex flex-col gap-1.5 pl-5 text-body text-text-2" style="list-style: disc">
+        <li>the encrypted image, which we cannot decrypt</li>
+        <li>its size, creation time and expiry time</li>
+        <li>a random id, generated on your device</li>
+        <li>hashes of the access tokens — never the tokens themselves</li>
+        <li>
+          a random install identifier, used only to count your own daily sends against your
+          own limit. It is not linked to you or to any account.
+        </li>
+        <li>
+          a one-way hash of your IP address, salted with the date, kept for 7 days to stop
+          abuse. We do not store raw IP addresses.
+        </li>
+      </ul>
+      <p class="text-body text-text-2">
+        The file name, dimensions and device name are encrypted too, so even those are not
+        visible to us.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Why we can't read your screenshots</h2>
+      <p class="text-body text-text-2">
+        The decryption key is created on your device and travels only in the part of a link
+        after the <code style="font-family: var(--mono)">#</code>. Browsers never send that
+        part to a server — it is a deliberate property of the web, not a policy we apply. So a
+        share link works for whoever has the link, and does not work for us.
+      </p>
+      <p class="text-body text-text-2">
+        The same is true of phone sync: your computer and your phones share a key that we
+        never receive.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Expiry</h2>
+      <p class="text-body text-text-2">
+        Share links expire after 24 hours by default, and up to 7 days with Sync. Shelf items
+        expire after the period you choose, 24 hours by default. Expired data is deleted
+        along with the encrypted file. You can also delete a link at any time.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Analytics</h2>
+      <p class="text-body text-text-2">
+        Anonymous usage statistics and crash reports are <strong>off</strong> unless you turn
+        them on. Hopshot does not include third-party trackers, and the app does not phone
+        home to tell us what you captured.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Who else is involved</h2>
+      <ul class="flex flex-col gap-1.5 pl-5 text-body text-text-2" style="list-style: disc">
+        <li><strong>Cloudflare</strong> hosts the service and stores the encrypted files.</li>
+        <li>
+          <strong>Stripe</strong> processes payments. They receive your name, billing address
+          and card details; we never see your card. We keep your email, name and Stripe
+          customer id so a purchase can be restored.
+        </li>
+        <li><strong>Resend</strong> delivers receipts and restore codes.</li>
+      </ul>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Deleting your data</h2>
+      <p class="text-body text-text-2">
+        Settings → Privacy → <strong>Delete all my cloud data</strong> removes your synced
+        items, your paired devices and the encrypted files, immediately. Your local shelf is
+        untouched. To delete purchase records, email us and we'll remove what we are not
+        required to keep for tax purposes.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Contact</h2>
+      <p class="text-body text-text-2">
+        Questions about any of this: <a style="color: var(--accent-text)" href="mailto:hello@hopshot.xyz">hello@hopshot.xyz</a>
+      </p>
+    </section>
   </main>
 </Base>

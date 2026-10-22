@@ -8,7 +8,7 @@ import { MoreMenu } from "./MoreMenu";
 import { SendSheet } from "./SendSheet";
 import { useAutoHide } from "./useAutoHide";
 import { useShelfKeys } from "./useShelfKeys";
-import type { ShelfItem, Toast } from "./types";
+import type { PlanState, ShelfItem, Toast } from "./types";
 
 /**
  * The shelf (DESIGN S3, PRD F2) — the app's core screen.
@@ -36,6 +36,8 @@ export default function Shelf() {
   /** Item whose QR popover is open (DESIGN S4). Also what "Copy link" opens. */
   const [qrFor, setQrFor] = useState<string | null>(null);
   const [pinnedOpen, setPinnedOpen] = useState(false);
+  /** PRD F8.1/F8.1a — the footer countdown and the trial-ended banner. */
+  const [plan, setPlan] = useState<PlanState | null>(null);
 
   /** id → staged path promise, so a drag never waits on IPC. */
   const staged = useRef(new Map<string, Promise<{ path: string; icon: string }>>());
@@ -73,6 +75,18 @@ export default function Shelf() {
       });
   }, []);
 
+  const refreshPlan = useCallback(async () => {
+    try {
+      setPlan(await invoke<PlanState>("plan_state"));
+    } catch (error) {
+      console.error("could not read the plan state", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshPlan();
+  }, [refreshPlan]);
+
   useEffect(() => {
     void refresh();
 
@@ -85,12 +99,15 @@ export default function Shelf() {
         setTimeout(() => setHighlighted(null), 900);
       }),
       listen<Toast>("toast", (event) => flash(event.payload.text, event.payload.kind)),
+      // Emitted when capture is refused, and after a purchase unlocks the app.
+      listen("plan:changed", () => void refreshPlan()),
+      listen("license:changed", () => void refreshPlan()),
     ];
 
     return () => {
       for (const pending of subscriptions) void pending.then((off) => off());
     };
-  }, [refresh, flash]);
+  }, [refresh, flash, refreshPlan]);
 
   /** Grow the window to fit, capped at DESIGN S3's 80% of the screen. */
   useEffect(() => {
@@ -275,6 +292,28 @@ export default function Shelf() {
         </IconButton>
       </header>
 
+      {plan?.capturePaused && (
+        <div
+          className="flex shrink-0 flex-col gap-1.5 px-3 py-2.5"
+          style={{
+            background: "color-mix(in srgb, var(--warning) 14%, transparent)",
+            borderBottom: "1px solid var(--border)",
+          }}
+        >
+          <b className="text-caption">Your trial has ended</b>
+          <span className="text-caption leading-4 text-text-2">
+            Your shelf is still here. Buy Hopshot to keep capturing.
+          </span>
+          <button
+            type="button"
+            className="btn btn-primary btn-compact mt-0.5 self-start text-caption"
+            onClick={() => void invoke("open_settings").catch(() => undefined)}
+          >
+            See plans
+          </button>
+        </div>
+      )}
+
       {items.length === 0 ? (
         <EmptyState />
       ) : (
@@ -301,7 +340,7 @@ export default function Shelf() {
         </ul>
       )}
 
-      <Footer count={items.length} />
+      <Footer count={items.length} plan={plan} />
 
       {qrFor && (
         <SendSheet itemId={qrFor} onClose={() => setQrFor(null)} onToast={flash} />
@@ -454,7 +493,7 @@ function EmptyState() {
  * DESIGN S3 footer. The trial and Sync variants need the plan, which arrives with
  * `get_plan()` in Phase 4; until then it shows the Lifetime line.
  */
-function Footer({ count }: { count: number }) {
+function Footer({ count, plan }: { count: number; plan: PlanState | null }) {
   // Navigator.onLine is the only offline signal available in the webview; Rust reports the
   // authoritative one per request (DESIGN S3 "Offline — sending paused").
   const [online, setOnline] = useState(navigator.onLine);
@@ -480,8 +519,14 @@ function Footer({ count }: { count: number }) {
             {count} {count === 1 ? "item" : "items"}
           </span>
           <span aria-hidden>·</span>
-          {/* DESIGN §1.5: say it briefly, every time, and never as a paragraph. */}
-          <span className="truncate">Gone in 24h</span>
+          {/* DESIGN S3: the trial shows its countdown here; otherwise the privacy line. */}
+          {plan?.trialDaysLeft && plan.trialDaysLeft > 0 ? (
+            <span className="truncate">
+              Trial · {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"} left
+            </span>
+          ) : (
+            <span className="truncate">Gone in 24h</span>
+          )}
         </>
       ) : (
         <span className="flex items-center gap-1.5 truncate" style={{ color: "var(--warning)" }}>

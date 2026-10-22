@@ -95,6 +95,7 @@ pub fn run() {
             commands::reveal_item,
             commands::send_drop,
             commands::delete_drop,
+            commands::plan_state,
             commands::license_status,
             commands::license_buy,
             commands::license_move_here,
@@ -137,6 +138,14 @@ pub fn run() {
             // PRD F4.3/F4.5: reconnect to the vault so items from a paired phone arrive
             // without the user doing anything. A no-op until a phone has been paired.
             cloud::live::ensure_running(handle);
+
+            /*
+             * PRD F8.1: the trial starts on first launch and is recorded server-side, so a
+             * reinstall cannot mint a fresh one. On a thread because it is a network call and
+             * nothing in setup may block on one.
+             */
+            let trial_handle = handle.clone();
+            std::thread::spawn(move || license::refresh_trial(&trial_handle));
 
             Ok(())
         })

@@ -38,3 +38,12 @@ export function timeLeft(item: ShelfItem, now = Date.now()): { label: string; wa
 
   return { label: `${Math.floor(hours / 24)}d`, warn: false };
 }
+
+/** Mirrors `license::PlanState` — PRD F8.1/F8.1a. */
+export type PlanState = {
+  plan: "expired" | "trial" | "lifetime" | "sync";
+  /** Whole days left in the trial, 0 once it has run out. `null` when not on a trial. */
+  trialDaysLeft: number | null;
+  /** The trial ran out and nothing was bought: capture is paused, the shelf is not. */
+  capturePaused: boolean;
+};

@@ -110,16 +110,119 @@ pub fn remove_computer(device_id: &str) -> Result<(), ClientError> {
     client::delete(&format!("/license/devices/{device_id}"), &token)
 }
 
-/// What plan this computer is on.
+/* ── Trial and the paused state (PRD F8.1, F8.1a) ─────────────────────────── */
+
+/// What the app is allowed to do right now, decided locally.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanState {
+    pub plan: Plan,
+    /// Whole days left in the trial, 0 once it has run out. `None` when not on a trial.
+    pub trial_days_left: Option<i64>,
+    /// PRD F8.1a — the trial ran out and nothing was bought.
+    pub capture_paused: bool,
+}
+
+/// What `POST /trial/start` reports.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Trial {
+    pub ends_at: i64,
+    pub active: bool,
+}
+
+/// Start (or re-read) the trial and cache when it ends.
 ///
-/// Resolved locally from the keychain and the last known status rather than hitting the
-/// network: this is called on the capture path and from the tray menu, and neither can wait
-/// on a request. The real re-check happens every `licenseRecheckDays` (ARCHITECTURE §7.5).
-pub fn current_plan<R: Runtime>(_app: &AppHandle<R>) -> Plan {
-    // Until the periodic re-check lands, a stored token means a purchase happened and the
-    // trial covers everyone else. Treating an unlicensed install as Trial is the forgiving
-    // direction: the server is the one that actually enforces the plan on every request.
-    Plan::Trial
+/// Idempotent server-side, so calling it at every launch cannot extend anything. The cached
+/// `trial_ends_at` is what lets [`plan_state`] answer without a network call.
+pub fn refresh_trial<R: Runtime>(app: &AppHandle<R>) {
+    // A licensed computer has nothing to gain from a trial lookup.
+    if token().is_some() {
+        return;
+    }
+
+    let install_id = crate::cloud::drops::install_id(app);
+    let result: Result<Trial, ClientError> = client::post_json(
+        "/trial/start",
+        &serde_json::json!({}),
+        &[("X-Hopshot-Install", install_id.as_str())],
+    );
+
+    match result {
+        Ok(trial) => {
+            let mut patch = serde_json::Map::new();
+            patch.insert("trialEndsAt".into(), serde_json::json!(trial.ends_at));
+            if let Err(error) = crate::settings::patch(app, patch) {
+                log::warn!("could not cache the trial end: {error}");
+            }
+            log::info!(
+                "trial {} (ends {})",
+                if trial.active { "active" } else { "ended" },
+                trial.ends_at
+            );
+        }
+        // Offline at launch is normal. The cached value carries the app until it is reachable
+        // again, and an install that has never reached the server is treated as on trial —
+        // the forgiving direction, since the server enforces the plan on every request.
+        Err(error) => log::warn!("could not refresh the trial: {error}"),
+    }
+}
+
+/// What plan this computer is on, and whether capture is paused.
+///
+/// Decided locally from the keychain and the cached trial end. The capture path calls this on
+/// every hotkey press and cannot wait on a request; the server is still the authority and
+/// refuses an expired caller on every API call.
+pub fn plan_state<R: Runtime>(app: &AppHandle<R>) -> PlanState {
+    // A stored licence token means a purchase happened. Which plan it is comes from the
+    // server's last word; absent that, Lifetime is the safe floor — it unlocks capture
+    // without granting Sync, and the server rejects anything beyond it.
+    if token().is_some() {
+        return PlanState {
+            plan: Plan::Lifetime,
+            trial_days_left: None,
+            capture_paused: false,
+        };
+    }
+
+    let ends_at = crate::settings::load(app)
+        .unwrap_or_default()
+        .trial_ends_at;
+
+    match ends_at {
+        Some(ends_at) => {
+            let remaining = ends_at - crate::shelf::store::now_ms();
+            let days = (remaining as f64 / 86_400_000.0).ceil() as i64;
+
+            if remaining > 0 {
+                PlanState {
+                    // The trial includes everything (limits.trial.includes).
+                    plan: Plan::Trial,
+                    trial_days_left: Some(days.max(1)),
+                    capture_paused: false,
+                }
+            } else {
+                // PRD F8.1a: capture pauses; the shelf stays readable and draggable.
+                PlanState {
+                    plan: Plan::Expired,
+                    trial_days_left: Some(0),
+                    capture_paused: true,
+                }
+            }
+        }
+        // Never reached the server, so we do not know. Allow capture: a first-run user
+        // behind a captive portal must not be locked out of the app they just installed.
+        None => PlanState {
+            plan: Plan::Trial,
+            trial_days_left: None,
+            capture_paused: false,
+        },
+    }
+}
+
+/// What plan this computer is on.
+pub fn current_plan<R: Runtime>(app: &AppHandle<R>) -> Plan {
+    plan_state(app).plan
 }
 
 /* ── Buying (PRD F8.2, F8.3) ──────────────────────────────────────────────── */
