@@ -26,7 +26,7 @@
 **Install / update / license**
 - [ ] Clean install on a fresh user account; uninstall leaves no files outside app-data
 - [ ] Update from the previous version via the updater (direct builds)
-- [ ] Buying in the app unlocks it with no input; the **Open in Hopshot** link and email restore both work; a 4th computer takes an unused slot or asks which computer to remove
+- [ ] Buying in the app unlocks it with no input; the **Open in Hopshot** link and email restore both work; a computer over the limit (Lifetime 1, Lifetime + Sync 3, founders 3) takes an unused slot or asks which computer to move from; ending Sync leaves only the most recent computer licensed
 - [ ] Store MSIX installs and runs; the updater is disabled in the Store build
 
 ---
