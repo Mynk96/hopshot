@@ -17,7 +17,7 @@ import {
   upsertSubscription,
 } from "../src/lib/license.ts";
 import { sendRenewalNotices } from "../src/lib/renewals.ts";
-import { applyMigrations, runCron } from "./helpers.ts";
+import { applyMigrations, runCron, send } from "./helpers.ts";
 
 /**
  * Sync renewal (PRD F8.8).
@@ -216,6 +216,85 @@ describe("the daily cron", () => {
 
   it("is quiet when nobody is due", async () => {
     expect(await sendRenewalNotices(env, Date.now())).toBe(0);
+  });
+});
+
+describe("POST /v1/admin/renewals/run", () => {
+  const TOKEN = "admin-token-for-tests";
+
+  function withAdminToken(): void {
+    (env as unknown as Record<string, string>).ADMIN_TOKEN = TOKEN;
+  }
+
+  afterEach(() => {
+    delete (env as unknown as Record<string, string | undefined>).ADMIN_TOKEN;
+  });
+
+  /** The whole route has to be invisible until the secret is deliberately set. */
+  it("is 404 while ADMIN_TOKEN is unset, even with a token", async () => {
+    const response = await send("/v1/admin/renewals/run", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it("is 404 for a wrong token — not 401, which would confirm the route exists", async () => {
+    withAdminToken();
+    const response = await send("/v1/admin/renewals/run", {
+      method: "POST",
+      headers: { Authorization: "Bearer wrong" },
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it("is 404 with no Authorization header", async () => {
+    withAdminToken();
+    expect((await send("/v1/admin/renewals/run", { method: "POST" })).status).toBe(404);
+  });
+
+  it("runs the job for a licence that is due", async () => {
+    const now = Date.now();
+    await bundle(now - YEAR_MS + 5 * 86_400_000);
+    withAdminToken();
+
+    const response = await send("/v1/admin/renewals/run", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+
+    expect(response.status).toBe(200);
+    expect((await response.json<{ sent: number }>()).sent).toBe(1);
+  });
+
+  /** `at` is how the window gets tested without backdating anything. */
+  it("accepts an `at` date and finds what would be due then", async () => {
+    const now = Date.now();
+    // Not due now — its year ends in 100 days.
+    await bundle(now - YEAR_MS + 100 * 86_400_000);
+    withAdminToken();
+
+    const nothingYet = await send("/v1/admin/renewals/run", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    expect((await nothingYet.json<{ sent: number }>()).sent).toBe(0);
+
+    const at = new Date(now + 95 * 86_400_000).toISOString();
+    const due = await send(`/v1/admin/renewals/run?at=${encodeURIComponent(at)}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    expect((await due.json<{ sent: number }>()).sent).toBe(1);
+  });
+
+  it("refuses an `at` that isn't a date", async () => {
+    withAdminToken();
+    const response = await send("/v1/admin/renewals/run?at=soon", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    expect(response.status).toBe(400);
   });
 });
 

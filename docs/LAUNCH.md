@@ -127,6 +127,144 @@ revenue.
 
 ---
 
+## 2d. End-to-end test in the Stripe sandbox (do this before the first real sale)
+
+Everything below runs against the **deployed** API, because that is what the app talks to.
+The Worker has one set of secrets, so while you are testing, `STRIPE_SECRET_KEY` and
+`STRIPE_WEBHOOK_SECRET` are sandbox values — **swap them for live keys when you are done, and
+re-run only Part 1 against live** to confirm the switch took.
+
+### Setup
+
+```bash
+npx wrangler secret put ADMIN_TOKEN --config services/api/wrangler.toml
+```
+
+Also needed: the three sandbox Prices from §2b (including `STRIPE_PRICE_SYNC_YEARLY` in
+`[vars]`), a sandbox webhook endpoint pointing at `https://api.hopshot.xyz/v1/webhooks/stripe`
+with the eight events, and `RESEND_API_KEY`.
+
+Keep a log open in another terminal the whole time — it is the fastest way to see a webhook
+that did not arrive:
+
+```bash
+npx wrangler tail --config services/api/wrangler.toml
+```
+
+### Part 1 — buy and unlock (PRD F8.2, F8.3)
+
+The website's Download button still points at a GitHub release that does not exist, so build
+the installer yourself:
+
+```bash
+pnpm -F desktop tauri build
+```
+
+Install from `apps/desktop/src-tauri/target/release/bundle/nsis/`, then in the app:
+Settings → License → **Buy Lifetime + Sync · $19**. Pay with `4242 4242 4242 4242`, any
+future expiry, any CVC.
+
+Expect: the app unlocks **by itself** within a few seconds of payment — no key, no restart —
+and a receipt email arrives. In the log you should see `checkout.session.completed` followed
+by `licence … issued (bundle)`.
+
+If the app stays on "Finish paying in your browser", the webhook is the thing to check first:
+a missing `checkout.session.completed` subscription means the claim is never fulfilled.
+
+### Part 2 — the restore path
+
+On the same machine, or a second one: Settings → License → **Already bought? Restore** →
+your purchase email → the six-digit code from the mail. This is the only other way a licence
+reaches a computer, and it is the one real users will hit after a reinstall.
+
+A second computer should work (Sync is active, so the limit is 3). To see the over-limit
+screens, backdate the licence as in Part 4 — the limit drops to 1 and the others get
+DESIGN S9's "Move it here?".
+
+### Part 3 — use it
+
+Capture, drag into a browser, **Send to phone** → scan → the image opens on the phone →
+Share works. Then send from the phone back to the shelf and watch it arrive in under 3 s.
+
+### Part 4 — the renewal mail, without waiting a year
+
+The cron only notices a licence whose included Sync year ends within 10 days, so make one.
+Find it first:
+
+```bash
+npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "SELECT l.id, c.email, l.plan, l.created_at FROM licenses l JOIN customers c ON c.stripe_customer_id = l.customer_id ORDER BY l.created_at DESC LIMIT 5"
+```
+
+Move its purchase date back 356 days, so the year ends in 9 days — inside the notice window:
+
+```bash
+npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "UPDATE licenses SET created_at = created_at - 356*86400000 WHERE id = 'PASTE_LICENCE_ID'"
+```
+
+Then run the job that the 09:00 UTC cron would run:
+
+```bash
+curl -X POST https://api.hopshot.xyz/v1/admin/renewals/run -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+`{"sent":1}` and one email. Call it again: still `{"sent":1}` but **no second email** — that
+is `emails_sent` doing its job. Settings → License should now read "Sync runs until …" with
+a date about nine days out.
+
+> Re-testing the email needs that record cleared, or nothing will send:
+> ```bash
+> npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "DELETE FROM emails_sent WHERE kind = 'sync_renewal'"
+> ```
+
+### Part 5 — opting in
+
+Click the link in the email. It burns the token and drops you into Checkout for $24/year
+against the **saved card** — you should not have to type a card number. Pay.
+
+Expect in the log: `customer.subscription.created` then `invoice.paid`. Then:
+
+```bash
+npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "SELECT stripe_subscription_id, status, current_period_end, past_due_since FROM subscriptions"
+```
+
+`status = active`, `past_due_since` null. Settings → License shows a date a year out and a
+**Manage Sync** button that opens Stripe's portal. Three computers again.
+
+Now click the email link a **second** time: it must land on `/pricing?renew=expired` rather
+than starting another checkout. A single-use token is what stops a forwarded email buying
+twice.
+
+### Part 6 — opting out, which is doing nothing
+
+Cancel the subscription in the Stripe sandbox dashboard (that is what a customer does in the
+portal), and push the licence past its year:
+
+```bash
+npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "UPDATE licenses SET created_at = created_at - 20*86400000 WHERE id = 'PASTE_LICENCE_ID'"
+```
+
+Expect, at the app's next licence check: Sync off, phones unpaired, the computer limit back
+to 1 — and **capture, the shelf, drag-out and share links all still working**. That last part
+is the promise; if anything in Lifetime breaks here, that is a launch blocker.
+
+To see the dunning path instead, use `FAIL=1` with the test-clock script in §2c rather than
+doing it by hand.
+
+### When you are done
+
+Put the live keys back, and reset the licence you mangled (or delete it and buy once for
+real):
+
+```bash
+npx wrangler secret put STRIPE_SECRET_KEY --config services/api/wrangler.toml
+npx wrangler secret put STRIPE_WEBHOOK_SECRET --config services/api/wrangler.toml
+```
+
+Consider deleting `ADMIN_TOKEN` afterwards. Without it, `/v1/admin/*` answers 404 to
+everyone, which is the state to be in when you are not testing.
+
+---
+
 ## 3. Channel plan
 
 | When | Channel | Notes |

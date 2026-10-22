@@ -66,20 +66,27 @@ export default {
     switch (event.cron) {
       case "*/15 * * * *":
         ctx.waitUntil(
-          sweep(env).then((swept) => {
-            // Quiet runs are the normal case; only say something when work happened.
-            if (Object.values(swept).some((n) => n > 0)) {
-              console.log("retention sweep", swept);
-            }
-          }),
+          sweep(env)
+            .then((swept) => {
+              // Quiet runs are the normal case; only say something when work happened.
+              if (Object.values(swept).some((n) => n > 0)) {
+                console.log("retention sweep", swept);
+              }
+            })
+            // Caught, not left to reject: an unhandled rejection inside waitUntil is reported
+            // as a bare worker exception with no hint of which cron it came from, which is
+            // exactly the information needed when a nightly job starts failing.
+            .catch((error) => console.error("retention sweep failed", error)),
         );
         break;
       case "0 9 * * *":
         // PRD F8.8: ask whether to continue Sync. Nothing renews itself.
         ctx.waitUntil(
-          sendRenewalNotices(env).then((sent) => {
-            if (sent > 0) console.log(`sent ${sent} Sync renewal notice(s)`);
-          }),
+          sendRenewalNotices(env)
+            .then((sent) => {
+              if (sent > 0) console.log(`sent ${sent} Sync renewal notice(s)`);
+            })
+            .catch((error) => console.error("renewal notices failed", error)),
         );
         break;
       default:
