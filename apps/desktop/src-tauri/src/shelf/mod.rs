@@ -165,8 +165,8 @@ pub fn add_from_vault<R: Runtime>(
         item_id,
         NewItem {
             source: Source::Phone,
-            origin_device: meta.origin_device.clone(),
-            file_name: meta.file_name.clone(),
+            origin_device: meta.origin.clone(),
+            file_name: meta.name.clone(),
             path,
             thumb_path,
             width: image.width(),
@@ -183,7 +183,7 @@ pub fn add_from_vault<R: Runtime>(
         "toast",
         serde_json::json!({
             "kind": "info",
-            "text": match meta.origin_device.as_deref() {
+            "text": match meta.origin.as_deref() {
                 Some(device) => format!("New from {device}"),
                 None => "New from your phone".to_string(),
             },

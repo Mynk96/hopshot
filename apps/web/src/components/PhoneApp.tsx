@@ -188,7 +188,7 @@ export default function PhoneApp() {
       <TopBar
         status={status}
         onMenu={() => setMenuOpen((open) => !open)}
-        title={view.name === "item" ? view.item.meta.name : "Hopshot"}
+        title={view.name === "item" ? view.item.meta.name || "Screenshot" : "Hopshot"}
         onBack={view.name === "item" ? () => setView({ name: "feed" }) : undefined}
       />
 
@@ -544,38 +544,78 @@ function ItemView({
     };
   }, [credentials, item, onToast]);
 
-  const file = () => new File([blob!], item.meta.name, { type: item.meta.mime });
+  /*
+   * A share sheet will refuse a file with no MIME type or no extension, so both are
+   * defaulted rather than trusted. They used to arrive `undefined` because the desktop
+   * sealed its metadata under different field names than this code reads.
+   */
+  const mime = item.meta.mime || "image/png";
+  const name = item.meta.name || `Hopshot.${mime === "image/jpeg" ? "jpg" : "png"}`;
+
+  const file = () => new File([blob!], name, { type: mime });
 
   const share = async () => {
-    if (!blob) return;
-    // `canShare` with files has to be checked: iOS Safari has `share` but refuses files in
-    // some versions, and an unguarded call throws rather than degrading.
-    if (navigator.canShare?.({ files: [file()] })) {
-      try {
-        await navigator.share({ files: [file()] });
-      } catch {
-        // A cancelled share sheet is not a failure.
-      }
+    if (!blob) {
+      onToast("Still decrypting — try again in a moment.");
       return;
     }
-    onToast("Sharing isn't available here.");
+
+    // `canShare` with files has to be checked: iOS Safari has `share` but refuses files in
+    // some versions, and an unguarded call throws rather than degrading.
+    if (!navigator.canShare?.({ files: [file()] })) {
+      onToast("Sharing isn't available here.");
+      return;
+    }
+
+    try {
+      await navigator.share({ files: [file()] });
+    } catch (error) {
+      /*
+       * Only an abort is silent. The previous version swallowed every error, which is why a
+       * genuine failure looked like the button doing nothing at all — the hardest possible
+       * thing to report or debug.
+       */
+      const name = error instanceof DOMException ? error.name : "";
+      if (name === "AbortError") return;
+
+      console.error("share failed", error);
+      onToast(
+        name === "NotAllowedError"
+          ? "Sharing needs another tap — try again."
+          : "That couldn't be shared.",
+      );
+    }
   };
 
   const save = () => {
     if (!url) return;
     const link = document.createElement("a");
     link.href = url;
-    link.download = item.meta.name;
+    link.download = name;
     link.click();
   };
+
+  /**
+   * Chrome's async clipboard writes **only** `image/png` (plus text), so a JPEG from the
+   * phone's camera can never be copied. Rather than show a button that always fails, it is
+   * hidden unless this platform can actually do it.
+   */
+  const canCopy =
+    typeof ClipboardItem !== "undefined" &&
+    typeof navigator.clipboard?.write === "function" &&
+    mime === "image/png";
 
   const copy = async () => {
     if (!blob) return;
     try {
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      // Rebuilt with the corrected type: a Blob whose type is "" is rejected outright.
+      await navigator.clipboard.write([
+        new ClipboardItem({ [mime]: new Blob([blob], { type: mime }) }),
+      ]);
       onToast("Copied");
-    } catch {
-      onToast("Copying isn't available here.");
+    } catch (error) {
+      console.error("copy failed", error);
+      onToast("That couldn't be copied.");
     }
   };
 
@@ -600,7 +640,7 @@ function ItemView({
       >
         <Action label="Share" onClick={() => void share()} disabled={!blob} />
         <Action label="Save" onClick={save} disabled={!url} />
-        <Action label="Copy" onClick={() => void copy()} disabled={!blob} />
+        {canCopy && <Action label="Copy" onClick={() => void copy()} disabled={!blob} />}
         <Action label="Delete" danger onClick={onDelete} />
       </div>
     </div>

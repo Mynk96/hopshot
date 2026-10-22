@@ -336,7 +336,7 @@ fn receive<R: Runtime>(
     };
 
     match crate::shelf::add_from_vault(app, &item.id, &png, &meta) {
-        Ok(()) => log::info!("received {} from {}", meta.file_name, meta.origin_device.as_deref().unwrap_or("a device")),
+        Ok(()) => log::info!("received {} from {}", meta.name, meta.origin.as_deref().unwrap_or("a device")),
         Err(error) => log::warn!("could not put vault item {} on the shelf: {error}", item.id),
     }
 }

@@ -78,14 +78,27 @@ struct ItemCreated {
 
 /// The metadata sealed alongside each item. The file name is in here precisely so it does
 /// not travel in a header the server could read.
+///
+/// **These field names are a cross-language contract** with `Meta` in
+/// `packages/crypto/src/index.ts`, which is what the phone unseals. They were written
+/// independently and did not match — Rust sealed `{fileName, width, height, originDevice}`
+/// while the phone read `{name, mime, w, h, createdAt, origin}`, so *every* field came back
+/// `undefined`. The visible damage was a Blob with an empty MIME type, which made
+/// `navigator.share` reject the file and `ClipboardItem` throw; card titles read "undefined".
+///
+/// `mime` is the field that cannot be dropped: the phone has to rebuild a Blob with the
+/// right type, and a typeless Blob is unusable by the share sheet. Keep this struct and that
+/// type in step — `metadata_matches_the_shared_contract` below pins the wire names.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemMeta {
-    pub file_name: String,
-    pub width: u32,
-    pub height: u32,
+    pub name: String,
+    pub mime: String,
+    pub w: u32,
+    pub h: u32,
+    pub created_at: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub origin_device: Option<String>,
+    pub origin: Option<String>,
 }
 
 /* ── Pairing (PRD F4.1) ───────────────────────────────────────────────────── */
@@ -331,6 +344,7 @@ pub fn sync_capture_in_background<R: tauri::Runtime>(
     let path = item.path.clone();
     let file_name = item.file_name.clone();
     let (width, height) = (item.width, item.height);
+    let created_at_ms = item.created_at;
     let ttl = crate::settings::load(app)
         .unwrap_or_default()
         .item_ttl
@@ -347,11 +361,15 @@ pub fn sync_capture_in_background<R: tauri::Runtime>(
         };
 
         let meta = ItemMeta {
-            file_name,
-            width,
-            height,
+            name: file_name,
+            // Captures are always PNG (capture/mod.rs writes one). The phone rebuilds its
+            // Blob from this, and an empty type makes the share sheet refuse the file.
+            mime: "image/png".to_string(),
+            w: width,
+            h: height,
+            created_at: created_at_ms,
             // So the *phone* can label where it came from (DESIGN S5).
-            origin_device: Some(device_name),
+            origin: Some(device_name),
         };
 
         match upload(&credentials, &png, &meta, &ttl) {
@@ -421,23 +439,58 @@ mod tests {
         );
     }
 
+    /// The sealed metadata is a contract with `Meta` in packages/crypto/src/index.ts, which
+    /// is what the phone unseals. The two were written independently and did not match, so
+    /// every field arrived `undefined` on the phone: an empty Blob MIME type, which made
+    /// `navigator.share` reject the file and `ClipboardItem` throw, and card titles that read
+    /// "undefined".
+    ///
+    /// Pinned as exact JSON keys. Renaming a field here without renaming it there is the
+    /// same bug again, and nothing else would catch it — both sides compile fine.
+    #[test]
+    fn metadata_matches_the_shared_contract() {
+        let json = serde_json::to_value(ItemMeta {
+            name: "Screenshot 2026-10-21 at 16.20.11.png".into(),
+            mime: "image/png".into(),
+            w: 1280,
+            h: 720,
+            created_at: 1_792_000_000_000,
+            origin: Some("Mayank's PC".into()),
+        })
+        .expect("serialize");
+
+        let object = json.as_object().expect("an object");
+        let mut keys: Vec<&str> = object.keys().map(String::as_str).collect();
+        keys.sort_unstable();
+
+        // Exactly the fields `Meta` declares, spelled the way TypeScript reads them.
+        assert_eq!(keys, ["createdAt", "h", "mime", "name", "origin", "w"]);
+
+        // `mime` is the one that cannot be empty: the phone rebuilds a Blob from it, and a
+        // typeless Blob cannot be shared or copied.
+        assert_eq!(object["mime"], "image/png");
+        assert!(object["name"].as_str().expect("a name").ends_with(".png"));
+    }
+
     #[test]
     fn item_meta_round_trips_as_camel_case() {
         let meta = ItemMeta {
-            file_name: "Screenshot 2026-10-18 at 16.20.11.png".into(),
-            width: 1280,
-            height: 720,
-            origin_device: Some("Mayank's iPhone".into()),
+            name: "Screenshot 2026-10-18 at 16.20.11.png".into(),
+            mime: "image/png".into(),
+            w: 1280,
+            h: 720,
+            created_at: 0,
+            origin: Some("Mayank's iPhone".into()),
         };
 
         let json = serde_json::to_string(&meta).expect("serialize");
-        // The PWA and the Worker both read these names (packages/shared/src/types.ts).
-        assert!(json.contains("\"fileName\""));
-        assert!(json.contains("\"originDevice\""));
+        // The names the phone's `Meta` type declares.
+        assert!(json.contains("\"name\""));
+        assert!(json.contains("\"origin\""));
 
         let back: ItemMeta = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(back.file_name, meta.file_name);
-        assert_eq!(back.width, 1280);
+        assert_eq!(back.name, meta.name);
+        assert_eq!(back.w, 1280);
     }
 
     /// A capture of our own has no origin device, and the field must then be absent rather
@@ -445,13 +498,15 @@ mod tests {
     #[test]
     fn a_local_capture_omits_the_origin_device() {
         let json = serde_json::to_string(&ItemMeta {
-            file_name: "shot.png".into(),
-            width: 10,
-            height: 10,
-            origin_device: None,
+            name: "shot.png".into(),
+            mime: "image/png".into(),
+            w: 10,
+            h: 10,
+            created_at: 0,
+            origin: None,
         })
         .expect("serialize");
 
-        assert!(!json.contains("originDevice"), "{json}");
+        assert!(!json.contains("origin"), "{json}");
     }
 }
