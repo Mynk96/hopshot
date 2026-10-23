@@ -18,6 +18,7 @@ pub mod platform;
 pub mod secrets;
 pub mod settings;
 pub mod shelf;
+pub mod update;
 
 use std::borrow::Cow;
 
@@ -101,6 +102,9 @@ pub fn run() {
             commands::license_move_here,
             commands::license_remove_computer,
             commands::license_manage_sync,
+            commands::update_supported,
+            commands::update_check,
+            commands::update_install,
             commands::paired_phones,
             commands::send_to_phones,
             commands::set_shelf_wide,
@@ -139,6 +143,13 @@ pub fn run() {
             // PRD F4.3/F4.5: reconnect to the vault so items from a paired phone arrive
             // without the user doing anything. A no-op until a phone has been paired.
             cloud::live::ensure_running(handle);
+
+            // ARCHITECTURE §9: look for a new version quietly in the background. It only ever
+            // announces one — installing is always the user's click (DESIGN S7 About).
+            #[cfg(not(feature = "store"))]
+            handle.plugin(tauri_plugin_updater::Builder::new().build())?;
+
+            update::watch(handle);
 
             Ok(())
         })

@@ -150,7 +150,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **Size:** 208 px wide; height fits its content up to 80% of the screen, then scrolls. Margin 12 px from the screen edge, vertically centered.
 - **Header (36 px):** app mark + "Hopshot" (`title`), item count chip, pin-open toggle, settings, close.
 - **List:** newest first, 8 px gap.
-- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip: pay-first means there is nothing to count down (PRD F8.1).
+- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip: pay-first means there is nothing to count down (PRD F8.1). When an update is pending, `· Update to 0.1.3` is appended — a plain underlined word, no badge and no colour, that opens Settings → About rather than installing in place (ARCHITECTURE §9).
 
 **States**
 
@@ -200,7 +200,10 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **Devices:** paired list (icon, name, last seen, Revoke) · `Pair a phone` · `Link another computer` (P1) · Auto-sync captures to my devices.
 - **License:** plan card (Lifetime / Lifetime + Sync with the date Sync runs until, plus **Manage Sync**; or the plans block with both prices and the 14-day refund when nothing is bought) and the purchase email; **Computers (n of 3)** with Remove on each; `Buy Hopshot`, `Add Sync` or `Manage subscription`; when nothing is bought, **Already bought? Restore** (PRD F8.3c — the path for a reinstall or a second computer). No key field anywhere.
 - **Privacy:** Anonymous usage stats (off) · Crash reports (off) · `Delete all my cloud data` (danger, with a confirm step).
-- **About:** version, Check for updates, Website, Support email, Licenses.
+- **About:** the running version (read from the binary, never hard-coded), then the update
+  block: `Check for updates` → `You're up to date` or `Hopshot 0.1.3 is available` with
+  `Install and restart` and the line "Installing closes Hopshot and reopens it. Your shelf is
+  kept." Hidden entirely in the Microsoft Store build. Then Website, Support email, Licenses.
 
 ### S8 — Onboarding (560×600)
 

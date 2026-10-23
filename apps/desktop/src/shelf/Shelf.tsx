@@ -307,7 +307,7 @@ export default function Shelf() {
           <button
             type="button"
             className="btn btn-primary btn-compact mt-0.5 self-start text-caption"
-            onClick={() => void invoke("open_settings").catch(() => undefined)}
+            onClick={() => void invoke("open_settings", { tab: "license" }).catch(() => undefined)}
           >
             See plans
           </button>
@@ -494,19 +494,30 @@ function EmptyState() {
  *
  * Plan-independent on purpose. It used to carry the trial countdown; with no trial there is
  * nothing plan-shaped left to say here, and the locked state has its own banner above.
+ *
+ * The one thing it does carry is a pending update (ARCHITECTURE §9) — one quiet word, no
+ * badge, no colour. Clicking opens Settings → About rather than installing in place, so the
+ * restart is always confirmed somewhere with room to explain it.
  */
 function Footer({ count }: { count: number }) {
   // Navigator.onLine is the only offline signal available in the webview; Rust reports the
   // authoritative one per request (DESIGN S3 "Offline — sending paused").
   const [online, setOnline] = useState(navigator.onLine);
+  const [update, setUpdate] = useState<string | null>(null);
 
   useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
+    const onNetwork = () => setOnline(navigator.onLine);
+    window.addEventListener("online", onNetwork);
+    window.addEventListener("offline", onNetwork);
+
+    const subscription = listen<{ version: string }>("update:available", (event) =>
+      setUpdate(event.payload.version),
+    );
+
     return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
+      window.removeEventListener("online", onNetwork);
+      window.removeEventListener("offline", onNetwork);
+      void subscription.then((off) => off());
     };
   }, []);
 
@@ -523,6 +534,20 @@ function Footer({ count }: { count: number }) {
           <span aria-hidden>·</span>
           {/* DESIGN S3 footer: the privacy line, which is the point of the product. */}
           <span className="truncate">Gone in 24h</span>
+
+          {update && (
+            <>
+              <span aria-hidden>·</span>
+              <button
+                type="button"
+                className="shrink-0 underline underline-offset-2"
+                style={{ color: "var(--accent-text)" }}
+                onClick={() => void invoke("open_settings", { tab: "about" }).catch(() => undefined)}
+              >
+                Update to {update}
+              </button>
+            </>
+          )}
         </>
       ) : (
         <span className="flex items-center gap-1.5 truncate" style={{ color: "var(--warning)" }}>

@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
@@ -339,7 +340,60 @@ function Placeholder({ title, phase }: { title: string; phase: string }) {
   );
 }
 
+/** What the update block is currently showing. */
+type UpdateState =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "current" }
+  | { kind: "available"; version: string }
+  | { kind: "installing" }
+  | { kind: "failed"; message: string };
+
 function About() {
+  /*
+   * Read from the binary rather than hard-coded. There were four copies of this string and
+   * this one was already stale; scripts/check-version.mjs guards the other three, and
+   * getVersion() means it can never need guarding.
+   */
+  const [version, setVersion] = useState("");
+  const [supported, setSupported] = useState(false);
+  const [state, setState] = useState<UpdateState>({ kind: "idle" });
+
+  useEffect(() => {
+    void getVersion().then(setVersion).catch(() => undefined);
+    void invoke<boolean>("update_supported").then(setSupported).catch(() => setSupported(false));
+
+    // The background check (ARCHITECTURE §9) announces what it found, so opening Settings
+    // after it has run already shows the update without a second round trip.
+    const subscription = listen<{ version: string }>("update:available", (event) =>
+      setState({ kind: "available", version: event.payload.version }),
+    );
+    return () => {
+      void subscription.then((off) => off());
+    };
+  }, []);
+
+  const check = async () => {
+    setState({ kind: "checking" });
+    try {
+      const found = await invoke<{ version: string } | null>("update_check");
+      setState(found ? { kind: "available", version: found.version } : { kind: "current" });
+    } catch (reason) {
+      // Being offline is the usual reason and is not worth alarming language.
+      setState({ kind: "failed", message: String(reason) });
+    }
+  };
+
+  const install = async () => {
+    setState({ kind: "installing" });
+    try {
+      // On success Hopshot restarts, so nothing after this runs.
+      await invoke("update_install");
+    } catch (reason) {
+      setState({ kind: "failed", message: String(reason) });
+    }
+  };
+
   return (
     <section>
       <h3 className="mb-3 text-title">About</h3>
@@ -353,12 +407,54 @@ function About() {
           style={{ background: "var(--accent)", borderRadius: 8 }}
         />
         <div>
-          <b className="text-body">Hopshot 0.1.0</b>
+          <b className="text-body">Hopshot {version}</b>
           <p className="text-caption text-text-2">
             Screenshots that clean up after themselves.
           </p>
         </div>
       </div>
+
+      {/* Hidden in the Microsoft Store build, where the Store updates the app (ARCHITECTURE §9). */}
+      {supported && (
+        <div className="mt-4 flex flex-col items-start gap-2">
+          {state.kind === "available" ? (
+            <>
+              <b className="text-body-strong">Hopshot {state.version} is available</b>
+              <span className="text-small text-text-2">
+                Installing closes Hopshot and reopens it. Your shelf is kept.
+              </span>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => void install()}
+              >
+                Install and restart
+              </button>
+            </>
+          ) : state.kind === "installing" ? (
+            <span className="text-small text-text-2">Downloading… Hopshot will restart.</span>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={state.kind === "checking"}
+                onClick={() => void check()}
+              >
+                {state.kind === "checking" ? "Checking…" : "Check for updates"}
+              </button>
+              {state.kind === "current" && (
+                <span className="text-small text-text-2">You&apos;re up to date.</span>
+              )}
+              {state.kind === "failed" && (
+                <span className="text-small text-text-2">
+                  Couldn&apos;t check just now. {state.message}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </section>
   );
 }

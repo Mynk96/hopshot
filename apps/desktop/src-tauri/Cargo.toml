@@ -1,6 +1,6 @@
 [package]
 name = "hopshot"
-version = "0.1.1"
+version = "0.1.2"
 description = "Screenshots that clean up after themselves"
 authors = ["Hopshot"]
 edition = "2021"
@@ -41,6 +41,15 @@ getrandom = "0.3.4"   # 128-bit item ids (ARCHITECTURE §5.3); already in the tr
 tauri-plugin-dialog = "2.7.3"   # PRD F2.9 Save as… native file dialog
 tauri-plugin-opener = "2.5.5"   # PRD F2.6 Reveal in Finder / Show in Explorer (ARCHITECTURE §2)
 tauri-plugin-autostart = "2.5.1"   # DESIGN S7 General → Launch at login
+# In-app updates (ARCHITECTURE §9, PRD F8). The official Tauri plugin, and the one §9
+# already names: it verifies a minisign signature before applying anything, which is the
+# only reason shipping self-updates to a paid app is safe.
+#
+# Not an optional dependency, though the Store build never registers it: tauri-build scans
+# capabilities at build-script time and cannot see Cargo features, so an optional plugin
+# crate breaks that build however the features are arranged. The cost is some dead code in
+# the MSIX and nothing else.
+tauri-plugin-updater = "2.9.0"
 aes-gcm = "0.10.3"   # HOP1 envelope (ARCHITECTURE §6), AES-256-GCM
 qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }   # DESIGN S4 QR tile; default features pull an image encoder we do not need
 ureq = { version = "3.2.1", default-features = false, features = ["rustls"] }   # blocking HTTP to api.hopshot.xyz (ARCHITECTURE §7.1)
@@ -58,7 +67,9 @@ keyring = { version = "3.6.3", default-features = false, features = ["apple-nati
 tungstenite = { version = "0.29.0", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
 
 [features]
-# Microsoft Store build: disables the updater (ARCHITECTURE §9). Wired up in Phase 9.
+# Microsoft Store build (ARCHITECTURE §9). MSIX packages cannot replace themselves and Store
+# policy forbids trying, so this feature stops the updater plugin being registered and turns
+# `update::{check, install}` into stubs. Build with `--features store`.
 store = []
 
 [profile.release]

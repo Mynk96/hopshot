@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::{capture, cloud, hotkeys, license, settings, shelf};
+use crate::{capture, cloud, hotkeys, license, settings, shelf, update};
 
 /// Settings plus whatever Hopshot failed to bind, so the Settings screen can show both in
 /// one round trip (PRD F1.1: "Conflicts are detected and shown in Settings").
@@ -228,6 +228,30 @@ pub fn license_manage_sync(app: AppHandle) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// `update_supported()` — can this build update itself (ARCHITECTURE §9)?
+///
+/// False in the Microsoft Store build, where the Store does it. The About pane hides the
+/// whole block rather than offering a button that cannot work.
+#[tauri::command]
+pub fn update_supported() -> bool {
+    update::supported()
+}
+
+/// `update_check()` — is there a newer version? `None` means up to date.
+#[tauri::command]
+pub async fn update_check(app: AppHandle) -> Result<Option<update::UpdateInfo>, String> {
+    update::check(&app).await
+}
+
+/// `update_install()` — download, verify the signature, apply, and restart.
+///
+/// Only ever reached from an explicit click: Hopshot is a tray app, and restarting it out
+/// from under someone mid-capture would read as a crash.
+#[tauri::command]
+pub async fn update_install(app: AppHandle) -> Result<(), String> {
+    update::install(&app).await
+}
+
 /// Which phones this item can be sent to without a QR (DESIGN S4).
 ///
 /// Empty means nothing is paired, and the send sheet shows a QR instead.
@@ -442,6 +466,15 @@ pub fn open_plans(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn open_settings(app: AppHandle) -> Result<(), String> {
-    crate::show_settings_window(&app).map_err(|error| error.to_string())
+pub fn open_settings(app: AppHandle, tab: Option<String>) -> Result<(), String> {
+    crate::show_settings_window(&app).map_err(|error| error.to_string())?;
+
+    // Same mechanism the tray's "Pair phone…" uses: show the window, then tell it which
+    // section to land on. Emitted after the window exists so the listener is mounted.
+    if let Some(tab) = tab {
+        use tauri::Emitter;
+        let _ = app.emit("settings:tab", tab);
+    }
+
+    Ok(())
 }

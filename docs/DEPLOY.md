@@ -211,11 +211,21 @@ to read it.
 
 ## What this does *not* cover
 
-- **Desktop signing and release** (ARCHITECTURE §9) — Apple notarization, the Tauri updater
-  key, the Microsoft Store MSIX. Those secrets live in GitHub Actions, not Cloudflare.
+- **Apple notarization and the Microsoft Store MSIX** (ARCHITECTURE §9). Those secrets live
+  in GitHub Actions, not Cloudflare.
+
+  The Windows release *is* wired up: tag `v*` runs `.github/workflows/release.yml`, which
+  tests, builds the NSIS installer, signs the update archive with `TAURI_SIGNING_PRIVATE_KEY`
+  and drafts a GitHub release holding the `.exe`, its `.sha256` and `latest.json`. For NSIS,
+  Tauri signs the installer itself — there is no separate update archive. **Publishing that draft is what releases the update** — the updater endpoint
+  is `releases/latest/download/latest.json`, and a draft is never "latest".
 - **`api-deploy.yml` / `web-deploy.yml`** — the CI deploy workflows from ARCHITECTURE §3 do
   not exist yet; `ci.yml` only builds and tests.
-- **Custom domains** — both Workers sit on `workers.dev`; hopshot.xyz DNS is untouched.
+- **Custom domains are already set up**, contrary to what §6 implies: `api.hopshot.xyz`
+  (declared in `services/api/wrangler.toml`), `app.hopshot.xyz` (`apps/web/wrangler.jsonc`)
+  and the apex `hopshot.xyz` for the marketing Worker, which deploys from the root
+  `wrangler.jsonc` on every push. The apex serves static files only — `/download` lives on
+  `app.hopshot.xyz`.
 
 ---
 

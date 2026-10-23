@@ -60,8 +60,33 @@ jobs:
 
       # `--bundles nsis` rather than tauri.conf.json's "all": the MSI is not what the download
       # page offers, and the Store build is packaged separately as MSIX (ARCHITECTURE §9).
+      #
+      # The signing key is what makes self-updates safe: every install verifies the download
+      # against the public half compiled into it, so an unsigned or tampered payload is
+      # refused. Without these the build still succeeds but emits no .sig, and the update
+      # manifest below would be useless.
       - name: Build the installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm -F desktop tauri build --bundles nsis
+
+      # What tauri-plugin-updater fetches (ARCHITECTURE §9). Written by hand rather than
+      # pulling in tauri-action: it is a dozen lines, and the reasoning that keeps `gh` as the
+      # only thing holding `contents: write` applies to the build step too.
+      # What tauri-plugin-updater fetches (ARCHITECTURE §9). Written by hand rather than
+      # pulling in tauri-action: it is a few lines, and the reasoning that keeps `gh` as the
+      # only thing holding `contents: write` applies to the build step too.
+      #
+      # Node rather than jq because setup-node above guarantees it on every runner, and it
+      # can be run locally to check this logic without pushing a tag.
+      - name: Build the update manifest
+        shell: bash
+        working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: node "$GITHUB_WORKSPACE/scripts/update-manifest.mjs"
 
       - name: Checksum
         shell: bash
@@ -100,10 +125,15 @@ jobs:
           **More info -> Run anyway**. Verify the download against its `.sha256` if you would
           rather check it yourself.
 
-          Free for 7 days with everything unlocked - no account, no card.
+          Free to download. Capture is locked until you buy - $12 once, or $19 with Sync.
+          14-day refund, no questions asked.
           NOTES
 
           # --draft so an unsigned binary is never public until it has been installed once
           # from the release itself. Publishing is then one click, and the download page
           # starts resolving the moment it lands.
-          gh release create "${{ github.ref_name }}"             --draft             --title "Hopshot ${{ github.ref_name }}"             --notes-file notes.md             *-setup.exe *-setup.exe.sha256
+          # The same .exe serves both audiences: a new visitor downloads it from the website,
+          # and an existing install downloads it again through latest.json, which carries its
+          # signature. They ship together because a manifest pointing outside its own release
+          # is a dead update.
+          gh release create "${{ github.ref_name }}"             --draft             --title "Hopshot ${{ github.ref_name }}"             --notes-file notes.md             *-setup.exe *-setup.exe.sha256 latest.json

@@ -515,6 +515,18 @@ CREATE TABLE reports (
 
 - **Azure Artifact Signing** isn't an option: individual developers must be in the US/Canada, and the organisation country list doesn't include India.
 - Store build: compile with the Cargo feature `store`, which disables the updater, and use `tauri.microsoftstore.conf.json`. Confirm the WebView2 runtime requirement (preinstalled on Windows 11; nearly universal on Windows 10).
+**Built (Windows).** `tauri-plugin-updater` is registered, `bundle.createUpdaterArtifacts`
+is on, and `.github/workflows/release.yml` publishes `latest.json` beside the installer.
+The app checks 30 s after launch and then daily, announces what it finds on `update:available`,
+and **never installs without a click** — it is a tray app, and restarting someone mid-capture
+reads as a crash. The endpoint is `releases/latest/download/latest.json`, so a draft release
+can never reach anyone: publishing *is* releasing. macOS is unimplemented and must not be
+claimed until it compiles.
+
+The Store build carries the `store` Cargo feature, which stops the plugin being registered and
+turns `update::{check, install}` into stubs; `tauri.microsoftstore.conf.json` also sets
+`createUpdaterArtifacts: false`.
+
 - **CI (`desktop-release.yml`):** on tag `v*` → matrix `macos-latest` (universal) + `windows-latest` → builds, signs (mac), notarizes, uploads to a draft GitHub Release, and generates `latest.json`. MSIX packaging is a separate job, uploaded manually to Partner Center.
 - **Secrets:** `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_API_KEY`, `APPLE_API_ISSUER`, `APPLE_API_KEY_PATH`, `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, `CLOUDFLARE_API_TOKEN`.
 
