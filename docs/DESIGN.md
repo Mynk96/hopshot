@@ -55,6 +55,38 @@ White text on `#FF6B2C` fails contrast, so primary buttons always use `--on-acce
 | `heading` | 20 / 26 / 650 | settings headings, onboarding |
 | `display` | 28 / 34 / 700 | onboarding hero, landing |
 
+### 2.2a Elevated surfaces (floating panels)
+
+`--surface-2` and `--surface-3` are 4–10 % **tints**, meant to sit on top of an opaque
+surface. They are not panel backgrounds: used as one on a transparent window, the panel is
+~90 % see-through and its text is unreadable over the wallpaper. Popovers, menus and toasts
+use these instead, and they are opaque.
+
+| Token | Dark | Light | Use |
+|---|---|---|---|
+| `--surface-raised` | `#26262C` | `#FFFFFF` | popover / menu / toast background |
+| `--surface-raised-2` | `rgba(255,255,255,.07)` | `rgba(0,0,0,.05)` | rows, inputs, code inside a raised panel |
+| `--raised-border` | `rgba(255,255,255,.14)` | `rgba(0,0,0,.10)` | hairline on a raised panel |
+| `--hover` | `rgba(255,255,255,.08)` | `rgba(0,0,0,.06)` | pointer hover on any control |
+| `--press` | `rgba(255,255,255,.14)` | `rgba(0,0,0,.11)` | pressed |
+| `--scrim` | `rgba(0,0,0,.62)` | same | chip/action-bar backing **over a screenshot** |
+| `--on-scrim` | `#FFFFFF` | same | text/icons on a scrim |
+| `--card-letterbox` | `#101014` | same | bars around a thumbnail that does not fill its card |
+| `--shadow-raised` | `0 16px 48px rgba(0,0,0,.30), 0 2px 8px rgba(0,0,0,.16), 0 0 0 1px var(--raised-border)` | | floating-panel elevation |
+
+`--scrim`, `--on-scrim` and `--card-letterbox` do **not** swap with the theme: their backdrop
+is a screenshot, not the UI surface.
+
+**`backdrop-filter` only blurs page content.** On a `transparent: true` window it cannot
+blur the desktop behind the window — Chromium samples the backdrop inside the compositing
+context only. Real glass comes from the OS (Windows acrylic, macOS vibrancy), so
+`backdrop-filter` is used solely where the thing behind it is in the page: the card action
+bar and chips, which sit over the thumbnail.
+
+**The glass fallback is wired, not aspirational.** `platform::configure_shelf` returns
+whether the OS actually applied a backdrop; the shelf reads it via `shelf_has_vibrancy` and
+sets `html.no-vibrancy`, which redefines `--surface` to `--surface-solid` (see §7).
+
 ### 2.3 Space, radius, elevation, motion
 
 - **Spacing:** 4-pt grid (4, 8, 12, 16, 20, 24, 32).
@@ -183,7 +215,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - Price block: **Lifetime $12** (launch price, later $19) · **Lifetime + Sync $19** (includes the first year of Sync, then $24/year, optional). Lifetime owners see only **Add Sync · $24/year**.
 - Buttons: `Buy Lifetime` · `Buy Lifetime + Sync` (primary) · `Already bought? Restore`.
 - After a Buy click the sheet shows "Finish paying in your browser…" and unlocks by itself when payment completes ("You're all set"). Restore: email field → "Check your email" → the link opens the app, or a 6-digit code field.
-- Fourth computer: "Hopshot is on 3 computers. Remove one to use it here." with the list (name, last used) and Remove buttons.
+- Over the computer limit. **Lifetime (1):** "Hopshot is active on {other computer}. Move it here?" with **Move here** (primary) and a small link **Add Sync to use up to 3 computers**. **Lifetime + Sync (3):** "Hopshot is on 3 computers. Remove one to use it here." with the list (name, last used) and Remove buttons. After Sync ends, extra computers show the Lifetime version with **Renew Sync** as the link.
 - Trust line: "Secure checkout by Stripe · 14-day refund".
 
 ---

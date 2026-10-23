@@ -124,7 +124,7 @@ Every limit lives here. Rust reads it with `include_str!` + serde, TS imports it
     "dropTtlOptions": ["24h"],
     "dropsPerDay": 10,
     "maxImageBytes": 10485760,
-    "maxComputers": 3,
+    "maxComputers": 1,
     "vault": false
   },
   "sync": {
@@ -329,7 +329,7 @@ Code refers to prices only by **lookup key**. To change a price (e.g. Lifetime $
 2. **Link (website buyers, founders):** `hopshot://activate?t={token}`, signed, valid 30 days, reusable until the computer limit. The thanks page (`GET /buy/session/{id}`) and the `license_ready` email carry it, as a normal https link `https://hopshot.xyz/activate#t=…` that opens the app (and offers the download if it isn't installed). The desktop registers the `hopshot` scheme with `tauri-plugin-deep-link` and calls `POST /license/claim`.
 3. **Restore (new computer, reinstall):** `POST /license/restore {email, installId}` always returns `202`; if that email owns a license, it emails a 6-digit code (10 min, 5 attempts) and an activation link. `POST /license/restore/verify {email, code, installId, label}` returns the device token.
 
-**3 computers, tracked automatically:** registering again from the same `install_id` reuses its slot. A 4th computer takes the slot of a device not seen for 30+ days (that device is marked removed and falls back to the trial-ended state at its next check). If all 3 were seen within 30 days, the API returns `409 device_limit` with `{pendingId, devices: [{id, label, lastSeenAt}]}`, and the app asks which to remove, then calls `POST /license/claim/finish {pendingId, removeDeviceId}`. `GET /license/status` updates `last_seen_at`; the app calls it at launch and every 7 days.
+**Computer limit, tracked automatically:** `computerLimit(license)` = `sync.maxComputers` (3) while the customer's Sync is active (trialing, active, or within `paymentGraceDays`); otherwise `lifetime.maxComputers` (1). Registering again from the same `install_id` reuses its slot. A computer over the limit takes the slot of a device not seen for 30+ days (that device is marked removed and falls back to the trial-ended state at its next check). If every slot was seen within 30 days, the API returns `409 device_limit` with `{pendingId, devices: [{id, label, lastSeenAt}]}`, and the app asks which to remove, then calls `POST /license/claim/finish {pendingId, removeDeviceId}`. `GET /license/status` updates `last_seen_at`; the app calls it at launch and every 7 days. **When the limit drops** (Sync ends), the most recently seen devices up to the new limit stay licensed; `GET /license/status` returns `{valid: false, reason: "over_limit", devices}` to the others, which show the move-or-renew screen (`POST /license/move-here` deactivates the chosen other device and licenses this one). Nothing is deleted; adding Sync again re-licenses them at their next check.
 
 **Webhook** `POST /webhooks/stripe` (secret `STRIPE_WEBHOOK_SECRET`; verify with `stripe.webhooks.constructEventAsync` and `Stripe.createSubtleCryptoProvider()`; record event IDs in `stripe_events` and skip duplicates):
 

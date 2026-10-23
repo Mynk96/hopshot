@@ -3,9 +3,10 @@
 // the static files in marketing/site. "name" must match the Worker's name in
 // the Cloudflare dashboard.
 {
-  "name": "hopshot",
-  "compatibility_date": "2026-10-01",
-  "assets": {
-    "directory": "./marketing/site"
-  }
+	"name": "hopshot",
+	"compatibility_date": "2026-10-01",
+	"assets": {
+		"directory": "./marketing/site"
+	},
+	"previews": {}
 }

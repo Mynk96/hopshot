@@ -1,0 +1,115 @@
+---
+import Base from "../layouts/Base.astro";
+
+/*
+ * Pricing (PRD §7, DESIGN S9).
+ *
+ * Launch prices are Lifetime $12 and Lifetime + Sync $19, against later prices of $19 and
+ * $43. PRD §7 is explicit that the struck-through figures must be real: the price has to
+ * actually go up when the launch period ends, or the comparison is a lie.
+ *
+ * Buying happens *in the app*, not here. There is no licence key, so a purchase has to be
+ * tied to the install that started it (PRD F8.3) — a web checkout would have nothing to
+ * unlock. This page explains and points at the download.
+ */
+
+const rows: { feature: string; lifetime: string; sync: string }[] = [
+  { feature: "Capture, shelf, drag-out", lifetime: "yes", sync: "yes" },
+  { feature: "Computers", lifetime: "1", sync: "3" },
+  { feature: "Phones", lifetime: "—", sync: "3" },
+  { feature: "Send to phone, live", lifetime: "—", sync: "yes" },
+  { feature: "Share links per day", lifetime: "10", sync: "200" },
+  { feature: "Link expiry choices", lifetime: "24h", sync: "1h / 24h / 7d" },
+];
+---
+
+<Base
+  title="Pricing — Hopshot"
+  description="Hopshot is a one-time purchase. Lifetime $12, or Lifetime + Sync $19."
+>
+  <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
+    <header class="flex flex-col gap-3">
+      <h1 class="text-display">Pay once.</h1>
+      <p class="text-body text-text-2">
+        No subscription for the app itself. Sync is the only optional recurring part, and the
+        first year is included.
+      </p>
+    </header>
+
+    <div class="grid gap-4 sm:grid-cols-2">
+      <section
+        class="flex flex-col gap-3 p-5"
+        style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-panel)"
+      >
+        <h2 class="text-title">Lifetime</h2>
+        <p class="flex items-baseline gap-2">
+          <span class="text-display">$12</span>
+          <span class="text-body text-text-3 line-through">$19</span>
+        </p>
+        <p class="text-small text-text-2">
+          Everything local, on one computer. Share links included.
+        </p>
+      </section>
+
+      <section
+        class="flex flex-col gap-3 p-5"
+        style="background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-panel)"
+      >
+        <h2 class="text-title">Lifetime + Sync</h2>
+        <p class="flex items-baseline gap-2">
+          <span class="text-display">$19</span>
+          <span class="text-body text-text-3 line-through">$43</span>
+        </p>
+        <p class="text-small text-text-2">
+          Adds your phones, three computers and longer links. Includes the first year of Sync,
+          then $24/year — only if you choose to keep it.
+        </p>
+      </section>
+    </div>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">What's different</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-body" style="border-collapse: collapse">
+          <thead>
+            <tr>
+              <th class="py-2 text-left text-caption text-text-2">&nbsp;</th>
+              <th class="py-2 text-left text-caption text-text-2">Lifetime</th>
+              <th class="py-2 text-left text-caption text-text-2">+ Sync</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              rows.map((row) => (
+                <tr style="border-top: 1px solid var(--border)">
+                  <td class="py-2.5 pr-4">{row.feature}</td>
+                  <td class="py-2.5 pr-4 text-text-2">{row.lifetime}</td>
+                  <td class="py-2.5">{row.sync}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section
+      class="flex flex-col gap-3 p-5"
+      style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-panel)"
+    >
+      <h2 class="text-title">How buying works</h2>
+      <p class="text-body text-text-2">
+        Download Hopshot and use it free for 7 days — everything unlocked, no card. When
+        you're ready, buy from inside the app: Settings → License. Checkout opens in your
+        browser and the app unlocks itself when you're done.
+      </p>
+      <p class="text-body text-text-2">
+        <strong>There is no licence key.</strong> Your purchase belongs to the email you buy
+        with, so there is nothing to copy, store or lose.
+      </p>
+      <a class="btn btn-primary self-start" href="/download">Download for Windows</a>
+    </section>
+
+    <p class="text-small text-text-3">Secure checkout by Stripe · 14-day refund</p>
+  </main>
+</Base>

@@ -1,0 +1,170 @@
+{
+  "$comment": "HOP1 envelope test vectors (ARCHITECTURE §6). Loaded by BOTH packages/crypto and apps/desktop/src-tauri/src/crypto.rs. Generated once; treat as fixed — a change here is a wire-format change.",
+  "algorithm": "AES-256-GCM",
+  "magic": "HOP1",
+  "nonceBytes": 12,
+  "tagBits": 128,
+  "aadTemplate": "hopshot/v1/{kind}/{id}",
+  "vectors": [
+    {
+      "name": "empty plaintext",
+      "kind": "drop",
+      "id": "7Kq2mXa9Lr4TzB0cP1vYwe",
+      "keyBase64Url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "nonceHex": "0b0a09080706050403020100",
+      "aad": "hopshot/v1/drop/7Kq2mXa9Lr4TzB0cP1vYwe",
+      "plaintextHex": "",
+      "envelopeHex": "484f50310b0a090807060504030201001cee4c75df904690b28ce3acdc5edd8b"
+    },
+    {
+      "name": "ascii",
+      "kind": "drop",
+      "id": "7Kq2mXa9Lr4TzB0cP1vYwe",
+      "keyBase64Url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "nonceHex": "0b0a09080706050403020100",
+      "aad": "hopshot/v1/drop/7Kq2mXa9Lr4TzB0cP1vYwe",
+      "plaintextHex": "686f7073686f74",
+      "envelopeHex": "484f50310b0a09080706050403020100489229615e0719b7003967cc84768f03af01205036737f"
+    },
+    {
+      "name": "item kind binds a different aad",
+      "kind": "item",
+      "id": "7Kq2mXa9Lr4TzB0cP1vYwe",
+      "keyBase64Url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "nonceHex": "0b0a09080706050403020100",
+      "aad": "hopshot/v1/item/7Kq2mXa9Lr4TzB0cP1vYwe",
+      "plaintextHex": "686f7073686f74",
+      "envelopeHex": "484f50310b0a09080706050403020100489229615e071980f2303f2813321f4b35ba65e5fa4508"
+    },
+    {
+      "name": "meta kind",
+      "kind": "meta",
+      "id": "0000000000000000000001",
+      "keyBase64Url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "nonceHex": "0b0a09080706050403020100",
+      "aad": "hopshot/v1/meta/0000000000000000000001",
+      "plaintextHex": "7b226e616d65223a22612e706e67222c226d696d65223a22696d6167652f706e67222c2277223a312c2268223a312c22637265617465644174223a307d",
+      "envelopeHex": "484f50310b0a090807060504030201005bdf37735b0d4fa7dddfb40b0daa0531a576dbd4763f85967196380dc0fc414593797d1b7c45257f1c0e7cd7c61a353c8f136a1774316efb0d7ddc252d60ba0add7cb09358725d1e463f8b154d"
+    },
+    {
+      "name": "utf-8 beyond ascii",
+      "kind": "drop",
+      "id": "ZzYyXxWwVvUuTtSsRrQqPp",
+      "keyBase64Url": "__________________________________________8",
+      "nonceHex": "ffeeddccbbaa998877665544",
+      "aad": "hopshot/v1/drop/ZzYyXxWwVvUuTtSsRrQqPp",
+      "plaintextHex": "68c3a96c6c6f20e2809420f09f93b8",
+      "envelopeHex": "484f5031ffeeddccbbaa998877665544ac1da866502f35357c134937f6d01fd760c6c9498362b3e6804f44dec1a710"
+    },
+    {
+      "name": "block boundary, 16 bytes",
+      "kind": "drop",
+      "id": "7Kq2mXa9Lr4TzB0cP1vYwe",
+      "keyBase64Url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "nonceHex": "0b0a09080706050403020100",
+      "aad": "hopshot/v1/drop/7Kq2mXa9Lr4TzB0cP1vYwe",
+      "plaintextHex": "000102030405060708090a0b0c0d0e0f",
+      "envelopeHex": "484f50310b0a0908070605040302010020fc5b11326d6b9af7b790706fc029123474bb4e440ce3510be1cb9ac8fb29f3"
+    },
+    {
+      "name": "spans two blocks, 17 bytes",
+      "kind": "drop",
+      "id": "7Kq2mXa9Lr4TzB0cP1vYwe",
+      "keyBase64Url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "nonceHex": "0b0a09080706050403020100",
+      "aad": "hopshot/v1/drop/7Kq2mXa9Lr4TzB0cP1vYwe",
+      "plaintextHex": "000102030405060708090a0b0c0d0e0f10",
+      "envelopeHex": "484f50310b0a0908070605040302010020fc5b11326d6b9af7b790706fc0291297ed5d8eeaece8b3768f5a63921e314738"
+    }
+  ],
+  "tampered": [
+    {
+      "name": "magic byte flipped",
+      "envelopeHex": "494f50310b0a09080706050403020100489229615e0719b7003967cc84768f03af01205036737f",
+      "reason": "magic"
+    },
+    {
+      "name": "nonce byte flipped",
+      "envelopeHex": "484f50310b0b09080706050403020100489229615e0719b7003967cc84768f03af01205036737f",
+      "reason": "auth"
+    },
+    {
+      "name": "ciphertext byte flipped",
+      "envelopeHex": "484f50310b0a09080706050403020100489329615e0719b7003967cc84768f03af01205036737f",
+      "reason": "auth"
+    },
+    {
+      "name": "tag byte flipped",
+      "envelopeHex": "484f50310b0a09080706050403020100489229615e0719b7003967cc84768f03af01205036737e",
+      "reason": "auth"
+    },
+    {
+      "name": "truncated to the header",
+      "envelopeHex": "484f50310b0a09080706050403020100",
+      "reason": "short"
+    },
+    {
+      "name": "empty",
+      "envelopeHex": "",
+      "reason": "short"
+    }
+  ],
+  "wrongContext": [
+    {
+      "name": "wrong id",
+      "kind": "drop",
+      "id": "0000000000000000000000"
+    },
+    {
+      "name": "wrong kind",
+      "kind": "item",
+      "id": "7Kq2mXa9Lr4TzB0cP1vYwe"
+    },
+    {
+      "name": "wrong key",
+      "kind": "drop",
+      "id": "7Kq2mXa9Lr4TzB0cP1vYwe",
+      "keyBase64Url": "__________________________________________8"
+    }
+  ],
+  "ids": [
+    {
+      "bytesHex": "00000000000000000000000000000000",
+      "id": "0000000000000000000000"
+    },
+    {
+      "bytesHex": "000102030405060708090a0b0c0d0e0f",
+      "id": "000SYW7RiJxkEgOGusQGwp"
+    },
+    {
+      "bytesHex": "ffffffffffffffffffffffffffffffff",
+      "id": "7n42DGM5Tflk9n8mt7Fhc7"
+    }
+  ],
+  "base64url": [
+    {
+      "bytesHex": "",
+      "text": ""
+    },
+    {
+      "bytesHex": "00",
+      "text": "AA"
+    },
+    {
+      "bytesHex": "0001",
+      "text": "AAE"
+    },
+    {
+      "bytesHex": "000102",
+      "text": "AAEC"
+    },
+    {
+      "bytesHex": "fbff",
+      "text": "-_8"
+    },
+    {
+      "bytesHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "text": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+    }
+  ]
+}

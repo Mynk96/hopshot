@@ -1,0 +1,87 @@
+[package]
+name = "hopshot"
+version = "0.1.0"
+description = "Screenshots that clean up after themselves"
+authors = ["Hopshot"]
+edition = "2021"
+rust-version = "1.82"
+
+[lib]
+# Tauri v2 builds the app as a library so mobile targets can reuse it.
+name = "hopshot_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.1", features = [] }
+
+[dependencies]
+# tray-icon + image-png: the menu-bar / tray item and its PNG icon (DESIGN S1).
+# protocol-asset: the shelf loads thumbnails straight off disk (required by the
+# assetProtocol block in tauri.conf.json).
+# macos-private-api is required by `"macOSPrivateApi": true` in tauri.conf.json, which
+# transparent windows need on macOS (CLAUDE.md "Known platform gotchas").
+tauri = { version = "2.12.1", features = ["image-png", "macos-private-api", "protocol-asset", "tray-icon"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+thiserror = "2.0.21"   # module-level errors (CLAUDE.md rule 7)
+anyhow = "1.0.104"     # edges only (CLAUDE.md rule 7)
+tauri-plugin-store = "2.4.5"   # settings.json in app-data (ARCHITECTURE §5.3)
+tauri-plugin-log = "2.9.2"     # official logger listed in ARCHITECTURE §2
+log = "0.4.34"                 # the logging facade tauri-plugin-log implements
+xcap = "0.9.8"
+image = "0.25.6"
+window-vibrancy = "0.8.1"     # shelf blur: macOS HudWindow, Windows 11 acrylic (DESIGN S3)
+arboard = "3.6.1"             # PRD F2.5 click-to-copy an image to the clipboard
+tauri-plugin-drag = "2.1.1"   # PRD F2.4 native file drag-out (named in ARCHITECTURE §2)
+# Local-time formatting for the dropped file name (PRD F2.4). Hand-rolled timezone FFI
+# would be unverifiable UB on macOS from this dev machine.
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }   # shelf.db — the crate ARCHITECTURE §2 names; `bundled` avoids a system SQLite
+getrandom = "0.3.4"   # 128-bit item ids (ARCHITECTURE §5.3); already in the tree via tauri
+tauri-plugin-dialog = "2.7.3"   # PRD F2.9 Save as… native file dialog
+tauri-plugin-opener = "2.5.5"   # PRD F2.6 Reveal in Finder / Show in Explorer (ARCHITECTURE §2)
+tauri-plugin-autostart = "2.5.1"   # DESIGN S7 General → Launch at login
+aes-gcm = "0.10.3"   # HOP1 envelope (ARCHITECTURE §6), AES-256-GCM
+qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }   # DESIGN S4 QR tile; default features pull an image encoder we do not need
+ureq = { version = "3.2.1", default-features = false, features = ["rustls"] }   # blocking HTTP to api.hopshot.xyz (ARCHITECTURE §7.1)
+# OS keychain for the device token and vault key (ARCHITECTURE §5.3 names this crate;
+# CLAUDE.md rule 10 forbids secrets in settings.json or SQLite). Native backends only: the
+# default feature set pulls in the Linux secret-service stack and a tokio runtime, neither
+# of which this app targets.
+keyring = { version = "3.6.3", default-features = false, features = ["apple-native", "windows-native"] }
+# Live vault updates (ARCHITECTURE §7.4). PRD F4.3 requires a capture to reach the phone in
+# under 3 s; the documented polling fallback is 15 s, so a socket is the only way to meet it.
+# Sync rather than tokio-tungstenite, to match the existing blocking `ureq` client instead of
+# dragging an async runtime into a thread-per-task app.
+# `handshake` is what provides `connect()` and `ClientRequestBuilder`; it is a default
+# feature, so disabling defaults for the TLS choice drops it too.
+tungstenite = { version = "0.29.0", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
+
+[features]
+# Microsoft Store build: disables the updater (ARCHITECTURE §9). Wired up in Phase 9.
+store = []
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-global-shortcut = "2.3.2"   # PRD F1.1 global hotkeys
+tauri-plugin-single-instance = "2.4.5"   # ARCHITECTURE §5.1 single instance
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-graphics = "0.25.0"   # CGPreflightScreenCaptureAccess (ARCHITECTURE §5.2)
+# Only NSWindow is needed (overlay level + collection behaviour); the default feature set
+# pulls in CloudKit, CoreData and a dozen other frameworks.
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+    "std",
+    "bitflags",
+    "NSResponder",
+    "NSWindow",
+] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }

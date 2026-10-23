@@ -1,0 +1,29 @@
+---
+import Base from "../../layouts/Base.astro";
+import PhoneApp from "../../components/PhoneApp.tsx";
+
+/*
+ * The phone app (DESIGN S5, ARCHITECTURE §8).
+ *
+ * `client:only` because every decision here needs IndexedDB, the vault key and
+ * `navigator` — none of which exist at build time. Server-rendering the shell would flash
+ * "not paired" at an already-paired user on every launch.
+ *
+ * Prerendered: it is a static shell the service worker caches, and all the data arrives
+ * client-side from the API.
+ */
+---
+
+<Base title="Hopshot" noindex appShell>
+  <PhoneApp client:only="react" />
+
+  {/*
+    No `is:inline`. Astro bundles this and emits it with a `src`, which plain
+    `script-src 'self'` allows; an inline version needs a hash that Astro only generates for
+    its own island scripts, so it was blocked by the CSP and the worker never registered.
+  */}
+  <script>
+    import { registerServiceWorker } from "../../lib/register-sw.ts";
+    registerServiceWorker();
+  </script>
+</Base>

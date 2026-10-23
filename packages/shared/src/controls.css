@@ -1,0 +1,225 @@
+/*
+ * Hopshot controls — buttons, icon buttons, menu rows, raised panels and motion.
+ *
+ * The one copy, imported by apps/desktop and apps/web. These live here rather than in either
+ * app because /pair and /app on the phone need the same buttons the shelf does, and a second
+ * copy would drift from the tokens in tokens.css.
+ *
+ * Requires tokens.css (it reads --hover, --press, --surface-raised, --ease-hop and friends).
+ */
+
+/* ── Controls ─────────────────────────────────────────────────────────────────
+ * DESIGN §3 gives every control hover, pressed, focus and disabled states. These live in
+ * CSS rather than inline styles because inline styles cannot express `:hover`/`:active` —
+ * which is why the shelf felt inert: nothing responded to the pointer.
+ */
+
+/* 28x28 ghost icon button (DESIGN §3 "Icon button"). */
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  color: var(--text-2);
+  background: transparent;
+  transition:
+    background var(--dur-exit) var(--ease-hop),
+    color var(--dur-exit) var(--ease-hop),
+    transform var(--dur-exit) var(--ease-hop);
+}
+.icon-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.icon-btn:active {
+  background: var(--press);
+  transform: scale(0.94);
+}
+.icon-btn[aria-pressed="true"] {
+  background: var(--surface-2);
+  color: var(--accent-text);
+}
+.icon-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Buttons. DESIGN §3: height 30 (compact 26), padding 0 12, radius 8, body-strong. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-body-strong);
+  line-height: var(--text-body-strong--line-height);
+  font-weight: var(--text-body-strong--font-weight);
+  white-space: nowrap;
+  transition:
+    background var(--dur-exit) var(--ease-hop),
+    color var(--dur-exit) var(--ease-hop),
+    transform var(--dur-exit) var(--ease-hop);
+}
+.btn-compact {
+  height: 26px;
+  padding: 0 10px;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  /* White on #FF6B2C fails contrast, so primary text is near-black (DESIGN §2.1). */
+  color: var(--on-accent);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--surface-raised-2);
+  border: 1px solid var(--raised-border);
+  color: var(--text);
+}
+.btn-secondary:hover {
+  background: var(--hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-2);
+}
+.btn-ghost:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--danger);
+}
+.btn-danger-ghost:hover {
+  /* A tint of the danger colour, not a grey hover: the destructive action should feel
+     different under the pointer from "Done" next to it. */
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+/* Menu row (DESIGN S3 "More" menu). */
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-align: left;
+  color: var(--text);
+  transition: background var(--dur-exit) var(--ease-hop);
+}
+.menu-row:hover {
+  background: var(--hover);
+}
+.menu-row:active {
+  background: var(--press);
+}
+.menu-row-danger {
+  color: var(--danger);
+}
+.menu-row-danger:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+/*
+ * Icon button that sits on a scrim over a screenshot (the card action bar). Its contrast
+ * reference is the scrim, not the themed surface, so it does not use --text-2.
+ */
+.scrim-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: var(--on-scrim);
+  opacity: 0.86;
+  transition:
+    background var(--dur-exit) var(--ease-hop),
+    opacity var(--dur-exit) var(--ease-hop);
+}
+.scrim-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 1;
+}
+.scrim-btn:active {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/*
+ * A floating panel: popover, menu, toast. Opaque, because it sits over the desktop and the
+ * glass panel cannot be relied on to back it (see tokens.css).
+ */
+.raised {
+  background: var(--surface-raised);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-raised);
+}
+
+/* The new-item arrival ring: accent ring that fades out over 900 ms (DESIGN §2.3). */
+@keyframes hop-arrive {
+  0% {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 1px var(--border);
+  }
+}
+.arriving {
+  animation: hop-arrive 900ms var(--ease-hop) forwards;
+}
+
+@keyframes hop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.hop-in {
+  animation: hop-in var(--dur-enter) var(--ease-hop);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toast-in {
+  animation: toast-in var(--dur-toast) var(--ease-hop);
+}
+
+/* DESIGN §2.3: reduced motion means fades only — no slides, no scales. */
+@media (prefers-reduced-motion: reduce) {
+  .hop-in,
+  .toast-in {
+    animation: none;
+  }
+  .btn:active,
+  .icon-btn:active {
+    transform: none;
+  }
+}

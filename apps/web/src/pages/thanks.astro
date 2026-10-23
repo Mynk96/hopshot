@@ -1,0 +1,50 @@
+---
+import Base from "../layouts/Base.astro";
+
+/*
+ * Where Stripe sends the browser after a successful checkout (lib/stripe.ts `success_url`).
+ *
+ * Deliberately does almost nothing. The *app* is what unlocks: it has been polling the claim
+ * since it opened checkout, and collects its device token from the webhook's result (PRD
+ * F8.3). This page's only job is to tell the user they can go back to Hopshot.
+ *
+ * It must not try to unlock anything itself. The browser has no device token and no way to
+ * get one — treating this page as the source of truth would mean a purchase made on a phone
+ * could license a computer it has never seen.
+ */
+---
+
+<Base title="Thanks — Hopshot" description="Your purchase is complete." noindex>
+  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-5 px-6 text-center">
+    <span
+      aria-hidden
+      class="grid place-items-center"
+      style="width: 56px; height: 56px; border-radius: 999px; background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success)"
+    >
+      <svg
+        width="28"
+        height="28"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M20 6 9 17l-5-5"></path>
+      </svg>
+    </span>
+
+    <h1 class="text-heading">You're all set</h1>
+
+    <p class="text-body text-text-2">
+      Go back to Hopshot — it unlocks itself within a few seconds. There's no licence key to
+      enter.
+    </p>
+
+    <p class="text-small text-text-3">
+      A receipt is on its way to the email you paid with. If Hopshot is still locked after a
+      minute, open Settings → License and it will check again.
+    </p>
+  </main>
+</Base>

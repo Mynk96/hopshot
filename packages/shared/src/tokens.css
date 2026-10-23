@@ -1,0 +1,296 @@
+/*
+ * Hopshot design tokens — the single copy. docs/DESIGN.md §2 is the source of truth;
+ * design/mockups.html is the visual target and uses these exact variable names.
+ *
+ * Imported by apps/desktop and apps/web. Do not duplicate these values anywhere else
+ * and do not introduce ad-hoc colors (CLAUDE.md rule 6).
+ *
+ * Theme resolution:
+ *   :root                                  → light
+ *   @media (prefers-color-scheme: dark)    → dark, when the app has not forced a theme
+ *   [data-theme="dark"] / [data-theme="light"] → explicit override (Settings → Theme)
+ *
+ * The shelf and overlay default to dark; they set data-theme="dark" on <html>.
+ */
+
+/* ── 2.1 Color — light ────────────────────────────────────────────────────── */
+:root {
+  --surface: rgba(250, 250, 250, 0.82);
+  --surface-solid: #f7f7f8;
+  --surface-2: rgba(0, 0, 0, 0.04);
+  --surface-3: rgba(0, 0, 0, 0.07);
+  --border: rgba(0, 0, 0, 0.08);
+
+  --text: #18181b;
+  --text-2: #52525b;
+  --text-3: #71717a;
+
+  --accent: #ff6b2c;
+  --accent-hover: #f25e1f;
+  --on-accent: #1b0f08;
+  --accent-text: #c2410c;
+
+  --success: #059669;
+  --warning: #b45309;
+  --danger: #dc2626;
+
+  --overlay-dim: rgba(0, 0, 0, 0.35);
+  --blur: 24px;
+
+  /* 2.2 Typography */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
+    Inter, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+
+  /* 2.3 Elevation + focus. Radius and the easing curve live in @theme below: those names
+     are Tailwind theme namespaces, so declaring them here too would be self-referential. */
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border);
+  --focus-ring: 0 0 0 2px var(--accent);
+
+  /* 2.3 Motion durations */
+  --dur-enter: 180ms;
+  --dur-exit: 140ms;
+  --dur-toast: 160ms;
+}
+
+/* ── 2.1 Color — dark (default for shelf/overlay) ─────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: rgba(24, 24, 28, 0.78);
+    --surface-solid: #1c1c21;
+    --surface-2: rgba(255, 255, 255, 0.06);
+    --surface-3: rgba(255, 255, 255, 0.1);
+    --border: rgba(255, 255, 255, 0.1);
+
+    --text: #f4f4f5;
+    --text-2: #a1a1aa;
+    --text-3: #71717a;
+
+    --accent-hover: #ff8347;
+    --accent-text: #ff9a6b;
+
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #ff5a5f;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface: rgba(24, 24, 28, 0.78);
+  --surface-solid: #1c1c21;
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --surface-3: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.1);
+
+  --text: #f4f4f5;
+  --text-2: #a1a1aa;
+  --text-3: #71717a;
+
+  --accent-hover: #ff8347;
+  --accent-text: #ff9a6b;
+
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #ff5a5f;
+}
+
+/*
+ * Tailwind v4 theme, part 1 - values that follow the light/dark swap. `inline` keeps the
+ * var() reference inside the utility, so flipping data-theme on <html> repaints without
+ * regenerating any CSS.
+ */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-solid: var(--surface-solid);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-accent-text: var(--accent-text);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --color-overlay-dim: var(--overlay-dim);
+
+  --font-sans: var(--font);
+  --font-mono: var(--mono);
+
+  --shadow-floating: var(--shadow);
+}
+
+/*
+ * Part 2 - fixed values, declared only here. `static` is required: without it Tailwind
+ * tree-shakes theme variables that no utility happens to reference, and hand-written CSS
+ * reading var(--radius-panel) or var(--ease-hop) would resolve to nothing.
+ */
+@theme static {
+  /* 2.2 type scale: size / line-height / weight */
+  --text-caption: 11px;
+  --text-caption--line-height: 14px;
+  --text-caption--font-weight: 500;
+  --text-small: 12px;
+  --text-small--line-height: 16px;
+  --text-small--font-weight: 400;
+  --text-body: 13px;
+  --text-body--line-height: 18px;
+  --text-body--font-weight: 400;
+  --text-body-strong: 13px;
+  --text-body-strong--line-height: 18px;
+  --text-body-strong--font-weight: 600;
+  --text-title: 15px;
+  --text-title--line-height: 20px;
+  --text-title--font-weight: 600;
+  --text-heading: 20px;
+  --text-heading--line-height: 26px;
+  --text-heading--font-weight: 650;
+  --text-display: 28px;
+  --text-display--line-height: 34px;
+  --text-display--font-weight: 700;
+
+  /* 2.3 radius: panel 14 / card+thumbnail 10 / button+input 8 / chip 999 */
+  --radius-panel: 14px;
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --radius-chip: 999px;
+
+  /* 2.3 glass blur */
+  --blur-glass: 24px;
+
+  /* 2.3 motion curve. Named --ease-hop rather than --ease-out so it does not silently
+     redefine Tailwind's built-in ease-out utility. */
+  --ease-hop: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* 2.3: reduced motion means fades only — no slides, no scales. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Elevated surfaces, interaction states and the no-vibrancy fallback.
+ * DESIGN §2.1 extension — see DESIGN.md "2.4 Elevated surfaces".
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * A popover, menu or toast floats *above* the glass panel, so its background cannot be a
+ * tint. `--surface-2`/`--surface-3` are 4–10% overlays designed to sit on top of an opaque
+ * surface; used as a panel background they leave the panel ~90 % transparent. That is what
+ * made the QR popover see-through and its text unreadable.
+ *
+ * These are opaque on purpose, and they do not depend on `backdrop-filter` — which cannot
+ * blur the desktop behind a transparent OS window on Windows, only content inside the same
+ * page. A QR code especially must be opaque with a white quiet zone or scanners cannot lock
+ * onto it (DESIGN S4).
+ */
+:root {
+  --surface-raised: #ffffff;
+  /* Rows, inputs and code blocks *inside* a raised panel. */
+  --surface-raised-2: rgba(0, 0, 0, 0.05);
+  --raised-border: rgba(0, 0, 0, 0.1);
+
+  /* Pointer feedback. Every control gets hover and press states (DESIGN §3). */
+  --hover: rgba(0, 0, 0, 0.06);
+  --press: rgba(0, 0, 0, 0.11);
+
+  /* Chip/label backing used over arbitrary image content (shelf cards, overlay). Fixed
+     rather than themed: the backdrop is a screenshot, not the UI surface. */
+  --scrim: rgba(0, 0, 0, 0.62);
+  --on-scrim: #ffffff;
+
+  /*
+   * Letterbox behind a thumbnail that does not fill its card. Screenshots are any shape and
+   * are fitted with `object-fit: contain`, so most cards have bars. Opaque and fixed: a
+   * translucent tint let the wallpaper through the bars on the transparent shelf window,
+   * which read as a rendering fault rather than as letterboxing.
+   */
+  --card-letterbox: #101014;
+}
+
+:root[data-theme="dark"] {
+  --surface-raised: #26262c;
+  --surface-raised-2: rgba(255, 255, 255, 0.07);
+  --raised-border: rgba(255, 255, 255, 0.14);
+
+  --hover: rgba(255, 255, 255, 0.08);
+  --press: rgba(255, 255, 255, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-raised: #26262c;
+    --surface-raised-2: rgba(255, 255, 255, 0.07);
+    --raised-border: rgba(255, 255, 255, 0.14);
+
+    --hover: rgba(255, 255, 255, 0.08);
+    --press: rgba(255, 255, 255, 0.14);
+  }
+}
+
+/*
+ * DESIGN §7: "Fall back to `--surface-solid` when Reduce transparency is on (macOS) or on
+ * Windows 10." `platform/windows.rs` / `macos.rs` report whether the OS actually applied a
+ * backdrop; when it did not, the shelf sets this class and stops pretending to be glass.
+ * Without it a failed `apply_acrylic` leaves text floating on the raw desktop.
+ */
+:root.no-vibrancy {
+  --surface: var(--surface-solid);
+}
+
+/* Elevation for floating panels: deeper than the shelf's own shadow so a popover reads as
+   sitting above it, and with a hairline that survives on any wallpaper. */
+:root {
+  --shadow-raised: 0 16px 48px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.16),
+    0 0 0 1px var(--raised-border);
+}
+
+@theme inline {
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-raised-2: var(--surface-raised-2);
+  --color-raised-border: var(--raised-border);
+  --color-hover: var(--hover);
+  --color-press: var(--press);
+  --color-scrim: var(--scrim);
+  --color-on-scrim: var(--on-scrim);
+  --color-card-letterbox: var(--card-letterbox);
+
+  --shadow-raised: var(--shadow-raised);
+}

@@ -1,0 +1,55 @@
+# Hopshot API Worker — api.hopshot.xyz (ARCHITECTURE §7).
+# The root wrangler.jsonc is a separate, unrelated config that deploys the marketing site.
+name = "hopshot-api"
+main = "src/index.ts"
+# Capped at the newest date the workerd bundled with @cloudflare/vitest-pool-workers@0.22
+# supports (2026-08-22). Raise it once that package ships a newer miniflare, or `pnpm -F api
+# test` fails to start the runtime.
+compatibility_date = "2026-08-22"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+# ARCHITECTURE §7: the API lives at https://api.hopshot.xyz/v1. `custom_domain` makes
+# Cloudflare create and manage the DNS record for this hostname, so it does not need to
+# exist beforehand. It is a subdomain, so it cannot affect the apex, which the separate
+# marketing Worker serves.
+[[routes]]
+pattern = "api.hopshot.xyz"
+custom_domain = true
+
+# Encrypted blobs: d/{dropId} and v/{vaultId}/{itemId} (ARCHITECTURE §7.8).
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "hopshot-blobs"
+
+# D1. Create with `wrangler d1 create hopshot` and paste the id here; --local ignores it.
+[[d1_databases]]
+binding = "DB"
+database_name = "hopshot"
+database_id = "8f9c769d-9d3a-4e3f-ae2f-5cea7d0fd52d"
+migrations_dir = "migrations"
+
+# One VaultHub per vault, WebSocket fan-out via the hibernation API (ARCHITECTURE §7.4).
+[[durable_objects.bindings]]
+name = "VAULT_HUB"
+class_name = "VaultHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["VaultHub"]
+
+[triggers]
+# Every 15 min: delete expired drops/items and their R2 objects (ARCHITECTURE §7.8).
+# Daily 09:00 UTC: Sync renewal reminder emails (ARCHITECTURE §7.5).
+crons = ["*/15 * * * *", "0 9 * * *"]
+
+[vars]
+STRIPE_PRICE_LIFETIME = "price_1UTKyKSAaYIq0lX8kOyG4XUJ"
+STRIPE_PRICE_BUNDLE = "price_1UM4rpSAaYIq0lX8oRSba6nK"
+# The yearly Sync renewal (PRD F8.8). Only reached from a confirmed renewal link, so leaving
+# this unset makes renewals fail closed rather than charging anyone — nothing else breaks.
+STRIPE_PRICE_SYNC_YEARLY = "REPLACE_ME_price_sync_yearly"
+EMAIL_FROM = "Hopshot <founder@hopshot.xyz>"
+WEB_ORIGIN = "https://app.hopshot.xyz"

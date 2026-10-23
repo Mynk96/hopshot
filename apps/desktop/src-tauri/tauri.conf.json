@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Hopshot",
+  "version": "0.1.0",
+  "identifier": "xyz.hopshot",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "shelf",
+        "title": "Hopshot shelf",
+        "width": 208,
+        "height": 420,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false,
+        "focus": false,
+        "visible": false,
+        "visibleOnAllWorkspaces": true
+      },
+      {
+        "label": "settings",
+        "title": "Hopshot Settings",
+        "width": 720,
+        "height": 520,
+        "resizable": false,
+        "center": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: blob: data: frame: http://asset.localhost https://asset.localhost http://frame.localhost https://frame.localhost; style-src 'self' 'unsafe-inline'",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPDATA/**",
+          "$APPDATA/thumbs/*",
+          "$APPDATA/captures/*"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "Screenshots that clean up after themselves",
+    "category": "Productivity",
+    "copyright": "Hopshot"
+  }
+}

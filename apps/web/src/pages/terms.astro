@@ -1,0 +1,130 @@
+---
+import Base from "../layouts/Base.astro";
+
+/*
+ * Terms, including the acceptable-use and takedown sections PRD §9 asks for.
+ *
+ * These describe the licence and limits the code actually enforces — one computer on
+ * Lifetime, three with Sync, the daily send caps, the expiry windows — so they stay true as
+ * long as config/limits.json is the single source of those numbers.
+ *
+ * Not written by a lawyer. They are honest and specific, which is the useful part, but the
+ * seller is India-based taking international payments, and that combination has real
+ * requirements around invoicing, GST and export of services. Have them reviewed before
+ * relying on them.
+ */
+
+const updated = "21 October 2026";
+---
+
+<Base title="Terms — Hopshot" description="The terms of using and buying Hopshot.">
+  <main class="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-16">
+    <header class="flex flex-col gap-2">
+      <h1 class="text-display">Terms</h1>
+      <p class="text-small text-text-3">Last updated {updated}</p>
+    </header>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">The trial</h2>
+      <p class="text-body text-text-2">
+        Hopshot is free for 7 days with every feature unlocked, including Sync. No card is
+        required. When the trial ends, capture pauses — your existing screenshots stay on the
+        shelf and remain usable until they expire on their own.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">What you're buying</h2>
+      <p class="text-body text-text-2">
+        A one-time licence to use Hopshot, tied to the email you buy with. There is no licence
+        key. You may install it on:
+      </p>
+      <ul class="flex flex-col gap-1.5 pl-5 text-body text-text-2" style="list-style: disc">
+        <li><strong>Lifetime:</strong> one computer at a time. You can move it whenever you like.</li>
+        <li><strong>Lifetime + Sync:</strong> up to three computers and three phones while Sync is active.</li>
+      </ul>
+      <p class="text-body text-text-2">
+        A computer you have not used for 30 days frees its slot automatically. If Sync lapses,
+        the computer you used most recently keeps working and you choose where the licence
+        runs.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Sync</h2>
+      <p class="text-body text-text-2">
+        Lifetime + Sync includes the first year. After that it continues at $24/year only if
+        you add a card — it does not start charging by surprise. If Sync ends, the app keeps
+        working: you lose phone sync, the extra computers and the longer link expiries, and
+        keep everything else.
+      </p>
+      <p class="text-body text-text-2">
+        Sync has fair-use limits so one account cannot exhaust the service: 200 share links a
+        day and 500 synced items a day. Lifetime without Sync has 10 share links a day.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Refunds</h2>
+      <p class="text-body text-text-2">
+        14 days, no questions. Email us and we'll refund you. A refund ends the licence.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Acceptable use</h2>
+      <p class="text-body text-text-2">Don't use Hopshot's hosted sharing to:</p>
+      <ul class="flex flex-col gap-1.5 pl-5 text-body text-text-2" style="list-style: disc">
+        <li>distribute content that is illegal where you or your recipients are</li>
+        <li>share sexual content involving minors, under any circumstances</li>
+        <li>harass, impersonate or dox anyone</li>
+        <li>distribute malware, or phishing pages and material</li>
+        <li>circumvent the plan limits, or resell access to the service</li>
+      </ul>
+      <p class="text-body text-text-2">
+        Because shared files are encrypted on your device, we cannot inspect them — so this
+        relies on reports rather than scanning. We may suspend an account or remove content on
+        a credible report, and we will tell you why.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Reporting a link</h2>
+      <p class="text-body text-text-2">
+        Every shared page has a <strong>Report</strong> link, and reports go straight to us.
+        You can also email
+        <a style="color: var(--accent-text)" href="mailto:abuse@hopshot.xyz">abuse@hopshot.xyz</a>
+        with the link. Shared links expire within 7 days at the outside, so most content is
+        gone before anything else is needed — but we will remove a reported link sooner.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">No warranty</h2>
+      <p class="text-body text-text-2">
+        Hopshot is provided as it is. It is a tool for moving screenshots around, not a backup
+        service: everything in it is designed to expire, and you should not rely on it to keep
+        anything. Keep your own copies of anything that matters.
+      </p>
+      <p class="text-body text-text-2">
+        To the extent the law allows, our liability is limited to what you paid.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Changes</h2>
+      <p class="text-body text-text-2">
+        If these terms change in a way that affects you, we'll say so in the app rather than
+        quietly editing this page. Prices can change for new purchases; a licence you have
+        already bought is not re-priced.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Contact</h2>
+      <p class="text-body text-text-2">
+        <a style="color: var(--accent-text)" href="mailto:hello@hopshot.xyz">hello@hopshot.xyz</a>
+      </p>
+    </section>
+  </main>
+</Base>

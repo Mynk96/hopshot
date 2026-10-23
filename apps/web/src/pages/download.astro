@@ -1,0 +1,87 @@
+---
+import Base from "../layouts/Base.astro";
+// The version comes from the file that names the installer, so the two can never disagree.
+// Keeping a second copy here is what made this button 404 in the first place; CI now runs
+// scripts/check-version.mjs to hold every copy of the number together.
+import tauriConf from "../../../desktop/src-tauri/tauri.conf.json";
+
+/*
+ * Download (PRD §9, ARCHITECTURE §9).
+ *
+ * Windows only at launch. The installer is **unsigned**, so SmartScreen will warn — PRD §9
+ * contemplates exactly this for the direct channel and asks for the "More info → Run anyway"
+ * note rather than hiding it. Saying so plainly is also the only honest option: a user who
+ * hits an unexplained scary dialog assumes the worst and leaves.
+ *
+ * macOS is not listed because it is not shipped. Promising it here and then not having a
+ * build would be worse than saying "not yet".
+ */
+
+const version = tauriConf.version;
+
+/*
+ * The exact asset `.github/workflows/release.yml` uploads — Tauri's own NSIS naming, so the
+ * workflow does not get to choose it and this string has to match byte for byte.
+ */
+const installer = `https://github.com/Mynk96/hopshot/releases/download/v${version}/Hopshot_${version}_x64-setup.exe`;
+---
+
+<Base
+  title="Download Hopshot for Windows"
+  description="Hopshot for Windows. Free for 7 days, then $12 once."
+>
+  <main class="mx-auto flex max-w-2xl flex-col gap-10 px-6 py-16">
+    <header class="flex flex-col gap-3">
+      <h1 class="text-display">Download Hopshot</h1>
+      <p class="text-body text-text-2">
+        Free for 7 days with everything unlocked. No account, no card.
+      </p>
+    </header>
+
+    <section class="flex flex-col gap-3">
+      <a class="btn btn-primary self-start" href={installer} download>
+        Download for Windows · {version}
+      </a>
+      <p class="text-small text-text-2">
+        Windows 10 or 11, 64-bit. About 3 MB.
+      </p>
+    </section>
+
+    <section
+      class="flex flex-col gap-2.5 p-5"
+      style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-panel)"
+    >
+      <h2 class="text-title">Windows will warn you. Here's why.</h2>
+      <p class="text-body text-text-2">
+        The installer isn't code-signed yet, so Windows shows
+        <strong>"Windows protected your PC"</strong>. Click <strong>More info</strong>, then
+        <strong>Run anyway</strong>.
+      </p>
+      <p class="text-body text-text-2">
+        That warning means "we haven't paid for a certificate", not "this is unsafe" — a
+        signing certificate costs a few hundred dollars a year, and buying one is on the list.
+        If you would rather wait for a signed build, that's a completely reasonable call.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-2">
+      <h2 class="text-title">macOS</h2>
+      <p class="text-body text-text-2">
+        Not yet. Hopshot is built for both, but the Mac build isn't finished and notarisation
+        takes time — so there's no download to give you today rather than a broken one.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-2">
+      <h2 class="text-title">After you install</h2>
+      <p class="text-body text-text-2">
+        Hopshot lives in your tray, not the taskbar. Press
+        <kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">Ctrl</kbd>
+        <kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">Shift</kbd>
+        <kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">2</kbd>
+        to capture, then drag the result straight into any app or browser tab.
+      </p>
+      <a class="text-body" style="color: var(--accent-text)" href="/pricing">See pricing →</a>
+    </section>
+  </main>
+</Base>

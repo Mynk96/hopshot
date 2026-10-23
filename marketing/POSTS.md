@@ -1,11 +1,11 @@
-# Posts — 3-day plan
+# Posts — pre-launch plan (posts on days 1–3, measure for 7 days)
 
 Every link has a `?ref=` code, so you can see which post brought each signup or payment. Attach `assets/hopshot-demo.mp4` (or the GIF) wherever video is allowed. The demo is the hook.
 
 ## Rules that keep accounts safe
 
 - **Read each subreddit's rules before posting** (sidebar plus pinned post). Some only allow self-promotion in weekly threads, and some want the link in a comment instead of the post.
-- Say you're the developer, and say it's not built yet. The video is labelled "concept preview".
+- Say you're the developer, and that it's in development (beta mid-November). The video is a concept preview.
 - Never post the same text twice. Space Reddit posts at least a few hours apart. **Don't ask friends to upvote**: Reddit treats it as vote manipulation and can ban the account.
 - Reply to every comment within the first 1–2 hours. That's what keeps a post visible.
 
@@ -22,6 +22,8 @@ Every link has a `?ref=` code, so you can see which post brought each signup or 
 | 2 | 10:30 PM | r/SaaS (pricing question) | `https://hopshot.xyz/?ref=r-saas` |
 | 3 | 7:30 PM | r/alphaandbetausers | `https://hopshot.xyz/?ref=r-beta` |
 | 3 | 8:30 PM | Peerlist | `https://hopshot.xyz/?ref=peerlist` |
+| 3 | any time | BetaList (submit the page; free queue, can take weeks) | `https://hopshot.xyz/?ref=betalist` |
+| 2–7 | daily, 20 min | Reply to existing threads + X build-in-public (sections below) | `?ref=reply` / `?ref=x` |
 | 3 | optional | r/Windows11. Only if the rules allow it; otherwise use their weekly self-promo thread. | `https://hopshot.xyz/?ref=r-windows` |
 
 r/macapps and Hacker News are better saved for the real launch, when people can download something.
@@ -45,7 +47,7 @@ r/macapps and Hacker News are better saved for the real launch, when people can 
 >
 > Mac has shelf apps like Dropover and Yoink, but I couldn't find a clean equivalent on Windows, so Windows is first-class here.
 >
-> It's **not built yet**; the video is a concept. Before spending a month on it, I want to know if people actually want it. Honest feedback welcome, especially: *what would stop you from using it?*
+> I'm building it now (beta in mid-November); the video is a concept preview. Before I go deep, I want to hear from people who'd actually use it. Honest feedback welcome, especially: *what would stop you from using it?*
 >
 > Page (founder pre-order if you want to back it, fully refundable): https://hopshot.xyz/?ref=r-sideproject
 
@@ -58,15 +60,15 @@ r/macapps and Hacker News are better saved for the real launch, when people can 
 >
 > Hotkey → it lands on a little shelf → drag it into any site → it's on your phone → gone in 24h.
 >
-> Windows + Mac. Validating before I build it.
+> Windows + Mac. Building it now, beta in November.
 
 **2**
 > Why: I use ~90% of my screenshots once, within a minute. Yet my Desktop has hundreds of "Screenshot (n).png" files and I WhatsApp myself to see them on my phone.
 
 **3**
-> Pricing I'm testing: $19 once for the app, +$24/yr only if you want phone & multi-computer sync.
+> Pricing: one-time for the app, +$24/yr only if you want phone & multi-computer sync.
 >
-> Founders get both for $19 (refundable): https://hopshot.xyz/?ref=x
+> Founder pre-order: $12 for the app, or $19 with a year of Sync (refundable): https://hopshot.xyz/?ref=x
 >
 > #buildinpublic
 
@@ -74,13 +76,13 @@ r/macapps and Hacker News are better saved for the real launch, when people can 
 
 ## LinkedIn — Day 1 (attach video)
 
-> Before writing a line of code, I'm testing a small idea: **Hopshot**, a screenshot tool for Windows and Mac.
+> I'm building a small product on the side: **Hopshot**, a screenshot tool for Windows and Mac.
 >
 > Most screenshots are used once, within a minute: pasted into an email, a ticket, a chat or an AI prompt. Still, they pile up in folders, and moving them to your phone means emailing yourself.
 >
 > Hopshot puts every capture on a small floating shelf. Drag it straight into any website, open it on your phone, and it deletes itself after 24 hours. Anything uploaded is end-to-end encrypted.
 >
-> I'm giving it 3 days: if enough people want it, I'll build it in November. If you live in screenshots (support, product, QA, design, sales), I'd value your honest take, or a share with someone who does.
+> Beta is planned for mid-November, and founder pre-orders are open now. If you live in screenshots (support, product, QA, design, sales), I'd value your honest take, or a share with someone who does.
 >
 > https://hopshot.xyz/?ref=linkedin
 
@@ -90,27 +92,27 @@ r/macapps and Hacker News are better saved for the real launch, when people can 
 
 > Hey! Quick favour: I'm testing an idea before building it. A tiny app where screenshots go to a floating shelf, you drag them straight into Gmail/Slack/ChatGPT, they show up on your phone, and they delete themselves after a day. 30-second video here: https://hopshot.xyz/?ref=dm
 >
-> Would you actually use this? Would you pay $19 for it? Brutal honesty welcome.
+> Would you actually use this? Would you pay $12 once for it? Brutal honesty welcome.
 
 ---
 
 ## r/indiehackers — Day 2
 
-**Title:** Validating a $19 utility before building it: my 3-day test and what I'm measuring
+**Title:** Pre-selling a $12 utility while I build it: my one-week test and what I'm measuring
 
 **Body:**
 
-> I have an idea for a small Windows/Mac utility (a screenshot "shelf": drag captures into any website, sync to your phone, auto-delete after 24h). Instead of building first, I'm running a 3-day test:
+> I have an idea for a small Windows/Mac utility (a screenshot "shelf": drag captures into any website, sync to your phone, auto-delete after 24h). While I build the risky parts, I'm running a one-week pre-sale test:
 >
 > - Landing page with a 30-second concept video
-> - **Founder pre-order at $19** (fully refundable, auto-refund if not shipped by Dec 31) plus a free waitlist
+> - **Founder pre-orders: $12 for the app, $19 with a year of Sync** (fully refundable, auto-refund if not shipped by Dec 31) plus a free waitlist
 > - Every link tagged by channel so I know where buyers come from
 >
-> My rule: 10+ pre-orders → build it. Under 3 and under 30 emails → kill it.
+> My bar: 10+ pre-orders and 100+ emails in a week means the pitch works. Below that, I change the pitch or the price before launch, not after.
 >
 > Pricing model I'm testing: **one-time $19 for the app**, plus an **optional $24/yr Sync add-on** for phone and multi-computer sync (the only part that costs me money to run). No free plan, just a 7-day trial at launch.
 >
-> Two questions for you: (1) Does that pricing feel fair for a small utility? (2) Are my kill/build thresholds sensible?
+> Two questions for you: (1) Does that pricing feel fair for a small utility? (2) Is that bar sensible for a pre-launch?
 >
 > Page: https://hopshot.xyz/?ref=r-indiehackers. I'll post the numbers when the test ends.
 
@@ -120,7 +122,7 @@ r/macapps and Hacker News are better saved for the real launch, when people can 
 
 Use the r/indiehackers text with a different title:
 
-**Title:** Pre-selling a screenshot app before writing code. Live test, numbers on Monday.
+**Title:** Pre-selling a screenshot app while building it. Live test, numbers next week.
 
 Link: `https://hopshot.xyz/?ref=ih`
 
@@ -182,3 +184,23 @@ Link: `https://hopshot.xyz/?ref=ih`
 | "Subscriptions are bad" | Agreed for most apps. The app itself is one-time. Sync is optional and exists only because it runs servers. |
 | "Linux?" | Not at launch. If enough people ask, it's possible later, since the app is built with Tauri. |
 | A feature idea | Thank them and ask: "Would that change whether you'd pay for it?" Write it down in the tracker. |
+
+---
+
+## Answer existing threads (highest intent, days 2–7)
+
+People already asking for this are the best validation. Search, read the thread, and only reply where Hopshot genuinely answers the question. Say you're building it.
+
+- Reddit search: `CleanShot alternative Windows`, `Dropover for Windows`, `screenshot to phone`, `screenshots cluttering desktop`, `Snipping Tool annoying`
+- X search: `"screenshot" "desktop is full"`, `"CleanShot" windows`, `"send screenshot to my phone"`
+- Reply shape: answer their question first (including free options), then one line: "I'm building something for exactly this (Windows + Mac), early page here if useful: https://hopshot.xyz/?ref=reply"
+
+## X: daily build-in-public (days 2–7)
+
+One short post a day with a clip or screenshot from the build. Progress posts get more reach than pitch posts. Ideas:
+
+1. "Day 1 of building Hopshot: the capture overlay now covers full-screen apps on Windows. [clip]"
+2. "Hardest part so far: making a floating window that doesn't steal focus when you drag from it. Here's why. [short explanation]"
+3. "Pre-sale numbers so far: X visitors, Y emails, Z pre-orders. Biggest objection: … [honest]"
+4. "Asked 20 people how they move screenshots to their phone. 14 said WhatsApp to themselves."  ← only with real numbers
+5. "Should Hopshot keep screenshots 24h or 7 days by default? [poll]"
