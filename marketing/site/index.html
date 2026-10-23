@@ -489,9 +489,19 @@ footer .cp{color:var(--ink-3);font-size:14px}
 <script>
 /* ===================== CONFIG: edit before deploying ===================== */
 const CONFIG = {
-  checkoutSync: "https://buy.stripe.com/eVqbJ335Ied882kft9dby08",   // $19  Lifetime + 1 year of Sync (main offer)
-  checkoutLifetime: "https://buy.stripe.com/eVqfZj9u6d94gyQdl1dby09",// $12  Lifetime only
-  provider: "stripe",                                         // "stripe" or "razorpay" (only Stripe gets per-channel tracking)
+  // Both CTAs go to the download. Hopshot is pay-first (PRD F8.1): free to download, locked
+  // until bought, and the purchase happens *inside the app* so it can be tied to the install
+  // that started it (F8.3) — that binding is what removes the licence key.
+  //
+  // These used to be the pre-order Payment Links. A Payment Link checkout carries no `claim`
+  // metadata, so the webhook could not issue a licence for it: the money arrived and the
+  // buyer got nothing. Archived in Stripe as well, so the old links cannot be reached.
+  //
+  // Note the subdomain. The download page is served by the Astro worker on app.hopshot.xyz;
+  // this apex host is assets-only and /download 404s here.
+  checkoutSync: "https://app.hopshot.xyz/download",
+  checkoutLifetime: "https://app.hopshot.xyz/download",
+  provider: "download",                                       // "stripe" | "razorpay" | "download"
   waitlistAction: "https://buttondown.com/api/emails/embed-subscribe/mynkharsani",
   contactEmail: "founder@hopshot.xyz",
   founderName: "Mayank",          // set to "" to hide the founder note
@@ -511,7 +521,9 @@ const CONFIG = {
   // Checkout links
   function link(url){
     if (!url || url.includes("REPLACE_ME")) return null;
-    try { const u = new URL(url); if (CONFIG.provider === "stripe") { u.searchParams.set("client_reference_id", ref); u.searchParams.set("utm_source", ref); } return u.toString(); } catch (e) { return url; }
+    // `client_reference_id` is a Stripe field and means nothing to the download page, but the
+    // channel code is still worth carrying, so utm_source goes on either way.
+    try { const u = new URL(url); if (CONFIG.provider === "stripe") { u.searchParams.set("client_reference_id", ref); } u.searchParams.set("utm_source", ref); return u.toString(); } catch (e) { return url; }
   }
   const sync = link(CONFIG.checkoutSync), life = link(CONFIG.checkoutLifetime);
   $$(".js-buy-sync").forEach(a => { if (sync) a.href = sync; else if (a.closest(".card")) a.href = "#notify"; });
