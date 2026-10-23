@@ -129,9 +129,9 @@ Capture full screen
 Show shelf                  ⌘⇧1
 Send last to phone
 ─────────────
-Pair phone…            (SYNC badge if not on Sync/trial)
+Pair phone…            (SYNC badge if not on Sync)
 Settings…                   ⌘,
-Buy Hopshot — $19      (trial only) / Add Sync — $24/yr (Lifetime only)
+Buy Hopshot — $19      (unlicensed only) / Add Sync — $24/yr (Lifetime only)
 ─────────────
 Quit Hopshot                ⌘Q
 ```
@@ -150,7 +150,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **Size:** 208 px wide; height fits its content up to 80% of the screen, then scrolls. Margin 12 px from the screen edge, vertically centered.
 - **Header (36 px):** app mark + "Hopshot" (`title`), item count chip, pin-open toggle, settings, close.
 - **List:** newest first, 8 px gap.
-- **Footer:** trial → `Trial · 5 days left · Buy`; Lifetime → `12 items · Add Sync`; Sync → `● Synced to 2 devices`.
+- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip: pay-first means there is nothing to count down (PRD F8.1).
 
 **States**
 
@@ -165,7 +165,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 | Upload error | Small danger dot on the card + toast "Couldn't send — Retry" |
 | Offline | Footer: "Offline — sending paused" |
 | Capacity reached (100) | Oldest unpinned card fades out when a new one arrives |
-| Trial ended | Capture paused; banner at the top of the shelf: "Your trial has ended — your shelf is still here." + `See plans` |
+| Locked (nothing bought, or refunded) | Capture paused; banner at the top of the shelf: **"Buy Hopshot to start capturing"** / "It unlocks itself the moment you pay. 14-day refund, no questions." + `See plans`. The shelf stays readable and draggable (PRD F8.1a). |
 
 ### S4 — Send to phone (QR popover)
 
@@ -174,7 +174,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - Below it: the link in mono (truncated) + Copy button.
 - A line showing `Expires in 24h · End-to-end encrypted`.
 - Actions: `Delete now` (danger-ghost), `Done`.
-- **Sync/trial + paired:** instead of the QR, show "Sent to Mayank's iPhone ✓" with a "Show QR instead" link.
+- **Sync + paired:** instead of the QR, show "Sent to Mayank's iPhone ✓" with a "Show QR instead" link.
 - Loading: QR placeholder with a shimmer and "Encrypting…" → "Uploading 62%".
 
 ### S5 — Phone web app (`/app`)
@@ -198,7 +198,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **General:** Launch at login · Capture hotkey · Show shelf hotkey · After capture: [✓] Copy to clipboard [✓] Show shelf · Theme: System / Light / Dark.
 - **Shelf:** Position Left/Right · Auto-hide 4s/8s/15s/Never · Keep items 1h / **24h** / 7d · Remove after drag · Catch other screenshots (P1).
 - **Devices:** paired list (icon, name, last seen, Revoke) · `Pair a phone` · `Link another computer` (P1) · Auto-sync captures to my devices.
-- **License:** plan card (Trial · N days left / Lifetime / Lifetime + Sync with renewal date) and the purchase email; **Computers (n of 3)** with Remove on each; `Buy Hopshot`, `Add Sync` or `Manage subscription`; during the trial, **Already bought? Restore**. No key field anywhere.
+- **License:** plan card (Lifetime / Lifetime + Sync with the date Sync runs until, plus **Manage Sync**; or the plans block with both prices and the 14-day refund when nothing is bought) and the purchase email; **Computers (n of 3)** with Remove on each; `Buy Hopshot`, `Add Sync` or `Manage subscription`; when nothing is bought, **Already bought? Restore** (PRD F8.3c — the path for a reinstall or a second computer). No key field anywhere.
 - **Privacy:** Anonymous usage stats (off) · Crash reports (off) · `Delete all my cloud data` (danger, with a confirm step).
 - **About:** version, Check for updates, Website, Support email, Licenses.
 
@@ -207,7 +207,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 1. **Welcome:** display text "Screenshots that clean up after themselves." + 3 bullets (Drag anywhere · Open on your phone · Gone in 24h) → `Get started`.
 2. **Permission (macOS only):** "Hopshot needs Screen Recording permission to capture your screen." → `Open System Settings`. A live status row goes from ◌ Waiting… to ✓ Granted. Small print: "macOS may ask you to confirm this again from time to time."
 3. **Try it:** keycaps animation `⌘ ⇧ 2` → "Select anything on your screen." Completes automatically when the first capture lands, then shows "Now drag it from the shelf into any browser tab."
-4. **Done:** "Your 7-day trial includes everything." → `Pair your phone` / `Try Send to phone` / `Finish`, plus a stats opt-in checkbox (unchecked).
+4. **Done:** "Buy Hopshot to start capturing — $12 once, or $19 with Sync. 14-day refund, no questions." → `See plans` / `Finish`, plus a stats opt-in checkbox (unchecked).
 
 ### S9 — Plans sheet
 
@@ -229,8 +229,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 | Sent to phone (paired) | "Sent to {device}" |
 | Limit (Lifetime drops) | "That's 10 sends today. Sync raises it to 200." |
 | Capacity | "Shelf holds 100. Oldest one made room." |
-| Trial ending | "2 days left in your trial. Keep Hopshot for $19 once." |
-| Trial ended | "Your trial has ended — your shelf is still here. Buy Hopshot to keep capturing." |
+| Locked | "Buy Hopshot to start capturing — it unlocks itself the moment you pay." |
 | Sync lapsed | "Sync is off — your phone won't get new screenshots. Everything else still works." |
 | Expired item clicked (race) | "That one just expired." |
 | Permission missing | "Hopshot can't see your screen yet. Fix in one click →" |

@@ -19,7 +19,8 @@
 - [ ] QR send → iPhone Safari + Android Chrome → Save to Photos works
 - [ ] Delete now → link shows expired
 - [ ] Lifetime daily send limit message shows at the 11th send
-- [ ] Trial: countdown chip, "trial ending" message, trial-ended state (capture paused, shelf readable), buying unlocks instantly
+- [ ] Locked state (PRD F8.1a): a brand-new install cannot capture, the shelf is still readable and draggable, the banner offers both plans, and buying unlocks instantly
+- [ ] Locked while offline: an install that has never reached the server is locked too — staying offline must not be a bypass
 - [ ] Sync: pairing, auto-sync < 3 s, phone → shelf, revoke, "Delete all my cloud data"
 - [ ] Offline: shelf works, sends queue/fail gracefully
 
@@ -41,7 +42,7 @@
 | Icon | 1024 px master + all sizes (DESIGN §6) |
 | Tagline (≤ 60 chars) | "Screenshots that drag anywhere and clean up after themselves" |
 | Short description | "Hopshot puts every screenshot on a floating shelf. Drag it into any website, send it to your phone, and it's gone in 24 hours. Mac & Windows." |
-| Landing page | Live, with Download (7-day trial) + Lifetime and Sync checkout; FAQ covers privacy, SmartScreen, macOS permission and refunds |
+| Landing page | Live, with Download (free, locked until bought) + Lifetime and Sync checkout; FAQ covers privacy, SmartScreen, macOS permission and the 14-day refund |
 | Support | founder@hopshot.xyz + a short FAQ; canned replies for the top 5 questions |
 | Launch pricing | Lifetime $12 and Lifetime + Sync $19 for a limited launch period, then $19 / $43; change a price by moving its Stripe lookup key (no deploy). Site buttons go to `https://api.hopshot.xyz/v1/buy/{lifetime|bundle}?ref=…` |
 | Founders | Launch day: run `scripts/export-founders.mjs`, import each row with `POST /admin/licenses` (syncStartsAt = launch date); keys go out by email automatically. Then switch the site's pre-order buttons to the `/buy` links |
@@ -110,7 +111,7 @@ only thing that mints a licence. Everything below has to exist before the buy bu
 Price ids are not secrets; they live in `services/api/wrangler.toml` under `[vars]`. Give each
 one a **lookup key** so a price change is a dashboard edit rather than a deploy.
 
-The bundle is deliberately a one-time price, not a subscription with a trial: the $19 is
+The bundle is deliberately a one-time price, not a subscription: the $19 is
 charged at checkout, and the card is saved (`setup_future_usage: off_session`) so that the
 renewal a year later is one click. **Nothing renews automatically** — see §2c.
 
@@ -346,13 +347,13 @@ everyone, which is the state to be in when you are not testing.
 >
 > What it does: … · What it doesn't do (on purpose): annotation, video, permanent hosting.
 >
-> 7-day free trial, then $19 once. There's an optional Sync subscription for phone and multi-computer sync. Happy to answer anything about how it works under the hood.
+> $19 once, with a 14-day refund if it isn't for you. There's an optional Sync subscription for phone and multi-computer sync. Happy to answer anything about how it works under the hood.
 
 ---
 
 ## 5. Launch-week metrics to watch (daily)
 
-Visitors → downloads (by OS and channel) → activation (≥ 3 captures) → send-to-phone usage → trials started → Lifetime purchases → Sync add-ons → refunds → crash-free rate. Keep a simple spreadsheet; at day 7 and day 30, compare with PRD §10 and write down one lesson per channel.
+Visitors → downloads (by OS and channel) → activation (≥ 3 captures) → send-to-phone usage → Lifetime purchases → Sync add-ons → refunds → crash-free rate. Keep a simple spreadsheet; at day 7 and day 30, compare with PRD §10 and write down one lesson per channel.
 
 ## 6. Day-60 decision
 

@@ -114,10 +114,6 @@ Every limit lives here. Rust reads it with `include_str!` + serde, TS imports it
 
 ```json
 {
-  "trial": {
-    "days": 7,
-    "includes": "sync"
-  },
   "lifetime": {
     "shelfCapacity": 100,
     "itemTtlOptions": ["1h", "24h", "7d"],
@@ -149,7 +145,9 @@ Every limit lives here. Rust reads it with `include_str!` + serde, TS imports it
 }
 ```
 
-Plan resolution: `expired` (trial over, nothing bought) → `trial` (within 7 days of first launch; gets Sync limits) → `lifetime` (valid Lifetime key) → `sync` (valid Lifetime key + active Sync subscription; gets Lifetime limits overridden by the `sync` block).
+Plan resolution: `expired` (nothing bought, or bought and refunded) → `lifetime` (valid Lifetime licence) → `sync` (valid Lifetime licence + active Sync subscription; gets Lifetime limits overridden by the `sync` block).
+
+Hopshot is **pay-first** (PRD F8.1): there is no trial, so every install starts `expired` with capture paused, and a licence is the only thing that grants a plan. `resolvePlan` therefore reads one header — `X-Hopshot-License` — and anything else is `expired`, which is also what makes a refund take the app away.
 
 ---
 
@@ -181,7 +179,7 @@ user drags ─▶ overlay UI sends {monitorId, x, y, w, h} in CSS px
        ─▶ crop::to_physical(rect, scale_factor) ─▶ crop frozen RgbaImage
        ─▶ shelf::store.add(png)  (write PNG + 320px thumb into app-data, insert row)
        ─▶ clipboard::set_image (if setting on) ─▶ hide overlays ─▶ show shelf, highlight item
-       ─▶ if plan ∈ {trial, sync} && autoSync: cloud::vault.upload(item) in background
+       ─▶ if plan == sync && autoSync: cloud::vault.upload(item) in background
 ```
 
 - **Performance budget:** hotkey → overlay visible < 300 ms on a 4K display. Measure `grab_all` and encode separately. If the encode is slow, send raw RGBA through the protocol as `image/bmp`.
@@ -230,7 +228,7 @@ copy_item(id)                           prepare_drag(id) -> {path, icon}
 save_item_as(id)                        reveal_item(id)
 start_capture(mode: 'region'|'screen')  overlay_commit(monitorId, rect) / overlay_cancel()
 send_drop(id, ttl) -> {url, expiresAt}  delete_drop(id)
-get_settings() / set_settings(patch)    get_plan() -> {plan: 'trial'|'expired'|'lifetime'|'sync', trialEndsAt?, syncRenewsAt?, limits}
+get_settings() / set_settings(patch)    get_plan() -> {plan: 'expired'|'lifetime'|'sync', capturePaused, syncEndsAt?, limits}
 license_buy(plan) / license_claim(token) / license_restore(email) / license_restore_verify(code) / license_remove_device(id)
 vault_create() / vault_invite() -> {pairUrl, expiresAt} / vault_devices() / vault_revoke(deviceId)
 permissions_status() -> {screen: 'granted'|'denied'|'unknown'} / permissions_open_settings()
@@ -279,7 +277,7 @@ Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 3
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/vaults` | Trial or Sync only. Body `{deviceName, kind:"desktop"}` → `{vaultId, deviceId, deviceToken}` |
+| `POST` | `/vaults` | Sync only. Body `{deviceName, kind:"desktop"}` → `{vaultId, deviceId, deviceToken}` |
 | `POST` | `/vaults/{vaultId}/invites` | Desktop token → `{code, expiresAt}` (10 min, single use) |
 | `POST` | `/pair` | Body `{code, deviceName, kind:"phone"|"desktop"}` → `{vaultId, deviceId, deviceToken}`. Enforces `maxPhones` / `maxComputers`. At most 5 failed attempts per IP per 10 min. |
 | `GET` | `/vaults/{vaultId}/devices` | → device list |
@@ -302,9 +300,9 @@ Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 3
 - Server → client events: `{"type":"item.created","item":{…}}`, `{"type":"item.deleted","id":"…"}`, `{"type":"device.joined","device":{…}}`, `{"type":"device.revoked","deviceId":"…"}`.
 - Clients fall back to polling `GET …/items?since=` every 15 s if the socket drops.
 
-### 7.5 Trial, licenses and billing (Stripe)
+### 7.5 Licenses and billing (Stripe)
 
-**Trial:** the desktop records its first-launch time locally (keychain) and calls `POST /trial/start {installId}` once → `{trialEndsAt}`. The server keeps `trials(install_id, started_at)` so cloud features (drops, vault) stop at the same moment. Reinstall abuse is possible and acceptable at this price.
+**No trial.** Pay-first (PRD F8.1): a new install is `expired` and capture is paused until a purchase completes. The desktop decides this locally from the keychain so the hotkey path never waits on a request, and an install that has *never* reached the server is locked too — treating "unknown" as permissive would make staying offline a bypass.
 
 **Stripe setup** (test mode first, then live; the India account used for pre-orders, payouts in INR):
 
@@ -329,13 +327,13 @@ Code refers to prices only by **lookup key**. To change a price (e.g. Lifetime $
 2. **Link (website buyers, founders):** `hopshot://activate?t={token}`, signed, valid 30 days, reusable until the computer limit. The thanks page (`GET /buy/session/{id}`) and the `license_ready` email carry it, as a normal https link `https://hopshot.xyz/activate#t=…` that opens the app (and offers the download if it isn't installed). The desktop registers the `hopshot` scheme with `tauri-plugin-deep-link` and calls `POST /license/claim`.
 3. **Restore (new computer, reinstall):** `POST /license/restore {email, installId}` always returns `202`; if that email owns a license, it emails a 6-digit code (10 min, 5 attempts) and an activation link. `POST /license/restore/verify {email, code, installId, label}` returns the device token.
 
-**Computer limit, tracked automatically:** `computerLimit(license)` = `sync.maxComputers` (3) while the customer's Sync is active (trialing, active, or within `paymentGraceDays`); otherwise `lifetime.maxComputers` (1). Registering again from the same `install_id` reuses its slot. A computer over the limit takes the slot of a device not seen for 30+ days (that device is marked removed and falls back to the trial-ended state at its next check). If every slot was seen within 30 days, the API returns `409 device_limit` with `{pendingId, devices: [{id, label, lastSeenAt}]}`, and the app asks which to remove, then calls `POST /license/claim/finish {pendingId, removeDeviceId}`. `GET /license/status` updates `last_seen_at`; the app calls it at launch and every 7 days. **When the limit drops** (Sync ends), the most recently seen devices up to the new limit stay licensed; `GET /license/status` returns `{valid: false, reason: "over_limit", devices}` to the others, which show the move-or-renew screen (`POST /license/move-here` deactivates the chosen other device and licenses this one). Nothing is deleted; adding Sync again re-licenses them at their next check.
+**Computer limit, tracked automatically:** `computerLimit(license)` = `sync.maxComputers` (3) while the customer's Sync is active (trialing, active, or within `paymentGraceDays`); otherwise `lifetime.maxComputers` (1). Registering again from the same `install_id` reuses its slot. A computer over the limit takes the slot of a device not seen for 30+ days (that device is marked removed and falls back to the locked state, PRD F8.1a, at its next check). If every slot was seen within 30 days, the API returns `409 device_limit` with `{pendingId, devices: [{id, label, lastSeenAt}]}`, and the app asks which to remove, then calls `POST /license/claim/finish {pendingId, removeDeviceId}`. `GET /license/status` updates `last_seen_at`; the app calls it at launch and every 7 days. **When the limit drops** (Sync ends), the most recently seen devices up to the new limit stay licensed; `GET /license/status` returns `{valid: false, reason: "over_limit", devices}` to the others, which show the move-or-renew screen (`POST /license/move-here` deactivates the chosen other device and licenses this one). Nothing is deleted; adding Sync again re-licenses them at their next check.
 
 **Webhook** `POST /webhooks/stripe` (secret `STRIPE_WEBHOOK_SECRET`; verify with `stripe.webhooks.constructEventAsync` and `Stripe.createSubtleCryptoProvider()`; record event IDs in `stripe_events` and skip duplicates):
 
 | Event | Action |
 |---|---|
-| `checkout.session.completed`, `mode=payment`, paid | upsert `customers`; create the license and mark the matching claim (`client_reference_id`) paid; for `plan=bundle`, create the Sync subscription through the API: price `sync_yearly`, `trial_end = now + sync_days`, no payment method, `trial_settings.end_behavior.missing_payment_method = pause`; send `license_ready` |
+| `checkout.session.completed`, `mode=payment`, paid | upsert `customers`; create the license and mark the matching claim (`client_reference_id`) paid; for `plan=bundle`, save the card for later with `setup_future_usage: off_session` and create **no subscription** — the bundle's Sync year is tracked from `licenses.created_at`, and a subscription exists only once the customer confirms the renewal (F8.8). Superseded: price `sync_yearly`, `trial_end = now + sync_days`, no payment method, `trial_settings.end_behavior.missing_payment_method = pause`; send `license_ready` |
 | `checkout.session.completed`, `mode=subscription` | upsert `customers` and `subscriptions` (a Lifetime owner added Sync) |
 | `checkout.session.completed`, `mode=setup` | attach the card as the subscription's default payment method; resume it if paused |
 | `customer.subscription.created / updated / deleted / paused / resumed` | upsert `subscriptions` (status, `trial_end`, `current_period_end`, `cancel_at_period_end`, `has_payment_method`); on `paused`, send the "Sync has paused" email |
@@ -350,7 +348,7 @@ Code refers to prices only by **lookup key**. To change a price (e.g. Lifetime $
 |---|---|---|
 | `license_ready` | new license | on purchase or founder import: **Open in Hopshot** button + "restore with this email on other computers" |
 | `restore_code` | restore request | immediately: 6-digit code + activation link |
-| `sync_year_ending` | `trialing`, no card | 7 days before `trial_end` |
+| `sync_renewal` | `bundle` licence, no live subscription | inside `RENEWAL_NOTICE_DAYS` (10) of `licenses.created_at + 365d`, from the daily 09:00 UTC cron. Deduplicated per licence per renewal year by `emails_sent.period_key`, and carries a single-use confirm link — **nothing renews itself** (F8.8). |
 | `sync_paused` | subscription paused | on the `paused` webhook |
 | `sync_renewal_notice` | `active`, card on file, not cancelling | 30 days before `current_period_end` |
 
@@ -360,7 +358,7 @@ Email links use a signed token valid for 30 days (`REMINDER_TOKEN_SECRET`). Remi
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/trial/start` | `{installId}` → `{trialEndsAt}` (idempotent) |
+| `POST` | `/trial/start` | Retired. Always answers a trial that has already ended (`active: false`, `endsAt == startedAt`), so v0.1.x builds that still call it pause capture and show their plans screen. A 404 would leave their cache empty, which those builds read as their most permissive state. Delete once no v0.1.x install remains. |
 | `POST` | `/buy/start` | `{plan, installId, label}` → `{url, claimId}` (in-app purchase) |
 | `GET` | `/claims/{claimId}` | `?installId=` → `{status:"pending"}`, or once paid `{deviceToken, plan}` (returned once) |
 | `POST` | `/license/claim` | `{token, installId, label}` → `{deviceToken, plan, syncStatus?, syncEndsAt?}` or `409 device_limit` |
@@ -396,7 +394,7 @@ CREATE TABLE drops (
 CREATE INDEX idx_drops_expires ON drops(expires_at);
 
 CREATE TABLE vaults (
-  id TEXT PRIMARY KEY, owner TEXT NOT NULL, created_at INTEGER NOT NULL   -- owner = license id, or 'trial:{installId}'
+  id TEXT PRIMARY KEY, owner TEXT NOT NULL, created_at INTEGER NOT NULL   -- owner = 'install:{installId}'; its licence is the authority (older rows may read 'trial:{installId}')
 );
 CREATE TABLE devices (
   id TEXT PRIMARY KEY, vault_id TEXT NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,
@@ -454,8 +452,10 @@ CREATE TABLE subscriptions (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX idx_subscriptions_customer ON subscriptions(customer_id);
-CREATE TABLE trials (
-  install_id TEXT PRIMARY KEY, started_at INTEGER NOT NULL, ip_hash TEXT
+CREATE TABLE trials (             -- retired with the trial (PRD F8.1); kept so existing rows
+  install_id TEXT PRIMARY KEY,    -- are not lost. Nothing reads or writes it. Drop in a
+  started_at INTEGER NOT NULL,    -- migration once no v0.1.x install remains.
+  ip_hash TEXT
 );
 CREATE TABLE stripe_events (
   id TEXT PRIMARY KEY, type TEXT NOT NULL, received_at INTEGER NOT NULL
@@ -482,7 +482,7 @@ CREATE TABLE reports (
 
 ### 7.9 Abuse and rate limits
 
-- Lifetime drops: 10 per license per day (trial: per install), and 100 per IP-hash per day (so offices behind one IP aren't blocked).
+- Lifetime drops: 10 per license per day, and 100 per IP-hash per day (so offices behind one IP aren't blocked).
 - Upload size cap enforced by reading `Content-Length` before streaming to R2 (reject > 12 MB with `413`).
 - IP hash = SHA-256(IP + daily-rotated salt). Raw IPs are never stored.
 - `/pair` brute force: 5 failures per IP per 10 min, then `429`.
