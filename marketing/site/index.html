@@ -13,261 +13,297 @@
 <meta property="og:image" content="https://hopshot.xyz/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%231B1B20'/%3E%3Crect x='14' y='42' width='36' height='5' rx='2.5' fill='%23FF6B2C'/%3E%3Crect x='20' y='22' width='22' height='17' rx='3' fill='%23fff' transform='rotate(-8 31 30)'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/inter-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+/* Display: Bricolage Grotesque (variable weight). Body: Inter. Mono: JetBrains Mono,
+   used only where the characters are data — pixel sizes, file names, hotkeys, countdowns. */
+@font-face{font-family:"Bricolage";font-weight:200 800;font-display:swap;src:url(fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2-variations")}
 @font-face{font-family:"Inter";font-weight:400;font-display:swap;src:url(fonts/inter-latin-400-normal.woff2) format("woff2")}
 @font-face{font-family:"Inter";font-weight:500;font-display:swap;src:url(fonts/inter-latin-500-normal.woff2) format("woff2")}
 @font-face{font-family:"Inter";font-weight:600;font-display:swap;src:url(fonts/inter-latin-600-normal.woff2) format("woff2")}
 @font-face{font-family:"Inter";font-weight:700;font-display:swap;src:url(fonts/inter-latin-700-normal.woff2) format("woff2")}
-@font-face{font-family:"Inter";font-weight:800;font-display:swap;src:url(fonts/inter-latin-800-normal.woff2) format("woff2")}
 @font-face{font-family:"JetBrains Mono";font-weight:500;font-display:swap;src:url(fonts/jetbrains-mono-latin-500-normal.woff2) format("woff2")}
+
 :root{
-  --bg:#FFFFFF; --bg-2:#FBF8F4; --bg-3:#F4EFE8; --ink:#1C1917; --ink-2:#57534E; --ink-3:#8A837C; --line:#ECE6DF;
-  --accent:#FF6B2C; --accent-d:#E85A1C; --on-accent:#1B0F08; --accent-soft:#FFEDE3;
-  --good:#15803D; --good-bg:#EEFBF2; --bad:#C2410C; --bad-bg:#FFF4EE;
+  /* Warm paper against cool ink: the page is paper, the product is screen. */
+  --paper:#F7F3EC; --sand:#EDE5D8; --sheet:#FFFDF8; --rule:#DED3C2; --rule-soft:#E7DECF;
+  /* The muted inks are set at the darkest band they appear on (--sand), so every one of
+     them clears 4.5:1 everywhere, not just on the lightest surface. */
+  --ink:#17181E; --ink-2:#55565F; --ink-3:#67646F; --dim:#0F1014;
+  --accent:#FF6B2C; --accent-d:#B93C08; --on-accent:#1B0F08;
+  --on-dim:#F4F1EC; --on-dim-2:#A8A4A0; --on-dim-3:#8E8B92; --dim-rule:rgba(244,241,236,.14);
+  --display:"Bricolage","Inter",system-ui,sans-serif;
   --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
   --mono:"JetBrains Mono",ui-monospace,"SF Mono",Consolas,monospace;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.65 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 a{color:inherit}
 img,video{max-width:100%;display:block}
-.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
-.narrow{max-width:760px;margin:0 auto;padding:0 24px}
-:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:8px}
-kbd{font:500 .82em/1 var(--mono);background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:.2em .45em;color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wrap{max-width:1140px;margin:0 auto;padding:0 28px}
+.narrow{max-width:720px;margin:0 auto;padding:0 28px}
 
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:56px;padding:0 28px;border-radius:12px;background:var(--accent);color:var(--on-accent);font:700 17px/1 var(--font);text-decoration:none;border:0;cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 8px 24px -8px rgba(255,107,44,.65);transition:transform .12s,background .15s,box-shadow .15s}
-.btn:hover{background:var(--accent-d);transform:translateY(-1px)}
-.btn:active{transform:translateY(0)}
-.btn .arr{transition:transform .15s}
-.btn:hover .arr{transform:translateX(3px)}
-.btn-sm{height:42px;padding:0 18px;font-size:15px;border-radius:10px}
+/* ---------- type ---------- */
+.h1{font-family:var(--display);font-weight:700;font-size:clamp(40px,6.1vw,74px);line-height:.99;letter-spacing:-.035em;margin:0;text-wrap:balance}
+.h2{font-family:var(--display);font-weight:600;font-size:clamp(29px,3.7vw,45px);line-height:1.06;letter-spacing:-.03em;margin:0 0 16px;text-wrap:balance}
+.h3{font-family:var(--display);font-weight:600;font-size:20px;line-height:1.25;letter-spacing:-.015em;margin:0 0 6px}
+.lead{font-size:20px;line-height:1.55;color:var(--ink-2);margin:0;max-width:54ch}
+kbd{font:500 .86em/1 var(--mono);background:var(--sheet);border:1px solid var(--rule);border-bottom-width:2px;border-radius:5px;padding:.22em .45em;color:var(--ink)}
+
+/* ---------- controls ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;height:54px;padding:0 30px;border-radius:7px;background:var(--accent);color:var(--on-accent);font:700 17px/1 var(--font);text-decoration:none;border:0;cursor:pointer;transition:background .15s,transform .1s}
+.btn:hover{background:#FF7F49}
+.btn:active{transform:translateY(1px)}
+.btn-sm{height:40px;padding:0 17px;font-size:15px;border-radius:6px}
 .btn-block{width:100%}
-.btn-quiet{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
-.btn-quiet:hover{background:var(--ink);color:#fff}
+.btn-quiet{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.btn-quiet:hover{background:var(--ink);color:var(--sheet)}
 
-.mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(160deg,#2C2C33,#141418);position:relative;flex:none}
-.mark::before{content:"";position:absolute;left:7px;right:7px;bottom:7px;height:3px;border-radius:2px;background:var(--accent)}
-.mark::after{content:"";position:absolute;left:9px;bottom:11px;width:11px;height:9px;border-radius:2px;background:#fff;transform:rotate(-8deg)}
-.logo{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.02em;text-decoration:none}
+.mark{width:27px;height:27px;border-radius:7px;background:var(--ink);position:relative;flex:none}
+.mark::before{content:"";position:absolute;left:6px;right:6px;bottom:6px;height:3px;border-radius:2px;background:var(--accent)}
+.mark::after{content:"";position:absolute;left:8px;bottom:10px;width:10px;height:8px;border-radius:2px;background:var(--sheet);transform:rotate(-8deg)}
+.logo{display:inline-flex;align-items:center;gap:9px;font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:-.03em;text-decoration:none}
 
-.hl{display:inline-block;background:var(--accent);color:var(--on-accent);padding:0 .18em;border-radius:.14em;transform:rotate(-1.5deg);line-height:1.08}
-.ul{background:linear-gradient(transparent 62%,var(--accent-soft) 62%)}
-
-/* banners */
-.topbar{background:var(--ink);color:#fff;text-align:center;font-size:14.5px;padding:10px 16px;font-weight:500}
-.topbar b{color:#FFB48C}
-.topbar a{text-decoration:underline;text-underline-offset:3px}
-.paid{display:none;background:#14532D;color:#fff;text-align:center;font-size:15px;padding:12px 16px;font-weight:600}
+/* ---------- banners + nav ---------- */
+.paid{display:none;background:#0E3B22;color:#DFF5E7;text-align:center;font-size:15px;padding:12px 20px;font-weight:500}
 .paid.show{display:block}
+.topbar{background:var(--ink);color:var(--on-dim);text-align:center;font-size:14.5px;padding:10px 20px}
+.topbar b{font-weight:600}
+.topbar a{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--accent);text-decoration-thickness:2px}
+.nav{background:var(--sand)}
+.nav .wrap{display:flex;align-items:center;gap:30px;height:72px}
+.nav .links{display:flex;gap:26px;font-size:15.5px;color:var(--ink-2)}
+.nav .links a{text-decoration:none}
+.nav .links a:hover{color:var(--ink)}
+.nav .sp{flex:1}
 
-/* nav */
-nav.top .wrap{display:flex;align-items:center;gap:28px;height:76px}
-nav.top .links{display:flex;gap:26px;font-size:15.5px;font-weight:500;color:var(--ink-2)}
-nav.top .links a{text-decoration:none}
-nav.top .links a:hover{color:var(--ink)}
-nav.top .sp{flex:1}
+/* ---------- bands ---------- */
+.band{padding:clamp(76px,9vw,124px) 0}
+.band-sand{background:var(--sand)}
+.band-dim{background:var(--dim);color:var(--on-dim)}
+.band-dim .h2{color:var(--on-dim)}
+.band-dim .lead{color:var(--on-dim-2)}
 
-/* hero */
-.hero{padding:40px 0 104px;text-align:center;background:radial-gradient(900px 420px at 50% 0%,var(--accent-soft),transparent 70%)}
-.hero .intro{max-width:820px;margin:0 auto}
-.hero h1{font-weight:800;font-size:clamp(40px,5.4vw,64px);line-height:1.04;letter-spacing:-.04em;margin:0 0 18px;text-wrap:balance}
-.hero .sub{font-size:20px;line-height:1.55;color:var(--ink-2);margin:0 auto 22px;max-width:640px}
-.checks{list-style:none;padding:0;margin:0 0 28px;display:flex;justify-content:center;flex-wrap:wrap;gap:10px 26px;font-size:16.5px;font-weight:500}
-.checks li{display:flex;gap:10px;align-items:center}
-.checks li::before{content:"";width:20px;height:20px;flex:none;border-radius:50%;background:var(--good) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/12px no-repeat}
-.cta-row{display:flex;flex-direction:column;align-items:center;gap:12px}
-.cta-note{font-size:14px;color:var(--ink-3)}
-.cta-note b{color:var(--ink-2);font-weight:600}
-.trust{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:18px;font-size:14px;color:var(--ink-2);font-weight:500}
-.trust span{display:inline-flex;gap:7px;align-items:center}
-.media{position:relative;max-width:1040px;margin:48px auto 0}
-.media .frame{border-radius:20px;overflow:hidden;background:#fff;padding:6px;box-shadow:0 0 0 1px var(--line),0 30px 80px -24px rgba(28,25,23,.35),0 12px 24px -14px rgba(28,25,23,.2)}
-.media .frame video{border-radius:14px}
-.media video{width:100%;aspect-ratio:1160/654;object-fit:cover}
-.media .sticker{position:absolute;left:-22px;bottom:-26px;text-align:left;background:#fff;border-radius:14px;padding:12px 16px;box-shadow:0 12px 30px -10px rgba(28,25,23,.35),0 0 0 1px var(--line);font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:10px;transform:rotate(-2deg)}
-.media .sticker em{font-style:normal;font-size:22px}
-.media .sticker small{display:block;font-weight:500;color:var(--ink-3);font-size:12.5px}
-.media .label{position:absolute;left:50%;top:-16px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--ink);font-size:13.5px;font-weight:600;border-radius:999px;padding:7px 14px;box-shadow:0 0 0 1px var(--line),0 8px 20px -10px rgba(28,25,23,.35);white-space:nowrap}
-.media .label i{width:0;height:0;border-left:8px solid var(--accent);border-top:5px solid transparent;border-bottom:5px solid transparent}
-.media .pp{position:absolute;right:20px;bottom:20px;width:42px;height:42px;border-radius:50%;border:0;cursor:pointer;background:#fff;color:var(--ink);display:grid;place-items:center;box-shadow:0 0 0 1px var(--line),0 8px 20px -10px rgba(28,25,23,.4);opacity:.85;transition:opacity .15s,transform .15s}
-.media .pp:hover{opacity:1;transform:scale(1.05)}
-.media .pp svg{width:16px;height:16px;fill:currentColor}
-@keyframes rec{0%,100%{opacity:1}50%{opacity:.35}}
+/* ---------- hero ---------- */
+.hero{background:var(--sand);padding:clamp(52px,7vw,88px) 0 clamp(60px,7vw,96px)}
+/* The headline sits inside a region-selection marquee: the product's own gesture, used as
+   the type treatment. The frame is a layer under the text, so nothing ever reflows. */
+/* Width in px, not ch: `ch` here would resolve against the inherited body font, not the
+   74px display face, and collapse the slab into a narrow column. */
+.shot{position:relative;display:inline-block;max-width:min(100%,680px);padding:clamp(18px,2.4vw,30px) clamp(20px,2.6vw,34px)}
+.shot .h1{position:relative;z-index:1}
+.shot-frame{position:absolute;inset:0;border:2px solid var(--accent);background:var(--sheet);clip-path:inset(0 100% 100% 0)}
+.shot.go .shot-frame{animation:marquee .68s cubic-bezier(.22,.78,.26,1) .22s forwards}
+@keyframes marquee{to{clip-path:inset(0)}}
+.shot-frame i{position:absolute;width:9px;height:9px;background:var(--sheet);border:2px solid var(--accent)}
+.shot-frame i:nth-child(1){left:-6px;top:-6px}
+.shot-frame i:nth-child(2){right:-6px;top:-6px}
+.shot-frame i:nth-child(3){left:-6px;bottom:-6px}
+.shot-frame i:nth-child(4){right:-6px;bottom:-6px}
+.shot-size{position:absolute;right:-2px;bottom:-30px;background:var(--accent);color:var(--on-accent);padding:4px 9px;border-radius:4px;opacity:0;font:500 13px/1.3 var(--mono);font-variant-numeric:tabular-nums}
+.shot.go .shot-size{animation:appear .25s ease .84s forwards}
+@keyframes appear{to{opacity:1}}
 
-/* sections */
-section{padding:112px 0}
-.alt{background:var(--bg-2)}
-.eyebrow{display:inline-block;font-weight:700;font-size:14px;color:var(--accent-d);letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
-h2{font-weight:800;font-size:clamp(32px,4.2vw,50px);line-height:1.08;letter-spacing:-.035em;margin:0 0 18px;text-wrap:balance}
-.center{text-align:center}
-.center .lead{margin-left:auto;margin-right:auto}
-.lead{font-size:19px;color:var(--ink-2);max-width:620px;margin:0}
+.hero-sub{margin:clamp(46px,5vw,62px) 0 0;font-size:clamp(18px,1.5vw,21px);line-height:1.55;color:var(--ink-2);max-width:52ch}
+.hero-sub .fname{font:500 .86em/1 var(--mono);color:var(--ink)}
+.hero-cta{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:30px}
+.hero-cta .note{font-size:15px;color:var(--ink-2)}
+.hero-cta .note b{font-weight:600;color:var(--ink)}
+.hero-fine{margin:16px 0 0;font-size:14px;color:var(--ink-3);max-width:46ch}
+.hero-hint{margin:22px 0 0;font-size:14px;color:var(--ink-3)}
+.hero-hint button{background:none;border:0;padding:0;font:inherit;color:var(--accent-d);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 
-/* problem journey */
-.journey{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:56px;position:relative}
-.journey .st{text-align:center;padding:0 12px;position:relative}
-.journey .em{font-size:52px;line-height:1;margin-bottom:16px;display:block}
-.journey h3{font-size:18px;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
-.journey p{margin:0;font-size:15.5px;color:var(--ink-2)}
-.journey .st:not(:last-child)::after{content:"";position:absolute;right:-14px;top:22px;width:28px;height:10px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 10' fill='none' stroke='%23C9BFB4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 5h25M22 1l4 4-4 4'/%3E%3C/svg%3E") no-repeat}
-.stat{margin:64px auto 0;max-width:640px;text-align:center;font-size:20px;font-weight:600;letter-spacing:-.01em}
-.stat .big{display:block;font-size:clamp(34px,4.6vw,52px);margin-bottom:8px;font-weight:800;letter-spacing:-.04em;color:var(--accent-d);line-height:1.1}
+.claims{display:flex;flex-wrap:wrap;margin:clamp(56px,6vw,76px) 0 0;padding:0;list-style:none;border-top:1px solid var(--rule)}
+.claims li{flex:1 1 220px;padding:16px 22px 0 0;font-size:15.5px;font-weight:500;line-height:1.45}
+.claims li+li{padding-left:22px;border-left:1px solid var(--rule)}
 
-/* compare */
-.cmp{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:56px}
-.cmp > div{border-radius:20px;padding:32px 32px 28px}
-.cmp .no{background:var(--bad-bg);box-shadow:inset 0 0 0 1px #F8D9C8}
-.cmp .yes{background:var(--good-bg);box-shadow:inset 0 0 0 1px #CDEFD8}
-.cmp h3{margin:0 0 18px;font-size:21px;font-weight:800;letter-spacing:-.02em}
-.cmp .no h3{color:var(--bad)}
-.cmp .yes h3{color:var(--good)}
-.cmp ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:13px}
-.cmp li{display:flex;gap:12px;font-size:16.5px;line-height:1.5}
-.cmp li i{font-style:normal;flex:none;width:22px;text-align:center}
+/* demo */
+.demo{position:relative;max-width:1000px;margin:clamp(40px,5vw,60px) 0 0}
+.demo-frame{position:relative;border-radius:4px;overflow:hidden;background:var(--ink);box-shadow:0 24px 60px -28px rgba(23,24,30,.5)}
+.demo-frame video{width:100%;aspect-ratio:1160/654;object-fit:cover}
+.demo-cap{margin:14px 0 0;font-size:14px;color:var(--ink-3)}
+/* Anchored to the frame, not to .demo: .demo also contains the caption, which would push
+   a centred control off the video's actual middle. Bottom-left, because the shelf
+   overhangs the frame's bottom-right. */
+.pp{position:absolute;left:12px;bottom:12px;width:38px;height:38px;border-radius:50%;border:0;cursor:pointer;background:rgba(15,16,20,.72);color:#fff;display:grid;place-items:center;transition:background .15s}
+.pp:hover{background:rgba(15,16,20,.92)}
+.pp svg{width:14px;height:14px;fill:currentColor}
+/* A miniature of the real shelf, parked on the demo's edge the way it sits on a real screen. */
+.shelf{position:absolute;right:-28px;bottom:58px;width:128px;background:#1B1C22;border-radius:9px;padding:8px;box-shadow:0 18px 40px -14px rgba(0,0,0,.55)}
+.shelf-card{height:66px;border-radius:5px;background:#24252C;position:relative;overflow:hidden}
+.shelf-card+.shelf-card{margin-top:7px}
+.shelf-card.live{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.shelf-chip{position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.66);color:#fff;border-radius:3px;padding:2px 5px;font:500 10.5px/1.2 var(--mono);font-variant-numeric:tabular-nums}
+.chart{position:absolute;inset:0}
+.chart svg{position:absolute;left:8%;top:22%;width:84%;height:62%}
 
-/* steps */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:56px}
-.step{background:#fff;border-radius:20px;box-shadow:0 0 0 1px var(--line),0 10px 30px -18px rgba(28,25,23,.25);overflow:hidden;display:flex;flex-direction:column}
-.step .pic{height:210px;background:var(--bg-3);position:relative;overflow:hidden;display:grid;place-items:center}
-.step .txt{padding:24px 26px 28px}
-.step .n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;font-weight:700;font-size:14px;margin-bottom:14px}
-.step h3{margin:0 0 6px;font-size:20px;font-weight:800;letter-spacing:-.02em}
-.step p{margin:0;color:var(--ink-2);font-size:16px}
-/* step pics */
-.keys-pic{display:flex;gap:10px}
-.keys-pic kbd{font-size:26px;padding:14px 18px;border-radius:12px;border-bottom-width:4px;box-shadow:0 8px 18px -10px rgba(28,25,23,.35)}
-.shelf-pic{position:relative;width:250px;height:170px}
-.shelf-pic .sh{position:absolute;right:0;top:0;width:118px;border-radius:12px;background:#1E1E24;padding:7px;display:flex;flex-direction:column;gap:6px;box-shadow:0 12px 26px -10px rgba(0,0,0,.45)}
-.shelf-pic .cd{height:62px;border-radius:7px;background:#2A2A31;position:relative;overflow:hidden}
-.shelf-pic .comp{position:absolute;left:0;bottom:0;width:150px;height:78px;border-radius:10px;background:#fff;box-shadow:0 0 0 1.5px var(--accent),0 10px 20px -10px rgba(28,25,23,.3);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--accent-d)}
-.shelf-pic .gh{position:absolute;left:70px;top:46px;width:86px;height:52px;border-radius:7px;background:#2A2A31;transform:rotate(-6deg);box-shadow:0 10px 20px -6px rgba(0,0,0,.45);overflow:hidden}
-.chart-mini{position:absolute;inset:0}
-.chart-mini svg{position:absolute;left:8%;top:24%;width:84%;height:64%}
-.phone-pic{position:relative;width:250px;height:170px}
-.phone-pic .ph{position:absolute;left:50%;top:14px;transform:translateX(-50%);width:96px;height:190px;border-radius:20px;background:#0B0B0D;padding:5px}
-.phone-pic .ph .s{width:100%;height:100%;border-radius:16px;background:#18181D;padding:20px 6px 0}
-.phone-pic .ph .c{height:46px;border-radius:6px;background:#2A2A31;position:relative;overflow:hidden;box-shadow:0 0 0 1.5px var(--accent);margin-bottom:5px}
-.phone-pic .ph .c2{height:30px;border-radius:5px;background:#24242A;margin-bottom:5px}
-.phone-pic .tag{position:absolute;right:0;top:22px;background:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;box-shadow:0 8px 20px -10px rgba(28,25,23,.4),0 0 0 1px var(--line)}
-.phone-pic .tag2{position:absolute;left:0;bottom:30px;background:var(--ink);color:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700}
+/* ---------- the pile ---------- */
+.pile{display:grid;grid-template-columns:minmax(0,.84fr) minmax(0,1fr);gap:clamp(40px,6vw,88px);align-items:start}
+/* The problem drawn in its own material: an actual folder listing, not an icon of one. */
+.files{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule);mask-image:linear-gradient(to bottom,#000 58%,transparent 100%);-webkit-mask-image:linear-gradient(to bottom,#000 58%,transparent 100%)}
+.files li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:18px;align-items:baseline;padding:11px 2px;border-bottom:1px solid var(--rule-soft)}
+.files .nm{font:400 14px/1.4 var(--mono);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.files .sz,.files .wh{font:500 12.5px/1.4 var(--mono);color:var(--ink-3);font-variant-numeric:tabular-nums}
+.files .wh{min-width:9ch;text-align:right}
+.pile-more{margin:-20px 0 0;position:relative;font:500 14px/1.4 var(--mono);color:var(--accent-d)}
+.pile-note{margin:28px 0 0;font-size:17px;color:var(--ink-2);max-width:40ch}
 
-/* features */
-.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px}
-.feat > div{background:#fff;border-radius:18px;padding:26px;box-shadow:0 0 0 1px var(--line)}
-.feat .em{font-size:30px;line-height:1;display:block;margin-bottom:14px}
-.feat h3{margin:0 0 6px;font-size:18px;font-weight:800;letter-spacing:-.015em}
-.feat p{margin:0;color:var(--ink-2);font-size:15.5px}
+/* ---------- steps ---------- */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(28px,4vw,52px);margin:clamp(52px,6vw,76px) 0 0;border-top:1px solid var(--rule)}
+.step{padding-top:26px}
+.step-mid{padding-top:62px}
+.step .n{display:block;font:500 13px/1 var(--mono);color:var(--accent-d);margin-bottom:20px}
+.step .plate{height:190px;display:grid;place-items:center;margin-bottom:22px}
+.step .copy{max-width:34ch}
+.step .copy p{margin:0;font-size:16px;color:var(--ink-2);line-height:1.55}
 
-/* pricing */
-.price-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:880px;margin:56px auto 0;align-items:stretch}
-.card{position:relative;background:#fff;border-radius:22px;padding:34px 32px 30px;box-shadow:0 0 0 1px var(--line),0 20px 40px -24px rgba(28,25,23,.3);display:flex;flex-direction:column}
-.card.pop{box-shadow:0 0 0 2.5px var(--accent),0 30px 60px -26px rgba(255,107,44,.55)}
-.card .badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--accent);color:var(--on-accent);font-size:12.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:6px 14px;white-space:nowrap}
-.card .nm{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0 0 4px}
-.card .desc{font-size:15px;color:var(--ink-2);margin:0 0 20px;min-height:48px}
-.card .pr{display:flex;align-items:flex-end;gap:10px;margin-bottom:6px}
-.card .pr s{font-size:22px;color:var(--ink-3);font-weight:600;margin-bottom:6px}
-.card .pr b{font-size:56px;font-weight:800;letter-spacing:-.045em;line-height:1}
-.card .pr span{font-size:15px;color:var(--ink-3);font-weight:600;margin-bottom:8px}
-.card .off{display:inline-flex;align-self:flex-start;gap:6px;align-items:center;font-size:13.5px;font-weight:700;color:var(--good);background:var(--good-bg);border-radius:8px;padding:4px 10px;margin:6px 0 22px}
-.card ul{list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:12px;flex:1}
-.card li{display:flex;gap:10px;font-size:16px}
-.card li::before{content:"";width:20px;height:20px;flex:none;margin-top:2px;border-radius:50%;background:var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/11px no-repeat}
-.card li.plus::before{background-color:var(--accent)}
-.card .fine{text-align:center;font-size:13.5px;color:var(--ink-3);margin:14px 0 0}
-.price-foot{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin-top:36px;font-size:14.5px;color:var(--ink-2);font-weight:500}
+.keys{display:flex;gap:9px}
+.keys kbd{font-size:24px;padding:13px 17px;border-radius:9px;border-bottom-width:4px}
+.art-shelf{position:relative;width:236px;height:166px}
+.art-shelf .sh{position:absolute;right:0;top:0;width:110px;border-radius:9px;background:#1B1C22;padding:6px;display:flex;flex-direction:column;gap:5px}
+.art-shelf .cd{height:58px;border-radius:5px;background:#24252C;position:relative;overflow:hidden}
+.art-shelf .drop{position:absolute;left:0;bottom:0;width:146px;height:74px;border-radius:6px;background:var(--sheet);box-shadow:inset 0 0 0 1.5px var(--accent);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--accent-d)}
+.art-shelf .fly{position:absolute;left:66px;top:42px;width:82px;height:50px;border-radius:5px;background:#24252C;transform:rotate(-6deg);box-shadow:0 10px 20px -6px rgba(0,0,0,.4);overflow:hidden}
+.art-phone{position:relative;width:236px;height:166px}
+.art-phone .ph{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:92px;height:178px;border-radius:17px;background:#0B0B0D;padding:4px}
+.art-phone .s{width:100%;height:100%;border-radius:14px;background:#1B1C22;padding:18px 6px 0}
+.art-phone .c{height:44px;border-radius:5px;background:#24252C;position:relative;overflow:hidden;box-shadow:inset 0 0 0 1.5px var(--accent);margin-bottom:5px}
+.art-phone .c2{height:28px;border-radius:4px;background:#22232A;margin-bottom:5px}
+.art-phone .t1{position:absolute;right:0;top:14px;background:var(--sheet);border:1px solid var(--rule);border-radius:4px;padding:5px 9px;font:600 12px/1.2 var(--font)}
+.art-phone .t2{position:absolute;left:0;bottom:16px;background:var(--ink);color:var(--on-dim);border-radius:4px;padding:5px 9px;font:500 12px/1.2 var(--mono)}
 
-/* faq */
-.faq details{border-bottom:1px solid var(--line)}
-.faq summary{cursor:pointer;list-style:none;padding:22px 0;font-weight:700;font-size:18px;letter-spacing:-.01em;display:flex;justify-content:space-between;gap:20px}
+/* ---------- expiry band ---------- */
+.expire{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.66fr);gap:clamp(40px,6vw,80px);align-items:center}
+.facts{margin:clamp(34px,4vw,46px) 0 0;padding:0;border-top:1px solid var(--dim-rule)}
+.facts > div{padding:18px 0;border-bottom:1px solid var(--dim-rule);display:grid;grid-template-columns:11ch minmax(0,1fr);gap:24px;align-items:baseline}
+.facts dt{font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:-.01em;color:var(--on-dim)}
+.facts dd{margin:0;font-size:16px;color:var(--on-dim-2);line-height:1.55}
+.ticket{background:#1B1C22;border-radius:9px;padding:9px;box-shadow:0 22px 50px -18px rgba(0,0,0,.6)}
+.ticket .pic{height:168px;border-radius:5px;background:#24252C;position:relative;overflow:hidden}
+.ticket .bar{height:3px;border-radius:2px;background:rgba(244,241,236,.14);margin:10px 3px 0;overflow:hidden}
+.ticket .bar span{display:block;height:100%;width:4%;background:var(--accent);border-radius:2px}
+.ticket .meta{display:flex;justify-content:space-between;align-items:baseline;margin:9px 3px 2px;font:500 12px/1.2 var(--mono);color:var(--on-dim-3);font-variant-numeric:tabular-nums}
+.ticket .meta b{color:var(--on-dim);font-weight:500}
+
+/* ---------- what else it does ---------- */
+.rest{margin:clamp(46px,5vw,64px) 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:0 clamp(40px,6vw,72px);border-top:1px solid var(--rule)}
+.rest > div{padding:22px 0;border-bottom:1px solid var(--rule-soft);display:grid;grid-template-columns:minmax(0,15ch) minmax(0,1fr);gap:20px;align-items:baseline}
+.rest dt{font-family:var(--display);font-weight:600;font-size:16.5px;letter-spacing:-.01em}
+.rest dd{margin:0;font-size:16px;color:var(--ink-2);line-height:1.5}
+
+/* ---------- pricing ---------- */
+.plans{display:grid;grid-template-columns:1fr 1fr;margin:clamp(48px,6vw,68px) 0 0;background:var(--sheet);border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.plan{padding:clamp(28px,3.4vw,40px);display:flex;flex-direction:column}
+.plan+.plan{border-left:1px solid var(--rule)}
+.plan-pick{box-shadow:inset 3px 0 0 var(--accent)}
+.plan-top{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:4px}
+.plan-nm{font-family:var(--display);font-weight:600;font-size:21px;letter-spacing:-.02em;margin:0}
+.plan-pick-note{font-size:13.5px;font-weight:600;color:var(--accent-d);white-space:nowrap}
+.plan-desc{margin:0 0 24px;font-size:16px;color:var(--ink-2);min-height:3em}
+.fig{display:flex;align-items:flex-end;gap:11px;margin-bottom:5px}
+.fig b{font-family:var(--display);font-weight:700;font-size:clamp(44px,4.6vw,58px);letter-spacing:-.045em;line-height:.9}
+.fig s{font-size:21px;color:var(--ink-3);text-decoration-thickness:1.5px;margin-bottom:5px}
+.fig span{font:500 13px/1 var(--mono);color:var(--ink-3);margin-bottom:9px}
+.save{display:block;margin:10px 0 26px;font-size:14px;font-weight:600;color:var(--accent-d)}
+.plan ul{list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:11px;flex:1}
+.plan li{display:grid;grid-template-columns:9px minmax(0,1fr);gap:12px;font-size:16px;line-height:1.45}
+.plan li::before{content:"";width:9px;height:1.5px;background:var(--ink-3);margin-top:.72em}
+.plan li.plus::before{background:var(--accent);height:2px}
+.plan .fine{margin:14px 0 0;font-size:13.5px;color:var(--ink-3);line-height:1.5}
+.plan-foot{margin:30px 0 0;font-size:15px;color:var(--ink-2);max-width:68ch}
+
+/* ---------- questions ---------- */
+.faq{margin-top:clamp(36px,4vw,48px);border-top:1px solid var(--rule)}
+.faq details{border-bottom:1px solid var(--rule)}
+.faq summary{cursor:pointer;list-style:none;padding:20px 0;font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-.015em;display:flex;justify-content:space-between;gap:20px;align-items:center}
 .faq summary::-webkit-details-marker{display:none}
-.faq summary::after{content:"+";font-weight:400;font-size:28px;line-height:.8;color:var(--ink-3);transition:transform .2s}
-.faq details[open] summary::after{transform:rotate(45deg)}
-.faq details p{margin:-6px 0 22px;color:var(--ink-2);font-size:16.5px}
+.faq summary::after{content:"";flex:none;width:12px;height:12px;background:linear-gradient(var(--ink-3),var(--ink-3)) center/12px 1.5px no-repeat,linear-gradient(var(--ink-3),var(--ink-3)) center/1.5px 12px no-repeat;transition:transform .18s}
+.faq details[open] summary::after{background:linear-gradient(var(--ink-3),var(--ink-3)) center/12px 1.5px no-repeat}
+.faq details p{margin:-4px 0 22px;color:var(--ink-2);font-size:16.5px;max-width:68ch}
 .faq details p a{text-decoration:underline;text-underline-offset:3px}
 
-/* founder */
-.founder{display:flex;gap:22px;align-items:flex-start;background:#fff;border-radius:22px;padding:32px;box-shadow:0 0 0 1px var(--line)}
-.founder .av{width:64px;height:64px;border-radius:50%;flex:none;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:26px;font-weight:800;overflow:hidden}
-.founder .av img{width:100%;height:100%;object-fit:cover}
-.founder p{margin:0 0 10px;font-size:17px;color:var(--ink-2)}
-.founder p:first-child{color:var(--ink);font-weight:700;font-size:19px}
-.founder .sig{font-weight:700;color:var(--ink);margin:0}
+/* ---------- founder ---------- */
+.founder{display:grid;grid-template-columns:56px minmax(0,1fr);gap:22px;align-items:start;border-top:1px solid var(--rule);padding-top:34px}
+.av{width:56px;height:56px;border-radius:5px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-family:var(--display);font-size:24px;font-weight:700;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+.founder p{margin:0 0 12px;font-size:17px;color:var(--ink-2);max-width:58ch;line-height:1.6}
+.founder p:first-child{color:var(--ink);font-size:19px;font-weight:500}
+.founder .sig{color:var(--ink);font-weight:600;margin:0}
 
-/* final */
-.final{background:var(--ink);color:#fff;text-align:center;padding:112px 0}
-.final h2{color:#fff;max-width:760px;margin:0 auto 16px}
-.final .lead{color:#C9C2BA;margin:0 auto 36px}
-.final .cta-note{color:#A8A099;margin-top:14px}
-.notify{max-width:460px;margin:56px auto 0;padding-top:36px;border-top:1px solid rgba(255,255,255,.12)}
-.notify p{margin:0 0 14px;font-size:15.5px;color:#C9C2BA}
+/* ---------- final ---------- */
+.final{text-align:center}
+.final .h2{margin:0 auto 14px;max-width:24ch}
+.final .lead{margin:0 auto 32px}
+.final .note{margin:14px 0 0;font-size:15px;color:var(--on-dim-3)}
+.notify{max-width:470px;margin:clamp(46px,5vw,64px) auto 0;padding-top:34px;border-top:1px solid var(--dim-rule);text-align:left}
+.notify p{margin:0 0 13px;font-size:15.5px;color:var(--on-dim-2)}
 .notify .row{display:flex;gap:8px}
-.notify input[type=email]{flex:1;min-width:0;height:48px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;padding:0 14px;font:400 16px var(--font)}
-.notify input::placeholder{color:#8A837C}
-.notify button{height:48px;border-radius:10px;border:0;background:#fff;color:var(--ink);font:700 15px var(--font);padding:0 18px;cursor:pointer}
-.notify .opts{display:flex;gap:16px;justify-content:center;margin-top:12px;font-size:14px;color:#A8A099;flex-wrap:wrap}
-.notify label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.notify input[type=email]{flex:1;min-width:0;height:48px;border-radius:6px;border:1px solid rgba(244,241,236,.2);background:rgba(244,241,236,.06);color:var(--on-dim);padding:0 14px;font:400 16px var(--font)}
+.notify input[type=email]::placeholder{color:var(--on-dim-3)}
+.notify button{height:48px;border-radius:6px;border:0;background:var(--on-dim);color:var(--dim);font:700 15px var(--font);padding:0 18px;cursor:pointer}
+.notify button:hover{background:#fff}
+.notify .opts{display:flex;gap:18px;margin-top:13px;font-size:14px;color:var(--on-dim-2);flex-wrap:wrap}
+.notify label{display:flex;gap:7px;align-items:center;cursor:pointer}
 .notify input[type=checkbox]{accent-color:var(--accent)}
-.notify select{font:inherit;color:#fff;background:#2A2522;border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:2px 4px}
-.notify .ok{display:none;color:#86EFAC;font-weight:600}
+.notify select{font:inherit;color:var(--on-dim);background:#23242B;border:1px solid rgba(244,241,236,.2);border-radius:4px;padding:3px 5px}
+.notify .ok{display:none;color:#7EE2A8;font-weight:600}
 .notify.done form{display:none}
 .notify.done .ok{display:block}
 
-footer{background:var(--bg-2);padding:64px 0 56px;font-size:15px;color:var(--ink-2)}
-footer .cols{display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px}
-footer h4{margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
-footer ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:9px}
-footer a{text-decoration:none}
-footer .logo{color:var(--ink)}
-footer a:hover{text-decoration:underline}
-footer .tag{margin:14px 0 6px;max-width:320px}
-footer .cp{color:var(--ink-3);font-size:14px}
+/* ---------- footer ---------- */
+.foot{background:var(--sand);padding:60px 0 52px;font-size:15.5px;color:var(--ink-2)}
+.foot .cols{display:grid;grid-template-columns:2fr 1fr 1fr;gap:34px}
+.foot h4{margin:0 0 13px;font-family:var(--display);font-size:15px;font-weight:600;color:var(--ink)}
+.foot ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:9px}
+.foot a{text-decoration:none}
+.foot a:hover{text-decoration:underline;text-underline-offset:3px}
+.foot .logo{color:var(--ink)}
+.foot .tag{margin:14px 0 8px;max-width:30ch}
+.foot .cp{color:var(--ink-3);font-size:14px;margin:0}
 
-@media (prefers-reduced-motion: reduce){*{transition:none!important;scroll-behavior:auto!important}}
-@media (max-width:960px){
-  .journey{grid-template-columns:1fr 1fr;gap:40px 0}
-  .journey .st:nth-child(2)::after{display:none}
-  .steps,.feat{grid-template-columns:1fr 1fr}
-  .cmp{grid-template-columns:1fr}
-  nav.top .links{display:none}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;scroll-behavior:auto!important}
+  .shot .shot-frame{animation:none!important;clip-path:inset(0)}
+  .shot .shot-size{animation:none!important;opacity:1}
 }
-@media (max-width:640px){
-  .wrap,.narrow{padding:0 18px}
-  section,.final{padding:80px 0}
-  .hero{padding:24px 0 72px}
-  .hero .sub{font-size:17.5px}
-  .cta-row{align-items:stretch}
-  .btn{width:100%}
-  nav.top .btn{width:auto}
-  .journey{grid-template-columns:1fr}
-  .journey .st::after{display:none!important}
-  .steps,.feat,.price-grid{grid-template-columns:1fr}
-  .price-grid{gap:36px}
-  .media{margin-top:44px}
-  .media .sticker{display:none}
-  .media .label{top:-14px;font-size:12px;padding:5px 10px}
-  .media .pp{width:32px;height:32px;right:10px;bottom:10px}
-  .media .pp svg{width:12px;height:12px}
-  .founder{flex-direction:column}
+@media (max-width:980px){
+  .nav .links{display:none}
+  .shot{max-width:none;display:block}
+  .pile,.expire{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr 1fr;gap:40px}
+  .step-mid{padding-top:26px}
+  .shelf{display:none}
+  .rest{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .wrap,.narrow{padding:0 20px}
+  .steps,.plans{grid-template-columns:1fr}
+  .plan+.plan{border-left:0;border-top:1px solid var(--rule)}
+  .claims li,.claims li+li{flex-basis:100%;padding:14px 0;border-left:0;border-bottom:1px solid var(--rule)}
+  .hero-cta{gap:14px}
+  .hero-cta .btn{width:100%}
+  .facts > div,.rest > div{grid-template-columns:1fr;gap:5px}
+  /* Give the file names the room instead: a truncated name makes the point, a folder column doesn't. */
+  .files li{grid-template-columns:minmax(0,1fr) auto;gap:14px}
+  .files .wh{display:none}
+  .founder{grid-template-columns:1fr}
   .notify .row{flex-direction:column}
-  footer .cols{grid-template-columns:1fr 1fr}
-  footer .cols > div:first-child{grid-column:1/-1}
-  .topbar{font-size:13.5px}
+  .foot .cols{grid-template-columns:1fr 1fr}
+  .foot .cols > div:first-child{grid-column:1/-1}
 }
 </style>
 </head>
 <body>
-<div class="paid" id="paidBanner" role="status">🎉 You're in! Your receipt is in your inbox, and your license arrives by email on launch day.</div>
-<div class="topbar">⚡ <b>Founder pricing</b> for the first 200 customers. Lifetime + 1 year of Sync for $19. <a href="#pricing">Claim yours</a></div>
+<div class="paid" id="paidBanner" role="status">You're in. Your receipt is in your inbox, and your licence arrives by email on launch day.</div>
+<div class="topbar"><b>Founder pricing</b> for the first 200 customers. Lifetime plus a year of Sync for $19. <a href="#pricing">Claim yours</a></div>
 
-<nav class="top">
+<nav class="nav">
   <div class="wrap">
     <a class="logo" href="#"><span class="mark"></span>Hopshot</a>
-    <div class="links"><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></div>
+    <div class="links"><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#faq">Questions</a></div>
     <span class="sp"></span>
     <a class="btn btn-sm js-buy-sync" href="#pricing">Get Hopshot</a>
   </div>
@@ -275,123 +311,134 @@ footer .cp{color:var(--ink-3);font-size:14px}
 
 <header class="hero">
   <div class="wrap">
-    <div class="intro">
-      <h1>Screenshots that <span class="hl">clean up</span> after themselves</h1>
-      <p class="sub">Press a hotkey, grab anything, drag it straight into any app. It's on your phone in a second, and gone tomorrow. No more Desktop full of <span class="mono" style="font-family:var(--mono);font-size:.88em">Screenshot (47).png</span>.</p>
-      <ul class="checks">
-        <li>Pay once, use forever</li>
-        <li>Windows &amp; Mac, one license</li>
-        <li>End-to-end encrypted, auto-deleted</li>
-      </ul>
-      <div class="cta-row">
-        <a class="btn js-buy-sync" href="#pricing">Get Hopshot <span class="arr">→</span></a>
-        <span class="cta-note"><b>$19 founder price</b> · Ships November 2026</span>
+    <div class="shot go" id="shot">
+      <div class="shot-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <h1 class="h1">Screenshots that clean up after themselves</h1>
+      <span class="shot-size" id="shotSize" aria-hidden="true">0 × 0</span>
+    </div>
+
+    <p class="hero-sub">Press a hotkey, grab anything on screen, drag it straight into any app. It's on your phone a second later, and gone tomorrow. Nothing lands in your folders, so there is no <span class="fname">Screenshot (47).png</span> to delete.</p>
+
+    <div class="hero-cta">
+      <a class="btn js-buy-sync" href="#pricing">Get Hopshot</a>
+      <span class="note"><b>$19 today.</b> Ships November 2026.</span>
+    </div>
+    <p class="hero-fine">Secure checkout, and a full refund any time before launch.</p>
+    <p class="hero-hint">Try the gesture: press <kbd class="js-k1">⌘</kbd> <kbd class="js-k2">⇧</kbd> <kbd>2</kbd>, or <button type="button" id="replay">capture the headline again</button>.</p>
+
+    <div class="demo">
+      <div class="demo-frame">
+        <video id="demoVideo" poster="demo-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Hopshot demo: capture a chart, drag it into a chat, and it appears on your phone"><source src="demo.mp4" type="video/mp4"><source src="demo.webm" type="video/webm"></video>
+        <button class="pp" id="pp" aria-label="Pause demo"><svg viewBox="0 0 24 24" id="ppIcon" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
       </div>
-      <div class="trust"><span>🔒 Secure checkout</span><span>💸 Full refund before launch</span><span>🖥️ Windows 10/11 · macOS 13+</span></div>
+      <div class="shelf" aria-hidden="true">
+        <div class="shelf-card live"><div class="chart js-chart"></div><span class="shelf-chip">23h 58m</span></div>
+        <div class="shelf-card"><span class="shelf-chip">6h 11m</span></div>
+      </div>
+      <p class="demo-cap">The whole app, in twelve seconds.</p>
     </div>
-    <div class="media">
-      <div class="frame"><video id="demoVideo" poster="demo-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Hopshot demo: capture a chart, drag it into a chat, and it appears on your phone"><source src="demo.mp4" type="video/mp4"><source src="demo.webm" type="video/webm"></video></div>
-      <span class="label"><i></i>12-second demo</span>
-      <button class="pp" id="pp" aria-label="Pause demo"><svg viewBox="0 0 24 24" id="ppIcon"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
-      <div class="sticker"><em>⚡</em><div>Capture → drag → done<small>That's the whole workflow</small></div></div>
-    </div>
+
+    <ul class="claims">
+      <li>Pay once and use it forever. No subscription for the app itself.</li>
+      <li>One licence covers both Windows and Mac.</li>
+      <li>Encrypted on your machine before it leaves, then deleted on a timer.</li>
+    </ul>
   </div>
 </header>
 
-<section class="alt" id="problem">
-  <div class="wrap center">
-    <span class="eyebrow">The problem</span>
-    <h2>You take a screenshot to use it <span class="ul">right now</span>. Then this happens:</h2>
-    <div class="journey">
-      <div class="st"><span class="em">📸</span><h3>Snap it</h3><p>It lands on your Desktop or in Downloads.</p></div>
-      <div class="st"><span class="em">🔍</span><h3>Hunt for it</h3><p>Attach → Browse → scroll → find the right one → Upload.</p></div>
-      <div class="st"><span class="em">📱</span><h3>Message yourself</h3><p>WhatsApp it to "Me" just to see it on your phone.</p></div>
-      <div class="st"><span class="em">🗑️</span><h3>Never delete it</h3><p>300 files later, your Desktop is a graveyard.</p></div>
+<section class="band band-sand" id="problem">
+  <div class="wrap pile">
+    <div>
+      <h2 class="h2">Used once. Kept forever.</h2>
+      <p class="lead">A screenshot is useful for about a minute. The file it leaves behind sits in your folders for years.</p>
+      <p class="pile-note">You already know what this folder looks like, because you have one.</p>
     </div>
-    <p class="stat"><span class="big">Used once. Kept forever.</span>Most screenshots are useful for about a minute. So why do they live in your folders for years?</p>
-  </div>
-</section>
-
-<section>
-  <div class="wrap center">
-    <span class="eyebrow">The fix</span>
-    <h2>A tiny shelf for everything you capture</h2>
-    <p class="lead">Hopshot sits in your menu bar or tray. Every capture waits on a floating shelf until you've used it, then quietly disappears.</p>
-    <div class="cmp" style="text-align:left">
-      <div class="no">
-        <h3>Without Hopshot</h3>
-        <ul>
-          <li><i>❌</i>Hundreds of "Screenshot (n).png" files on your Desktop</li>
-          <li><i>❌</i>Save, attach, browse, find, upload… every single time</li>
-          <li><i>❌</i>Emailing or WhatsApp-ing screenshots to yourself</li>
-          <li><i>❌</i>Paste works in some apps, not others</li>
-          <li><i>❌</i>Manual cleanup you never get round to</li>
-        </ul>
-      </div>
-      <div class="yes">
-        <h3>With Hopshot</h3>
-        <ul>
-          <li><i>✅</i>Nothing saved to your folders. Ever.</li>
-          <li><i>✅</i>Drag from the shelf straight into any website or app</li>
-          <li><i>✅</i>Scan a QR code, or pair once and it's on your phone</li>
-          <li><i>✅</i>Copied to your clipboard the moment you capture</li>
-          <li><i>✅</i>Everything deletes itself after 24 hours</li>
-        </ul>
-      </div>
+    <div>
+      <ul class="files">
+        <li><span class="nm">Screenshot 2026-10-21 at 14.03.11.png</span><span class="sz">2.4 MB</span><span class="wh">Desktop</span></li>
+        <li><span class="nm">Screenshot (47).png</span><span class="sz">880 KB</span><span class="wh">Downloads</span></li>
+        <li><span class="nm">Screenshot 2026-10-20 at 09.12.48.png</span><span class="sz">1.9 MB</span><span class="wh">Desktop</span></li>
+        <li><span class="nm">image.png</span><span class="sz">312 KB</span><span class="wh">Downloads</span></li>
+        <li><span class="nm">Screenshot (48).png</span><span class="sz">1.1 MB</span><span class="wh">Downloads</span></li>
+        <li><span class="nm">Screenshot 2026-10-19 at 17.22.05.png</span><span class="sz">3.2 MB</span><span class="wh">Desktop</span></li>
+        <li><span class="nm">chart-final.png</span><span class="sz">604 KB</span><span class="wh">Desktop</span></li>
+        <li><span class="nm">Screenshot (49).png</span><span class="sz">1.4 MB</span><span class="wh">Downloads</span></li>
+        <li><span class="nm">Screenshot 2026-10-18 at 22.41.07.png</span><span class="sz">2.0 MB</span><span class="wh">Desktop</span></li>
+      </ul>
+      <p class="pile-more">and 294 more</p>
     </div>
   </div>
 </section>
 
-<section class="alt" id="how">
-  <div class="wrap center">
-    <span class="eyebrow">How it works</span>
-    <h2>Capture, drag, done</h2>
-    <p class="lead">No new habits to learn. If you can take a screenshot, you already know how to use Hopshot.</p>
-    <div class="steps" style="text-align:left">
+<section class="band" id="how">
+  <div class="wrap">
+    <h2 class="h2">A shelf, not a folder.</h2>
+    <p class="lead">Hopshot sits in your menu bar or tray. Every capture waits on a small floating shelf until you've used it, then clears itself out. There's no new habit to learn: if you can take a screenshot, you can use this.</p>
+    <div class="steps">
       <div class="step">
-        <div class="pic"><div class="keys-pic"><kbd class="js-k1">⌘</kbd><kbd class="js-k2">⇧</kbd><kbd>2</kbd></div></div>
-        <div class="txt"><span class="n">1</span><h3>Press the hotkey</h3><p>Select any part of any screen. It's copied and lands on your shelf, not your Desktop.</p></div>
+        <span class="n">01</span>
+        <div class="plate"><div class="keys"><kbd class="js-k1">⌘</kbd><kbd class="js-k2">⇧</kbd><kbd>2</kbd></div></div>
+        <div class="copy"><h3 class="h3">Press the hotkey</h3><p>Select any part of any screen. It goes to your clipboard and onto the shelf, not onto your Desktop.</p></div>
+      </div>
+      <div class="step step-mid">
+        <span class="n">02</span>
+        <div class="plate"><div class="art-shelf" aria-hidden="true"><div class="sh"><div class="cd"><div class="chart js-chart"></div></div><div class="cd"></div></div><div class="drop">Drop to attach</div><div class="fly"><div class="chart js-chart"></div></div></div></div>
+        <div class="copy"><h3 class="h3">Drag it anywhere</h3><p>Gmail, Slack, ChatGPT, Jira, Notion. Drop it in like a real file, with no saving and no file picker.</p></div>
       </div>
       <div class="step">
-        <div class="pic"><div class="shelf-pic"><div class="sh"><div class="cd"><div class="chart-mini js-chart"></div></div><div class="cd"></div></div><div class="comp">Drop to attach</div><div class="gh"><div class="chart-mini js-chart"></div></div></div></div>
-        <div class="txt"><span class="n">2</span><h3>Drag it anywhere</h3><p>Gmail, Slack, ChatGPT, Jira, Notion: drop it in like a real file. No saving, no file picker.</p></div>
-      </div>
-      <div class="step">
-        <div class="pic"><div class="phone-pic"><div class="ph"><div class="s"><div class="c"><div class="chart-mini js-chart"></div></div><div class="c2"></div><div class="c2"></div></div></div><span class="tag">📱 On your phone</span><span class="tag2">🧹 Gone in 24h</span></div></div>
-        <div class="txt"><span class="n">3</span><h3>Phone. Then poof.</h3><p>Open it on your phone in a second. Tomorrow it's gone, unless you choose to keep it.</p></div>
+        <span class="n">03</span>
+        <div class="plate"><div class="art-phone" aria-hidden="true"><div class="ph"><div class="s"><div class="c"><div class="chart js-chart"></div></div><div class="c2"></div><div class="c2"></div></div></div><span class="t1">On your phone</span><span class="t2">gone in 24h</span></div></div>
+        <div class="copy"><h3 class="h3">Then it's gone</h3><p>Scan a code and it opens on your phone. Tomorrow it deletes itself, unless you pinned it.</p></div>
       </div>
     </div>
   </div>
 </section>
 
-<section>
-  <div class="wrap center">
-    <span class="eyebrow">Features</span>
-    <h2>Small app. Big relief.</h2>
-    <div class="feat" style="text-align:left">
-      <div><span class="em">🔒</span><h3>End-to-end encrypted</h3><p>Anything that leaves your computer is encrypted first. The key never reaches our servers.</p></div>
-      <div><span class="em">🧹</span><h3>Auto-cleanup</h3><p>Captures expire after 1 hour, 24 hours or 7 days. Pin the ones you want to keep.</p></div>
-      <div><span class="em">⌨️</span><h3>Keyboard-first</h3><p>Custom hotkeys, arrow-key navigation, copy and delete without the mouse.</p></div>
-      <div><span class="em">🖥️</span><h3>Multi-monitor ready</h3><p>Pixel-perfect captures across mixed displays and scaling.</p></div>
-      <div><span class="em">🔁</span><h3>Keeps your habits</h3><p>Already use Win+Shift+S or ⌘⇧4? Hopshot can catch those too.</p></div>
-      <div><span class="em">🪶</span><h3>Tiny and native</h3><p>Built in Rust. Starts instantly, no account, no ads, no bloat.</p></div>
+<section class="band band-dim" id="privacy">
+  <div class="wrap expire">
+    <div>
+      <h2 class="h2">It leaves encrypted, or it doesn't leave.</h2>
+      <p class="lead">Captures stay on your computer until you send one to your phone, share a link, or turn on Sync. When one does leave, it's encrypted here first, and the key never reaches us.</p>
+      <dl class="facts">
+        <div><dt>Keys</dt><dd>The decryption key rides in the link's fragment, which browsers never send to a server. We can't read your captures, and neither can anyone who gets into our database.</dd></div>
+        <div><dt>Expiry</dt><dd>Pick one hour, 24 hours or seven days. Seven is the maximum, and the timer runs whether or not you remember it.</dd></div>
+        <div><dt>Accounts</dt><dd>There isn't one. No sign-up, no email needed to use the app, and nothing watching what you capture.</dd></div>
+      </dl>
+    </div>
+    <div class="ticket" aria-hidden="true">
+      <div class="pic"><div class="chart js-chart"></div></div>
+      <div class="bar"><span></span></div>
+      <p class="meta"><b>23h 58m left</b><span>1040 × 240</span></p>
     </div>
   </div>
 </section>
 
-<section class="alt" id="pricing">
-  <div class="wrap center">
-    <span class="eyebrow">Pricing</span>
-    <h2>Pay once. Use forever.</h2>
-    <p class="lead">Founder pricing for the first 200 customers. It goes up at launch.</p>
-    <div class="price-grid" style="text-align:left">
-      <div class="card">
-        <p class="nm">Lifetime</p>
-        <p class="desc">Everything you need on your computers.</p>
-        <div class="pr"><s>$19</s><b>$12</b><span>USD</span></div>
-        <span class="off">✨ Founder price: $7 off</span>
+<section class="band">
+  <div class="wrap">
+    <h2 class="h2">What else it does.</h2>
+    <dl class="rest">
+      <div><dt>Auto-cleanup</dt><dd>Captures expire on their own. Pin the few you want to keep.</dd></div>
+      <div><dt>Keyboard-first</dt><dd>Custom hotkeys, arrow keys to move through the shelf, copy and delete without the mouse.</dd></div>
+      <div><dt>Multi-monitor</dt><dd>Accurate crops across mixed displays and mixed scaling.</dd></div>
+      <div><dt>Your old habits</dt><dd>Already press Win+Shift+S or ⌘⇧4? Hopshot can catch those captures too.</dd></div>
+      <div><dt>Phone to computer</dt><dd>Send a photo the other way and it lands on the shelf, with Sync on.</dd></div>
+      <div><dt>Small and native</dt><dd>Written in Rust. Starts instantly, no account, no ads, nothing running in a browser.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="band band-sand" id="pricing">
+  <div class="wrap">
+    <h2 class="h2">Pay once. Use forever.</h2>
+    <p class="lead">Founder pricing holds for the first 200 customers, then it goes up at launch.</p>
+    <div class="plans">
+      <div class="plan">
+        <div class="plan-top"><p class="plan-nm">Lifetime</p></div>
+        <p class="plan-desc">Everything you need on the computer you work on.</p>
+        <div class="fig"><s>$19</s><b>$12</b><span>USD</span></div>
+        <span class="save">Founder price, $7 off</span>
         <ul>
-          <li>Capture, shelf, drag &amp; copy</li>
+          <li>Capture, shelf, drag and copy</li>
           <li>Windows or Mac, 1 computer</li>
           <li>Keep up to 100 items for 1h, 24h or 7 days</li>
           <li>Send to your phone with a QR code</li>
@@ -400,33 +447,32 @@ footer .cp{color:var(--ink-3);font-size:14px}
         <a class="btn btn-quiet btn-block js-buy-life" href="#notify">Get Lifetime</a>
         <p class="fine">One-time payment. Yours forever.</p>
       </div>
-      <div class="card pop">
-        <span class="badge">Best value</span>
-        <p class="nm">Lifetime + Sync</p>
-        <p class="desc">Your shelf on your phone and every computer.</p>
-        <div class="pr"><s>$43</s><b>$19</b><span>USD</span></div>
-        <span class="off">✨ Founder price: $24 off</span>
+      <div class="plan plan-pick">
+        <div class="plan-top"><p class="plan-nm">Lifetime + Sync</p><span class="plan-pick-note">Most people pick this</span></div>
+        <p class="plan-desc">Your shelf on your phone and on every computer you use.</p>
+        <div class="fig"><s>$43</s><b>$19</b><span>USD</span></div>
+        <span class="save">Founder price, $24 off</span>
         <ul>
           <li>Everything in Lifetime</li>
-          <li class="plus"><b>1 year of Sync included</b></li>
-          <li class="plus">Pair your phone, captures appear automatically</li>
+          <li class="plus">A year of Sync included</li>
+          <li class="plus">Pair your phone, captures arrive on their own</li>
           <li class="plus">Send photos from phone to computer</li>
-          <li class="plus">One shelf across Mac + PC</li>
+          <li class="plus">One shelf across Mac and PC</li>
           <li>Beta access before launch</li>
         </ul>
-        <a class="btn btn-block js-buy-sync" href="#notify">Get Hopshot <span class="arr">→</span></a>
-        <p class="fine">One-time payment. Sync is $24/yr after year one, optional.</p>
+        <a class="btn btn-block js-buy-sync" href="#notify">Get Hopshot</a>
+        <p class="fine">One-time payment. Sync is $24/yr after year one, and optional.</p>
       </div>
     </div>
-    <div class="price-foot"><span>📦 Ships November 2026</span><span>💸 Full refund anytime before launch</span><span>🔒 Secure checkout</span></div>
+    <p class="plan-foot">Ships November 2026. Full refund any time before launch, and secure checkout through Stripe.</p>
   </div>
 </section>
 
-<section id="faq">
+<section class="band" id="faq">
   <div class="narrow">
-    <div class="center"><span class="eyebrow">FAQ</span><h2>Frequently asked questions</h2></div>
-    <div class="faq" style="margin-top:40px">
-      <details><summary>When do I get Hopshot?</summary><p>Founders get beta access in mid-November and the full release in late November 2026. On launch day you get an email with a button that unlocks Hopshot. No license key to copy.</p></details>
+    <h2 class="h2">Questions.</h2>
+    <div class="faq">
+      <details><summary>When do I get Hopshot?</summary><p>Founders get beta access in mid-November and the full release in late November 2026. On launch day you get an email with a button that unlocks Hopshot. There's no licence key to copy.</p></details>
       <details><summary>Is this a subscription?</summary><p>No. Lifetime is a one-time payment. Sync is an optional add-on for phone and multi-computer sync ($24/year after the first year). If you ever cancel Sync, the app keeps working.</p></details>
       <details><summary>Does it work on Windows and Mac?</summary><p>Yes. Windows 10/11 and macOS 13 or newer. Lifetime covers one computer. Lifetime + Sync covers up to three, in any mix of Windows and Mac.</p></details>
       <details><summary>Can you see my screenshots?</summary><p>No. Nothing leaves your computer unless you send it to your phone, share a link or turn on Sync. When it does, it's encrypted on your device first, and the key never reaches our servers. Cloud copies are deleted automatically (24 hours by default, 7 days at most).</p></details>
@@ -437,13 +483,13 @@ footer .cp{color:var(--ink-3);font-size:14px}
   </div>
 </section>
 
-<section class="alt" id="founder" style="padding:80px 0">
+<section class="band band-sand" id="founder" style="padding-top:clamp(56px,6vw,76px);padding-bottom:clamp(56px,6vw,76px)">
   <div class="narrow">
     <div class="founder">
       <div class="av" id="founderAv">M</div>
       <div>
-        <p>Hey 👋 I'm <span class="js-founder">Mayank</span>.</p>
-        <p>I build software for a living and take dozens of screenshots a day. I got tired of the Desktop clutter, the file pickers, and WhatsApp-ing screenshots to myself, so I'm building the tool I wanted.</p>
+        <p>Hi, I'm <span class="js-founder">Mayank</span>.</p>
+        <p>I build software for a living and take dozens of screenshots a day. I got tired of the Desktop clutter, the file pickers and the WhatsApp messages to myself, so I'm building the tool I wanted.</p>
         <p>Founders get early access and a direct line to me. Tell me what you'd want it to do.</p>
         <p class="sig">— <span class="js-founder">Mayank</span>, maker of Hopshot</p>
       </div>
@@ -451,12 +497,12 @@ footer .cp{color:var(--ink-3);font-size:14px}
   </div>
 </section>
 
-<div class="final" id="notify">
+<section class="band band-dim final" id="notify">
   <div class="wrap">
-    <h2>Stop saving screenshots. Start dragging them.</h2>
-    <p class="lead">Lock in founder pricing before it's gone.</p>
-    <a class="btn js-buy-sync" href="#pricing">Get Hopshot <span class="arr">→</span></a>
-    <p class="cta-note">$19 founder price · Ships November 2026</p>
+    <h2 class="h2">Stop saving screenshots. Start dragging them.</h2>
+    <p class="lead">Founder pricing holds while the first 200 are open.</p>
+    <a class="btn js-buy-sync" href="#pricing">Get Hopshot</a>
+    <p class="note">$19 today. Ships November 2026.</p>
     <div class="notify" id="notifyBox">
       <form id="wlForm" method="post" target="wlFrame">
         <p>Not ready yet? Get one email on launch day.</p>
@@ -470,17 +516,17 @@ footer .cp{color:var(--ink-3);font-size:14px}
         </div>
         <input type="hidden" name="metadata__source" id="wlSource" value="direct">
       </form>
-      <p class="ok" role="status">You're on the list ✓ Check your inbox to confirm.</p>
+      <p class="ok" role="status">You're on the list. Check your inbox to confirm.</p>
       <iframe name="wlFrame" title="signup" style="display:none"></iframe>
     </div>
   </div>
-</div>
+</section>
 
-<footer>
+<footer class="foot">
   <div class="wrap">
     <div class="cols">
       <div><a class="logo" href="#"><span class="mark"></span>Hopshot</a><p class="tag">Screenshots that clean up after themselves. For Windows and Mac.</p><p class="cp">© 2026 Hopshot. All rights reserved.</p></div>
-      <div><h4>Links</h4><ul><li><a href="#pricing">Pricing</a></li><li><a href="#faq">FAQ</a></li><li><a class="js-email" href="#">Support</a></li></ul></div>
+      <div><h4>Links</h4><ul><li><a href="#pricing">Pricing</a></li><li><a href="#faq">Questions</a></li><li><a class="js-email" href="#">Support</a></li></ul></div>
       <div><h4>Legal</h4><ul><li><a href="terms.html">Pre-order terms</a></li><li><a href="privacy.html">Privacy policy</a></li></ul></div>
     </div>
   </div>
@@ -502,6 +548,7 @@ const CONFIG = {
   const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
   const params = new URLSearchParams(location.search);
   const clean = v => (v || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 60);
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
   // Channel tracking (?ref=… or ?utm_source=…)
   let ref = clean(params.get("ref") || params.get("utm_source"));
@@ -514,7 +561,7 @@ const CONFIG = {
     try { const u = new URL(url); if (CONFIG.provider === "stripe") { u.searchParams.set("client_reference_id", ref); u.searchParams.set("utm_source", ref); } return u.toString(); } catch (e) { return url; }
   }
   const sync = link(CONFIG.checkoutSync), life = link(CONFIG.checkoutLifetime);
-  $$(".js-buy-sync").forEach(a => { if (sync) a.href = sync; else if (a.closest(".card")) a.href = "#notify"; });
+  $$(".js-buy-sync").forEach(a => { if (sync) a.href = sync; else if (a.closest(".plan")) a.href = "#notify"; });
   $$(".js-buy-life").forEach(a => { a.href = life || "#notify"; });
 
   // Waitlist
@@ -538,19 +585,64 @@ const CONFIG = {
   if (params.get("founder") === "1") $("#paidBanner").classList.add("show");
 
   // OS-aware keys
-  if (!/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) { $$(".js-k1").forEach(k => k.textContent = "Ctrl"); $$(".js-k2").forEach(k => k.textContent = "Shift"); }
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  if (!isMac) { $$(".js-k1").forEach(k => k.textContent = "Ctrl"); $$(".js-k2").forEach(k => k.textContent = "Shift"); }
 
-  // Mini charts
-  const svg = '<svg viewBox="0 0 280 110" preserveAspectRatio="none"><path d="M0 92 L40 80 L80 84 L120 58 L160 64 L200 36 L240 42 L280 18 L280 110 L0 110Z" fill="rgba(255,107,44,.35)"/><path d="M0 92 L40 80 L80 84 L120 58 L160 64 L200 36 L240 42 L280 18" fill="none" stroke="#FF8A55" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
+  // Mini charts: the thing being captured, reused everywhere a capture is shown.
+  const svg = '<svg viewBox="0 0 280 110" preserveAspectRatio="none" aria-hidden="true"><path d="M0 92 L40 80 L80 84 L120 58 L160 64 L200 36 L240 42 L280 18 L280 110 L0 110Z" fill="rgba(255,107,44,.3)"/><path d="M0 92 L40 80 L80 84 L120 58 L160 64 L200 36 L240 42 L280 18" fill="none" stroke="#FF8A55" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
   $$(".js-chart").forEach(el => el.innerHTML = svg);
 
-  // Respect reduced motion for the hero video
+  /* The headline's selection marquee. The readout reports the region's real measured
+     size, so it stays honest at every window width. */
+  const shot = $("#shot"), sizeEl = $("#shotSize");
+  const dims = () => { const r = shot.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; };
+  const show = (w, h) => { sizeEl.textContent = w + " × " + h; };
+  let raf = 0, settle = 0, counting = false;
+  function count(){
+    cancelAnimationFrame(raf);
+    clearTimeout(settle);
+    const [w, h] = dims();
+    // rAF never runs while the page is hidden, so don't start a count we can't finish.
+    if (reduced.matches || document.hidden) { counting = false; show(w, h); return; }
+    counting = true;
+    const t0 = performance.now(), dur = 620;
+    const tick = now => {
+      const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      show(Math.round(w * e), Math.round(h * e));
+      if (p < 1) raf = requestAnimationFrame(tick); else counting = false;
+    };
+    raf = requestAnimationFrame(tick);
+    // Safety net: if frames stop arriving mid-count, land on the true size anyway.
+    settle = setTimeout(() => { cancelAnimationFrame(raf); counting = false; const [w2, h2] = dims(); show(w2, h2); }, dur + 150);
+  }
+  function replay(){
+    shot.classList.remove("go");
+    void shot.offsetWidth;          // force a reflow so the animation restarts
+    shot.classList.add("go");
+    count();
+  }
+  count();
+  $("#replay").addEventListener("click", replay);
+  /* Watch the box itself, not the window: the slab also changes size when the display
+     font swaps in after first paint, which a resize listener never sees. */
+  const settleSize = () => { if (!counting) { const [w, h] = dims(); show(w, h); } };
+  if (window.ResizeObserver) new ResizeObserver(settleSize).observe(shot);
+  else addEventListener("resize", settleSize);
+  // Observer callbacks are only delivered while the page renders; this promise is not,
+  // so a tab opened in the background still ends up with the right number.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(settleSize);
+  // The product's own hotkey, honoured on the page that advertises it.
+  addEventListener("keydown", e => {
+    if (e.key === "2" && e.shiftKey && (isMac ? e.metaKey : e.ctrlKey)) { e.preventDefault(); replay(); }
+  });
+
+  // Hero video: autoplay unless the visitor asked for less motion.
   const v = $("#demoVideo"), pp = $("#pp"), icon = $("#ppIcon");
   const PAUSE = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>', PLAY = '<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>';
   const syncIcon = () => { icon.innerHTML = v.paused ? PLAY : PAUSE; pp.setAttribute("aria-label", v.paused ? "Play demo" : "Pause demo"); };
   pp.addEventListener("click", () => { v.paused ? v.play() : v.pause(); });
   v.addEventListener("play", syncIcon); v.addEventListener("pause", syncIcon);
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.pause(); }
+  if (reduced.matches) { v.removeAttribute("autoplay"); v.pause(); }
   else { const tryPlay = () => v.play().catch(() => {}); tryPlay(); document.addEventListener("visibilitychange", () => { if (!document.hidden) tryPlay(); }); }
   syncIcon();
 })();
