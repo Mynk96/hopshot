@@ -36,7 +36,7 @@ export default function Shelf() {
   /** Item whose QR popover is open (DESIGN S4). Also what "Copy link" opens. */
   const [qrFor, setQrFor] = useState<string | null>(null);
   const [pinnedOpen, setPinnedOpen] = useState(false);
-  /** PRD F8.1/F8.1a — the footer countdown and the trial-ended banner. */
+  /** PRD F8.1 — the locked banner shown until something is bought. */
   const [plan, setPlan] = useState<PlanState | null>(null);
 
   /** id → staged path promise, so a drag never waits on IPC. */
@@ -300,9 +300,9 @@ export default function Shelf() {
             borderBottom: "1px solid var(--border)",
           }}
         >
-          <b className="text-caption">Your trial has ended</b>
+          <b className="text-caption">Buy Hopshot to start capturing</b>
           <span className="text-caption leading-4 text-text-2">
-            Your shelf is still here. Buy Hopshot to keep capturing.
+            It unlocks itself the moment you pay. 14-day refund, no questions.
           </span>
           <button
             type="button"
@@ -340,7 +340,7 @@ export default function Shelf() {
         </ul>
       )}
 
-      <Footer count={items.length} plan={plan} />
+      <Footer count={items.length} />
 
       {qrFor && (
         <SendSheet itemId={qrFor} onClose={() => setQrFor(null)} onToast={flash} />
@@ -490,10 +490,12 @@ function EmptyState() {
 }
 
 /**
- * DESIGN S3 footer. The trial and Sync variants need the plan, which arrives with
- * `get_plan()` in Phase 4; until then it shows the Lifetime line.
+ * DESIGN S3 footer: the item count and the privacy line, which is the whole pitch.
+ *
+ * Plan-independent on purpose. It used to carry the trial countdown; with no trial there is
+ * nothing plan-shaped left to say here, and the locked state has its own banner above.
  */
-function Footer({ count, plan }: { count: number; plan: PlanState | null }) {
+function Footer({ count }: { count: number }) {
   // Navigator.onLine is the only offline signal available in the webview; Rust reports the
   // authoritative one per request (DESIGN S3 "Offline — sending paused").
   const [online, setOnline] = useState(navigator.onLine);
@@ -519,14 +521,8 @@ function Footer({ count, plan }: { count: number; plan: PlanState | null }) {
             {count} {count === 1 ? "item" : "items"}
           </span>
           <span aria-hidden>·</span>
-          {/* DESIGN S3: the trial shows its countdown here; otherwise the privacy line. */}
-          {plan?.trialDaysLeft && plan.trialDaysLeft > 0 ? (
-            <span className="truncate">
-              Trial · {plan.trialDaysLeft} day{plan.trialDaysLeft === 1 ? "" : "s"} left
-            </span>
-          ) : (
-            <span className="truncate">Gone in 24h</span>
-          )}
+          {/* DESIGN S3 footer: the privacy line, which is the point of the product. */}
+          <span className="truncate">Gone in 24h</span>
         </>
       ) : (
         <span className="flex items-center gap-1.5 truncate" style={{ color: "var(--warning)" }}>

@@ -93,7 +93,8 @@ export function License() {
       {status === null && (
         <>
           <p className="text-body text-text-2">
-            You&apos;re on the free trial. Everything is unlocked, including Sync.
+            Hopshot is locked until you buy it. Capture starts working the moment you pay —
+            there is no licence key to enter.
           </p>
 
           {/* DESIGN S9 price block, at the launch prices from PRD §7. */}
@@ -119,7 +120,7 @@ export function License() {
               </div>
               <span className="text-caption text-text-3">
                 Lifetime covers one computer. Sync adds three computers, three phones and
-                longer links, and includes the first year.
+                longer links, and includes the first year. 14-day refund, no questions asked.
               </span>
             </div>
           )}

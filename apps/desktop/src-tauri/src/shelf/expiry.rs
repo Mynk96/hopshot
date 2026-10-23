@@ -191,7 +191,7 @@ mod tests {
         let doomed = f.add("old.png", Some(-MINUTE_MS)); // already past
         let keeper = f.add("new.png", Some(DAY_MS));
 
-        let swept = sweep(&f.store, &f.dir, Plan::Trial, crate::shelf::store::now_ms()).expect("sweep");
+        let swept = sweep(&f.store, &f.dir, Plan::Lifetime, crate::shelf::store::now_ms()).expect("sweep");
         assert_eq!(swept.expired, 1);
 
         // PRD F2.7: "Nothing is left in app-data after expiry."
@@ -220,7 +220,7 @@ mod tests {
             .expect("stage the keeper");
         assert!(staged.exists() && kept.exists());
 
-        let swept = sweep(&f.store, &f.dir, Plan::Trial, crate::shelf::store::now_ms()).expect("sweep");
+        let swept = sweep(&f.store, &f.dir, Plan::Lifetime, crate::shelf::store::now_ms()).expect("sweep");
         assert_eq!(swept.expired, 1);
 
         assert!(!staged.exists(), "expired pixels left behind in drag/");
@@ -238,7 +238,7 @@ mod tests {
         let pinned = f.add("kept.png", None);
         f.add("gone.png", Some(-MINUTE_MS));
 
-        let swept = sweep(&f.store, &f.dir, Plan::Trial, crate::shelf::store::now_ms()).expect("sweep");
+        let swept = sweep(&f.store, &f.dir, Plan::Lifetime, crate::shelf::store::now_ms()).expect("sweep");
         assert_eq!(swept.expired, 1);
 
         assert!(Path::new(&pinned.path).exists());
@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn capacity_drops_the_oldest_unpinned_items() {
         let f = Fixture::new("capacity");
-        let capacity = crate::shelf::store::capacity_for(Plan::Trial);
+        let capacity = crate::shelf::store::capacity_for(Plan::Lifetime);
 
         let mut inserted = Vec::new();
         for n in 0..capacity + 3 {
@@ -256,7 +256,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
 
-        let swept = sweep(&f.store, &f.dir, Plan::Trial, crate::shelf::store::now_ms()).expect("sweep");
+        let swept = sweep(&f.store, &f.dir, Plan::Lifetime, crate::shelf::store::now_ms()).expect("sweep");
         assert_eq!(swept.over_capacity, 3, "three past the cap");
         assert_eq!(f.store.count().expect("count"), capacity);
 
@@ -272,14 +272,14 @@ mod tests {
     #[test]
     fn pinned_items_are_exempt_from_capacity() {
         let f = Fixture::new("pinned-capacity");
-        let capacity = crate::shelf::store::capacity_for(Plan::Trial);
+        let capacity = crate::shelf::store::capacity_for(Plan::Lifetime);
 
         let mut pinned = Vec::new();
         for n in 0..capacity + 5 {
             pinned.push(f.add(&format!("pin{n}.png"), None));
         }
 
-        let swept = sweep(&f.store, &f.dir, Plan::Trial, crate::shelf::store::now_ms()).expect("sweep");
+        let swept = sweep(&f.store, &f.dir, Plan::Lifetime, crate::shelf::store::now_ms()).expect("sweep");
         assert_eq!(swept.over_capacity, 0, "pinned items are never evicted");
         assert_eq!(f.store.count().expect("count"), capacity + 5);
         for item in &pinned {
@@ -292,7 +292,7 @@ mod tests {
         let f = Fixture::new("quiet");
         f.add("a.png", Some(DAY_MS));
 
-        let swept = sweep(&f.store, &f.dir, Plan::Trial, crate::shelf::store::now_ms()).expect("sweep");
+        let swept = sweep(&f.store, &f.dir, Plan::Lifetime, crate::shelf::store::now_ms()).expect("sweep");
         assert_eq!(swept, Swept::default());
         assert_eq!(swept.total(), 0);
     }
@@ -303,7 +303,7 @@ mod tests {
         let item = f.add("gone.png", Some(-MINUTE_MS));
         fs::remove_file(&item.path).expect("remove ahead of the sweep");
 
-        let swept = sweep(&f.store, &f.dir, Plan::Trial, crate::shelf::store::now_ms()).expect("sweep");
+        let swept = sweep(&f.store, &f.dir, Plan::Lifetime, crate::shelf::store::now_ms()).expect("sweep");
         assert_eq!(swept.expired, 1);
         assert_eq!(f.store.count().expect("count"), 0);
     }

@@ -9,12 +9,15 @@ use serde::Deserialize;
 /// Compiled into the binary, so the limits can never drift from the repo at runtime.
 const LIMITS_JSON: &str = include_str!("../../../../config/limits.json");
 
-/// ARCHITECTURE §4 plan resolution order: expired → trial → lifetime → sync.
+/// ARCHITECTURE §4 plan resolution order: expired → lifetime → sync.
+///
+/// `Expired` means "no active licence" — never bought, or bought and refunded. Hopshot is
+/// pay-first (PRD F8.1): there is no trial, so every new install starts here with capture
+/// paused until a purchase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Plan {
     Expired,
-    Trial,
     Lifetime,
     Sync,
 }
@@ -27,7 +30,6 @@ impl Plan {
     pub fn includes_sync(self) -> bool {
         match self {
             Plan::Expired => false,
-            Plan::Trial => limits().trial.includes == "sync",
             Plan::Lifetime => limits().lifetime.vault,
             Plan::Sync => limits().sync.vault,
         }
@@ -35,8 +37,8 @@ impl Plan {
 
     /// The drop lifetimes this plan may pick from (PRD F3.1), in `config/limits.json` order.
     ///
-    /// Sync widens the choice; the trial includes sync but is an evaluation of the Lifetime
-    /// shelf, so it shares that list — the same shape as [`crate::shelf::store::capacity_for`].
+    /// Sync widens the choice; everything else shares the Lifetime list — the same shape as
+    /// [`crate::shelf::store::capacity_for`].
     pub fn drop_ttl_options(self) -> &'static [String] {
         match self {
             Plan::Sync => &limits().sync.drop_ttl_options,
@@ -49,13 +51,6 @@ impl Plan {
     pub fn default_drop_ttl(self) -> Option<&'static str> {
         self.drop_ttl_options().first().map(String::as_str)
     }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TrialLimits {
-    pub days: u32,
-    pub includes: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -98,7 +93,6 @@ pub struct ServerLimits {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Limits {
-    pub trial: TrialLimits,
     pub lifetime: LifetimeLimits,
     pub sync: SyncLimits,
     pub server: ServerLimits,
@@ -120,8 +114,8 @@ mod tests {
     #[test]
     fn parses_the_bundled_limits_file() {
         let l = limits();
-        assert_eq!(l.trial.days, 7);
-        assert_eq!(l.trial.includes, "sync");
+        assert_eq!(l.lifetime.shelf_capacity, 100);
+        assert_eq!(l.sync.requires, "lifetime");
     }
 
     #[test]
@@ -152,7 +146,6 @@ mod tests {
     /// Drives the SYNC badge on the tray menu's "Pair phone…" row (DESIGN S1).
     #[test]
     fn sync_availability_follows_the_limits_file() {
-        assert!(Plan::Trial.includes_sync(), "the trial includes sync");
         assert!(Plan::Sync.includes_sync());
         assert!(!Plan::Lifetime.includes_sync(), "sync is a paid add-on");
         assert!(!Plan::Expired.includes_sync());
@@ -162,7 +155,7 @@ mod tests {
     /// has to offer at least one.
     #[test]
     fn every_plan_has_a_default_drop_ttl() {
-        for plan in [Plan::Expired, Plan::Trial, Plan::Lifetime, Plan::Sync] {
+        for plan in [Plan::Expired, Plan::Lifetime, Plan::Sync] {
             assert!(plan.default_drop_ttl().is_some(), "{plan:?}");
         }
         assert_eq!(Plan::Lifetime.default_drop_ttl(), Some("24h"));

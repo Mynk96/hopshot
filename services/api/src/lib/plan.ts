@@ -15,24 +15,15 @@ export type PlanLimits = {
   maxCiphertextBytes: number;
 };
 
-/** Trial length in ms, from `limits.json` (never a literal — CLAUDE.md rule 2). */
-export const TRIAL_MS = limits.trial.days * 86_400_000;
-
 /**
  * Resolve the caller's plan, from D1 only — never an external call (ARCHITECTURE §7.5), so a
  * Stripe outage cannot lock out paying users.
  *
- * `X-Hopshot-License` is the device token the app stored after buying or restoring.
+ * `X-Hopshot-License` is the device token the app stored after buying or restoring. It is the
+ * only thing that grants a plan: Hopshot is pay-first (PRD F8.1), so an install with no
+ * licence is `expired`, which is also what makes a refund actually take the app away.
  */
 export async function resolvePlan(request: Request, env: Env): Promise<PlanName> {
-  /*
-   * Order is §4's: a live trial wins, because `limits.trial.includes === "sync"` and during
-   * the trial the user has everything. A licence is checked second, and an absent or revoked
-   * one is `expired` — which is what makes a refund actually take the app away.
-   */
-  const installId = request.headers.get("X-Hopshot-Install");
-  if (installId && (await isTrialLive(env, installId))) return "trial";
-
   const token = request.headers.get("X-Hopshot-License");
   if (token) return planForDeviceToken(env, token);
 
@@ -47,14 +38,10 @@ export async function resolvePlan(request: Request, env: Env): Promise<PlanName>
  * `maxPhones` and `uploadsPerDay` are both 0 — so pairing and every phone upload would be
  * refused, taking PRD F4.1 and F4.5 with them.
  *
- * The vault's own `owner` column is the answer instead. It is set at creation and encodes
- * what paid for the vault: `trial:{installId}` during the trial, a license once 4.1 lands.
+ * The vault's own `owner` column is the answer instead. It is set at creation and records
+ * the install that created it, whose licence is then the authority.
  */
-export async function planForVault(
-  env: Env,
-  vaultId: string,
-  now = Date.now(),
-): Promise<PlanName> {
+export async function planForVault(env: Env, vaultId: string): Promise<PlanName> {
   const row = await env.DB.prepare("SELECT owner FROM vaults WHERE id = ?1")
     .bind(vaultId)
     .first<{ owner: string }>();
@@ -63,20 +50,18 @@ export async function planForVault(
   if (!row) return "expired";
 
   /*
-   * `owner` records the install that created the vault, which is almost always during the
-   * trial. When that trial runs out the vault must *not* simply expire: the owner may have
-   * bought Lifetime + Sync in the meantime, and the owner column is not rewritten by a
-   * purchase. So a dead trial falls through to the licence that install now holds —
-   * otherwise a paying Sync customer loses their phone sync the moment the trial lapses.
+   * The `trial:` prefix is still stripped alongside `install:`. Vaults created before the
+   * trial was removed carry `owner = "trial:{installId}"` in production D1, and dropping
+   * that case would orphan them — their owner would stop resolving and a paying customer
+   * would lose phone sync on a vault they still own.
    */
   const installId = row.owner.replace(/^(trial|install):/, "");
 
-  if (await isTrialLive(env, installId, now)) return "trial";
   return planForInstall(env, installId);
 }
 
 /**
- * The plan an install holds by licence, ignoring the trial.
+ * The plan an install holds by licence.
  *
  * Keyed on `install_id` rather than a token because the caller here is a *phone*, which has
  * neither the licence token nor the install id — only the vault it belongs to.
@@ -95,20 +80,11 @@ export async function planForInstall(env: Env, installId: string): Promise<PlanN
   return row.plan === "bundle" ? "sync" : "lifetime";
 }
 
-/** Is this install inside its 7-day trial (PRD F8, ARCHITECTURE §7.5)? */
-export async function isTrialLive(env: Env, installId: string, now = Date.now()): Promise<boolean> {
-  const row = await env.DB.prepare("SELECT started_at FROM trials WHERE install_id = ?1")
-    .bind(installId)
-    .first<{ started_at: number }>();
-
-  return row !== null && now < row.started_at + TRIAL_MS;
-}
-
 /**
  * Vault capabilities for a plan (ARCHITECTURE §7.2).
  *
- * `vault` is the gate on `POST /vaults`: §7.2 is "Trial or Sync only", and `limits.json`
- * sets `lifetime.vault = false` / `sync.vault = true`. Lifetime without Sync can still send
+ * `vault` is the gate on `POST /vaults`: Sync only, and `limits.json` sets
+ * `lifetime.vault = false` / `sync.vault = true`. Lifetime without Sync can still send
  * drops (F3/F5) — it just has no vault to pair a phone into.
  */
 export type VaultLimits = {
@@ -120,8 +96,7 @@ export type VaultLimits = {
 };
 
 export function vaultLimitsFor(plan: PlanName): VaultLimits {
-  // Trial includes Sync, so it gets the Sync allowances (limits.trial.includes).
-  if (plan === "sync" || plan === "trial") {
+  if (plan === "sync") {
     return {
       vault: limits.sync.vault,
       maxPhones: limits.sync.maxPhones,
@@ -151,7 +126,7 @@ export function limitsFor(plan: PlanName): PlanLimits {
   const server = limits.server;
 
   // Sync is an add-on to Lifetime, so it raises the caps rather than replacing them.
-  if (plan === "sync" || plan === "trial") {
+  if (plan === "sync") {
     return {
       plan,
       dropTtlOptions: limits.sync.dropTtlOptions,

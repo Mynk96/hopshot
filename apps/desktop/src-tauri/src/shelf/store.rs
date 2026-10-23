@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn capacity_comes_from_the_limits_file() {
         // CLAUDE.md rule 2: no magic numbers for plan limits.
-        assert_eq!(capacity_for(Plan::Trial), limits().lifetime.shelf_capacity as usize);
-        assert_eq!(capacity_for(Plan::Trial), 100);
+        assert_eq!(capacity_for(Plan::Lifetime), limits().lifetime.shelf_capacity as usize);
+        assert_eq!(capacity_for(Plan::Lifetime), 100);
     }
 }

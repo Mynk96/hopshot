@@ -84,7 +84,8 @@ pub fn store_token(value: &str) -> Result<(), ClientError> {
 /// Ask the server whether this computer may run, and on what plan.
 pub fn status() -> Result<Option<LicenseStatus>, ClientError> {
     let Some(token) = token() else {
-        // Never licensed. The trial is what covers a new install, so this is not an error.
+        // Never licensed, which is where every new install starts. Not an error: the caller
+        // reads `None` as "not bought yet" and shows the plans screen.
         return Ok(None);
     };
 
@@ -135,113 +136,43 @@ pub fn billing_portal() -> Result<String, ClientError> {
     .map(|portal| portal.url)
 }
 
-/* ── Trial and the paused state (PRD F8.1, F8.1a) ─────────────────────────── */
+/* ── The locked state (PRD F8.1) ──────────────────────────────────────────── */
 
 /// What the app is allowed to do right now, decided locally.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanState {
     pub plan: Plan,
-    /// Whole days left in the trial, 0 once it has run out. `None` when not on a trial.
-    pub trial_days_left: Option<i64>,
-    /// PRD F8.1a — the trial ran out and nothing was bought.
+    /// PRD F8.1 — nothing has been bought yet, so capture is paused.
     pub capture_paused: bool,
-}
-
-/// What `POST /trial/start` reports.
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Trial {
-    pub ends_at: i64,
-    pub active: bool,
-}
-
-/// Start (or re-read) the trial and cache when it ends.
-///
-/// Idempotent server-side, so calling it at every launch cannot extend anything. The cached
-/// `trial_ends_at` is what lets [`plan_state`] answer without a network call.
-pub fn refresh_trial<R: Runtime>(app: &AppHandle<R>) {
-    // A licensed computer has nothing to gain from a trial lookup.
-    if token().is_some() {
-        return;
-    }
-
-    let install_id = crate::cloud::drops::install_id(app);
-    let result: Result<Trial, ClientError> = client::post_json(
-        "/trial/start",
-        &serde_json::json!({}),
-        &[("X-Hopshot-Install", install_id.as_str())],
-    );
-
-    match result {
-        Ok(trial) => {
-            let mut patch = serde_json::Map::new();
-            patch.insert("trialEndsAt".into(), serde_json::json!(trial.ends_at));
-            if let Err(error) = crate::settings::patch(app, patch) {
-                log::warn!("could not cache the trial end: {error}");
-            }
-            log::info!(
-                "trial {} (ends {})",
-                if trial.active { "active" } else { "ended" },
-                trial.ends_at
-            );
-        }
-        // Offline at launch is normal. The cached value carries the app until it is reachable
-        // again, and an install that has never reached the server is treated as on trial —
-        // the forgiving direction, since the server enforces the plan on every request.
-        Err(error) => log::warn!("could not refresh the trial: {error}"),
-    }
 }
 
 /// What plan this computer is on, and whether capture is paused.
 ///
-/// Decided locally from the keychain and the cached trial end. The capture path calls this on
-/// every hotkey press and cannot wait on a request; the server is still the authority and
-/// refuses an expired caller on every API call.
+/// Decided locally from the keychain alone, because the capture path calls this on every
+/// hotkey press and cannot wait on a request. The server is still the authority and refuses
+/// an unlicensed caller on every API call.
+///
+/// **Pay-first (PRD F8.1).** No licence means no capture — there is no trial and no grace,
+/// so the answer here is the same whether the app has never been online or is simply unpaid.
+/// That is deliberate: a local-only "allow" would be a bypass, since nothing stops someone
+/// installing and staying offline.
 pub fn plan_state<R: Runtime>(app: &AppHandle<R>) -> PlanState {
+    let _ = app;
+
     // A stored licence token means a purchase happened. Which plan it is comes from the
     // server's last word; absent that, Lifetime is the safe floor — it unlocks capture
     // without granting Sync, and the server rejects anything beyond it.
     if token().is_some() {
         return PlanState {
             plan: Plan::Lifetime,
-            trial_days_left: None,
             capture_paused: false,
         };
     }
 
-    let ends_at = crate::settings::load(app)
-        .unwrap_or_default()
-        .trial_ends_at;
-
-    match ends_at {
-        Some(ends_at) => {
-            let remaining = ends_at - crate::shelf::store::now_ms();
-            let days = (remaining as f64 / 86_400_000.0).ceil() as i64;
-
-            if remaining > 0 {
-                PlanState {
-                    // The trial includes everything (limits.trial.includes).
-                    plan: Plan::Trial,
-                    trial_days_left: Some(days.max(1)),
-                    capture_paused: false,
-                }
-            } else {
-                // PRD F8.1a: capture pauses; the shelf stays readable and draggable.
-                PlanState {
-                    plan: Plan::Expired,
-                    trial_days_left: Some(0),
-                    capture_paused: true,
-                }
-            }
-        }
-        // Never reached the server, so we do not know. Allow capture: a first-run user
-        // behind a captive portal must not be locked out of the app they just installed.
-        None => PlanState {
-            plan: Plan::Trial,
-            trial_days_left: None,
-            capture_paused: false,
-        },
+    PlanState {
+        plan: Plan::Expired,
+        capture_paused: true,
     }
 }
 
@@ -417,5 +348,26 @@ mod tests {
 
         assert!(!status.is_over_limit());
         assert!(status.devices.is_none());
+    }
+
+    /// `Plan` has no trial variant, so nothing can deserialize into one.
+    ///
+    /// Pinned because the whole paywall rests on it: a `"trial"` that still parsed would be
+    /// an unlicensed plan the capture gate let through.
+    #[test]
+    fn there_is_no_trial_plan_to_deserialize_into() {
+        assert!(serde_json::from_str::<Plan>(r#""trial""#).is_err());
+
+        for (json, expected) in [
+            (r#""expired""#, Plan::Expired),
+            (r#""lifetime""#, Plan::Lifetime),
+            (r#""sync""#, Plan::Sync),
+        ] {
+            assert_eq!(
+                serde_json::from_str::<Plan>(json).expect("parse"),
+                expected,
+                "{json}"
+            );
+        }
     }
 }

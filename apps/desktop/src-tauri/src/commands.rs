@@ -171,14 +171,14 @@ pub fn delete_cloud_data(app: AppHandle) -> Result<(), String> {
 
 /// `license_status()` — may this computer run, and on what plan?
 ///
-/// `None` means never licensed, which is the normal state during the trial.
+/// `None` means never licensed, which is where every new install starts (PRD F8.1).
 #[tauri::command]
 pub fn license_status(app: AppHandle) -> Result<Option<license::LicenseStatus>, String> {
     let _ = &app;
     license::status().map_err(|error| error.to_string())
 }
 
-/// `plan_state()` — the plan, trial days left, and whether capture is paused (PRD F8.1a).
+/// `plan_state()` — the plan and whether capture is paused (PRD F8.1).
 #[tauri::command]
 pub fn plan_state(app: AppHandle) -> license::PlanState {
     license::plan_state(&app)

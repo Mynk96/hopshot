@@ -140,14 +140,6 @@ pub fn run() {
             // without the user doing anything. A no-op until a phone has been paired.
             cloud::live::ensure_running(handle);
 
-            /*
-             * PRD F8.1: the trial starts on first launch and is recorded server-side, so a
-             * reinstall cannot mint a fresh one. On a thread because it is a network call and
-             * nothing in setup may block on one.
-             */
-            let trial_handle = handle.clone();
-            std::thread::spawn(move || license::refresh_trial(&trial_handle));
-
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -327,7 +319,7 @@ fn build_menu<R: Runtime>(
     // Prices are the PRD §7 list prices. Launch pricing is decided server-side, so this
     // label moves to the plan payload in Phase 4 rather than growing more constants here.
     match plan {
-        Plan::Trial | Plan::Expired => {
+        Plan::Expired => {
             let buy = MenuItem::with_id(
                 app,
                 menu_id::BUY,

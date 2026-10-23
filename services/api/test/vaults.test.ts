@@ -1,6 +1,8 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { limits } from "shared";
+
+import { planForVault, resolvePlan } from "../src/lib/plan.ts";
 import {
   applyMigrations,
   asDevice,
@@ -11,7 +13,7 @@ import {
   postItem,
   postJson,
   send,
-  startTrial,
+  licenseInstall,
   runCron,
   type Enrolled,
 } from "./helpers.ts";
@@ -24,35 +26,34 @@ import {
 
 beforeEach(applyMigrations);
 
-describe("POST /v1/trial/start", () => {
-  it("records the trial and reports it active", async () => {
+describe("POST /v1/trial/start (retired)", () => {
+  /*
+   * The route outlives the trial on purpose: builds up to v0.1.0 call it at launch and cache
+   * what comes back. Reporting an already-ended trial makes them pause capture, which is now
+   * correct. A 404 would leave their cache empty, which those builds read as their most
+   * permissive state.
+   */
+  it("reports a trial that has already ended", async () => {
     const response = await postJson("/v1/trial/start", {});
     expect(response.status).toBe(200);
 
-    const json = await response.json<{ startedAt: number; endsAt: number; active: boolean }>();
-    expect(json.active).toBe(true);
-    expect(json.endsAt - json.startedAt).toBe(limits.trial.days * 86_400_000);
+    const json = await response.json<{
+      startedAt: number;
+      endsAt: number;
+      days: number;
+      active: boolean;
+    }>();
+    expect(json.active).toBe(false);
+    expect(json.days).toBe(0);
+    // Zero or less, whichever way a client computes the remaining time.
+    expect(json.endsAt - json.startedAt).toBeLessThanOrEqual(0);
   });
 
-  it("does not restart an existing trial", async () => {
-    const first = await (await postJson("/v1/trial/start", {})).json<{ startedAt: number }>();
+  it("writes nothing to the database", async () => {
+    await postJson("/v1/trial/start", {});
 
-    // A reinstall must not buy another 7 days.
-    await env.DB.prepare("UPDATE trials SET started_at = ?1 WHERE install_id = 'install-test'")
-      .bind(first.startedAt - 3 * 86_400_000)
-      .run();
-
-    const second = await (await postJson("/v1/trial/start", {})).json<{ startedAt: number }>();
-    expect(second.startedAt).toBe(first.startedAt - 3 * 86_400_000);
-  });
-
-  it("needs an install id", async () => {
-    const response = await send("/v1/trial/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-    expect(response.status).toBe(400);
+    const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM trials").first<{ n: number }>();
+    expect(row!.n).toBe(0);
   });
 });
 
@@ -83,13 +84,13 @@ describe("POST /v1/vaults", () => {
   });
 
   it("refuses a vault created from a phone", async () => {
-    await startTrial();
+    await licenseInstall();
     const response = await postJson("/v1/vaults", { deviceName: "iPhone", kind: "phone" });
     expect(response.status).toBe(400);
   });
 
   it("needs a device name", async () => {
-    await startTrial();
+    await licenseInstall();
     const response = await postJson("/v1/vaults", { deviceName: "  ", kind: "desktop" });
     expect(response.status).toBe(400);
   });
@@ -123,7 +124,7 @@ describe("POST /v1/vaults/:id/invites", () => {
   it("rejects a token for a different vault", async () => {
     const a = await createVault("PC A");
     await env.DB.prepare("DELETE FROM trials").run();
-    await startTrial("install-b");
+    await licenseInstall("install-b");
     const b = await (
       await postJson(
         "/v1/vaults",
@@ -826,7 +827,7 @@ describe("live fan-out through VaultHub (ARCHITECTURE §7.4)", () => {
     const socket = await connect(mine, phone.deviceToken);
 
     await env.DB.prepare("DELETE FROM trials").run();
-    await startTrial("install-other");
+    await licenseInstall("install-other");
     const theirs = await (
       await postJson(
         "/v1/vaults",
@@ -845,5 +846,94 @@ describe("live fan-out through VaultHub (ARCHITECTURE §7.4)", () => {
     await scheduler.wait(300);
 
     expect(leaked).toBeNull();
+  });
+});
+
+describe("pay-first plan resolution (PRD F8.1)", () => {
+  /**
+   * The trial bypass, pinned.
+   *
+   * `resolvePlan` used to grant everything to any caller presenting an install id, because
+   * an install id was enough to start a trial. Nothing about an install id is secret — the
+   * app generates it locally — so if that path ever came back, anyone could mint a plan by
+   * inventing one.
+   */
+  it("grants nothing for an install id alone", async () => {
+    const request = new Request("https://api.hopshot.xyz/v1/drops/x", {
+      method: "POST",
+      headers: { "X-Hopshot-Install": "install-never-bought" },
+    });
+
+    expect(await resolvePlan(request, env)).toBe("expired");
+  });
+
+  it("grants nothing for an install that has a trials row", async () => {
+    // The table still exists, and rows from before the trial was removed are still in it.
+    await env.DB.prepare(
+      "INSERT INTO trials (install_id, started_at, ip_hash) VALUES ('install-old', ?1, 'x')",
+    )
+      .bind(Date.now())
+      .run();
+
+    const request = new Request("https://api.hopshot.xyz/v1/drops/x", {
+      method: "POST",
+      headers: { "X-Hopshot-Install": "install-old" },
+    });
+
+    expect(await resolvePlan(request, env)).toBe("expired");
+  });
+
+  /**
+   * Production D1 holds vaults created before the trial was removed, whose owner reads
+   * `trial:{installId}`. If `planForVault` stopped stripping that prefix it would look up an
+   * install called `trial:install-…`, find no licence, and quietly expire a vault its owner
+   * is still paying for.
+   */
+  it("still resolves a vault owned by a legacy trial: prefix", async () => {
+    await licenseInstall("install-legacy");
+
+    await env.DB.prepare(
+      "INSERT INTO vaults (id, owner, created_at) VALUES ('vault-legacy', 'trial:install-legacy', ?1)",
+    )
+      .bind(Date.now())
+      .run();
+
+    expect(await planForVault(env, "vault-legacy")).toBe("sync");
+  });
+
+  it("resolves a vault owned by the install: prefix new vaults use", async () => {
+    await licenseInstall("install-new");
+
+    await env.DB.prepare(
+      "INSERT INTO vaults (id, owner, created_at) VALUES ('vault-new', 'install:install-new', ?1)",
+    )
+      .bind(Date.now())
+      .run();
+
+    expect(await planForVault(env, "vault-new")).toBe("sync");
+  });
+
+  it("expires a vault whose owner holds no licence", async () => {
+    await env.DB.prepare(
+      "INSERT INTO vaults (id, owner, created_at) VALUES ('vault-orphan', 'install:nobody', ?1)",
+    )
+      .bind(Date.now())
+      .run();
+
+    expect(await planForVault(env, "vault-orphan")).toBe("expired");
+  });
+
+  /** Lifetime has no vault, so a Lifetime-only buyer cannot pair a phone (limits.json). */
+  it("gives a Lifetime licence no vault", async () => {
+    await licenseInstall("install-lifetime", "lifetime");
+
+    const response = await postJson(
+      "/v1/vaults",
+      { deviceName: "PC", kind: "desktop" },
+      { "X-Hopshot-Install": "install-lifetime" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(limits.lifetime.vault).toBe(false);
   });
 });
