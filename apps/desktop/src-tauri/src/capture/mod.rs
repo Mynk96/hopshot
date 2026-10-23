@@ -69,19 +69,19 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, mode: Mode) {
 
 fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureError> {
     /*
-     * PRD F8.1a: when the trial ends without a purchase, capture is paused. The shelf stays
-     * readable and draggable — that is deliberately untouched here — so existing screenshots
-     * remain usable until they expire.
+     * PRD F8.1: Hopshot is pay-first, so capture is paused until a purchase. The shelf stays
+     * readable and draggable — that is deliberately untouched here — so anything already on
+     * it (including items a refunded licence left behind) remains usable until it expires.
      *
-     * Decided locally so a hotkey never waits on the network; the server refuses an expired
-     * caller independently.
+     * Decided locally so a hotkey never waits on the network; the server refuses an
+     * unlicensed caller independently.
      */
     if crate::license::plan_state(app).capture_paused {
-        log::info!("capture is paused: the trial has ended");
+        log::info!("capture is paused: no licence on this computer");
         toast(
             app,
             "error",
-            "Your trial has ended — your shelf is still here. Buy Hopshot to keep capturing.",
+            "Buy Hopshot to start capturing — it unlocks itself the moment you pay.",
         );
         let _ = tauri::Emitter::emit(app, "plan:changed", ());
         crate::shelf::show(app);

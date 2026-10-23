@@ -28,7 +28,7 @@ export type HotkeyConflict = {
 
 /** Mirrors `commands::PlanStatus`. */
 export type PlanStatus = {
-  plan: "expired" | "trial" | "lifetime" | "sync";
+  plan: "expired" | "lifetime" | "sync";
   includesSync: boolean;
   shelfCapacity: number;
   itemTtlOptions: string[];

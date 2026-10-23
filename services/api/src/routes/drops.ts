@@ -49,9 +49,9 @@ drops.post("/:id", async (c) => {
   const plan = await resolvePlan(c.req.raw, c.env);
 
   /*
-   * PRD F8.1a: when the trial ends without a purchase, capture is paused. `limitsFor` maps
-   * an unknown plan onto the Lifetime caps, so without this gate an expired user kept a
-   * free 10 sends a day — the paywall would not have held.
+   * PRD F8.1: Hopshot is pay-first, so an unlicensed caller sends nothing. `limitsFor` maps
+   * an unknown plan onto the Lifetime caps, so without this gate an unlicensed user would
+   * keep a free 10 sends a day — the paywall would not have held.
    *
    * Checked *after* input validation, so a malformed request still reports what is actually
    * wrong with it rather than being told to buy something.
@@ -62,7 +62,7 @@ drops.post("/:id", async (c) => {
     return fail(
       c,
       "forbidden",
-      "Your trial has ended — your shelf is still here. Buy Hopshot to keep capturing.",
+      "Buy Hopshot to send links — your shelf is still here.",
     );
   }
 

@@ -65,9 +65,12 @@ vaults.post("/", async (c) => {
   }
 
   const now = Date.now();
-  // `owner` ties the vault to what paid for it: a license id once 4.1 lands, and the install
-  // during the trial (schema comment in 0001_init.sql).
-  const owner = plan === "trial" ? `trial:${installId}` : `install:${installId}`;
+  /*
+   * `owner` ties the vault to the install that created it; `planForVault` then resolves that
+   * install's licence on every request. Vaults created before the trial was removed carry a
+   * `trial:` prefix instead, which `planForVault` still strips.
+   */
+  const owner = `install:${installId}`;
 
   const vaultId = crypto.randomUUID().replace(/-/g, "").slice(0, 22);
   const deviceId = crypto.randomUUID().replace(/-/g, "").slice(0, 22);

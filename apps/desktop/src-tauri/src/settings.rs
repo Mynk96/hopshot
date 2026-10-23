@@ -79,12 +79,6 @@ pub struct Settings {
     /// Random, local, and only used to count this install's sends against its own daily
     /// quota (ARCHITECTURE §7.9). Not a user identifier. Written on the first send.
     pub install_id: Option<String>,
-    /// When the 7-day trial runs out, in ms (PRD F8.1). Written from `POST /trial/start`.
-    ///
-    /// Cached locally so the capture path can decide whether capture is paused without a
-    /// network round trip — a hotkey cannot wait on a request, and the app has to behave
-    /// correctly offline. The server still enforces the plan on every call.
-    pub trial_ends_at: Option<i64>,
 }
 
 impl Default for Settings {
@@ -101,7 +95,6 @@ impl Default for Settings {
             remove_after_drag: false,
             theme: Theme::System,
             auto_sync: true,
-            trial_ends_at: None,
             catch_other_screenshots: false,
             install_id: None,
         }

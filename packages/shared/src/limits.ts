@@ -5,16 +5,17 @@
  */
 import limitsJson from "../../../config/limits.json";
 
-/** ARCHITECTURE §4 plan resolution order: expired → trial → lifetime → sync. */
-export type PlanName = "expired" | "trial" | "lifetime" | "sync";
+/**
+ * ARCHITECTURE §4 plan resolution order: expired → lifetime → sync.
+ *
+ * `expired` means "no active licence" — never bought, or bought and refunded. Hopshot is
+ * pay-first (PRD F8.1): there is no trial, so an install holds no plan at all until a
+ * purchase, and `expired` is where every new install starts.
+ */
+export type PlanName = "expired" | "lifetime" | "sync";
 
 /** Item/drop time-to-live options, as they appear in the JSON and in `?ttl=` query params. */
 export type Ttl = "1h" | "24h" | "7d";
-
-export interface TrialLimits {
-  readonly days: number;
-  readonly includes: "sync";
-}
 
 export interface LifetimeLimits {
   readonly shelfCapacity: number;
@@ -48,7 +49,6 @@ export interface ServerLimits {
 }
 
 export interface Limits {
-  readonly trial: TrialLimits;
   readonly lifetime: LifetimeLimits;
   readonly sync: SyncLimits;
   readonly server: ServerLimits;

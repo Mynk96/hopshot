@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { limits } from "shared";
 import worker from "../src/index.ts";
 import { claimDeviceSlot, recordPurchase } from "../src/lib/license.ts";
-import { applyMigrations, freshId, post, send, startTrial } from "./helpers.ts";
+import { applyMigrations, freshId, post, send, licenseInstall } from "./helpers.ts";
 
 /**
  * Drops routes (ARCHITECTURE §7.1) and the limits from §7.9.
@@ -13,9 +13,9 @@ import { applyMigrations, freshId, post, send, startTrial } from "./helpers.ts";
 
 beforeEach(async () => {
   await applyMigrations();
-  // A real first-launch user is on the 7-day trial. Before licensing existed, resolvePlan
-  // returned "lifetime" for everyone, so these tests never needed one.
-  await startTrial();
+  // Pay-first (PRD F8.1): resolvePlan grants nothing without a licence, so sending a drop
+  // at all now requires one. `bundle` gives the Sync caps these tests were written against.
+  await licenseInstall();
 });
 
 describe("POST /v1/drops/:id", () => {
@@ -42,7 +42,8 @@ describe("POST /v1/drops/:id", () => {
     expect(row!.delete_token_hash).not.toBe(json.deleteToken);
     expect(row!.delete_token_hash).toHaveLength(64);
     // The trial includes everything (limits.trial.includes === "sync").
-    expect(row!.plan).toBe("trial");
+    // The plan is recorded with the drop, and a bundle licence resolves to sync.
+    expect(row!.plan).toBe("sync");
   });
 
   it("rejects an id that is not 22-char base62", async () => {
@@ -108,9 +109,9 @@ describe("POST /v1/drops/:id", () => {
 
   it("stops at the daily cap with 429", async () => {
     const install = "install-cap";
-    await startTrial(install);
+    await licenseInstall(install);
 
-    // A trial gets the Sync cap (limits.trial.includes === "sync").
+    // A bundle licence gets the Sync cap.
     const cap = limits.sync.dropsPerDay;
 
     /*

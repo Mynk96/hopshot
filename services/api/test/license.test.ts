@@ -375,13 +375,13 @@ describe("POST /v1/license/portal (Manage Sync)", () => {
   });
 });
 
-describe("the paywall actually holds (PRD F8.1a)", () => {
+describe("the paywall actually holds (PRD F8.1)", () => {
   /**
    * The trial ending has to stop new sends. `limitsFor` maps an unrecognised plan onto the
    * Lifetime caps, so without an explicit gate an expired user kept ten free sends a day and
    * the paywall was decorative.
    */
-  it("refuses a drop when the trial has ended and nothing was bought", async () => {
+  it("refuses a drop from an install that has never bought", async () => {
     const response = await send(`/v1/drops/${freshId()}?ttl=24h`, {
       method: "POST",
       headers: {
@@ -393,7 +393,7 @@ describe("the paywall actually holds (PRD F8.1a)", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(await response.text()).toContain("trial has ended");
+    expect(await response.text()).toContain("Buy Hopshot");
   });
 
   it("allows it again once a licence is presented", async () => {

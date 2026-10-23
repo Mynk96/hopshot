@@ -4,6 +4,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:
 import schema from "../migrations/0001_init.sql?raw";
 import pairingSchema from "../migrations/0002_pairing.sql?raw";
 import renewalSchema from "../migrations/0003_renewals.sql?raw";
+import { claimDeviceSlot, recordPurchase } from "../src/lib/license.ts";
 import worker from "../src/index.ts";
 
 /**
@@ -14,6 +15,9 @@ import worker from "../src/index.ts";
  */
 
 export async function applyMigrations(): Promise<void> {
+  // So a test can never inherit the licence another test issued.
+  currentLicense = null;
+
   // Drop everything the migration is about to create, so each test starts empty.
   const tables = await env.DB.prepare(
     "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'",
@@ -92,6 +96,7 @@ export async function post(
     method: "POST",
     headers: {
       "X-Hopshot-Install": "install-test",
+      ...licenseHeader(),
       "Content-Type": "application/octet-stream",
       "Content-Length": String(body.byteLength),
       "CF-Connecting-IP": "203.0.113.1",
@@ -124,6 +129,7 @@ export async function postJson(
     method: "POST",
     headers: {
       "X-Hopshot-Install": "install-test",
+      ...licenseHeader(),
       "Content-Type": "application/json",
       "CF-Connecting-IP": "203.0.113.1",
       ...headers,
@@ -138,24 +144,48 @@ export function asDevice(token: string): Record<string, string> {
 }
 
 /**
- * Put this install inside a live trial.
+ * Give this install a licence, which is now the only way to hold a plan.
  *
- * `POST /vaults` is Trial-or-Sync only and `lifetime.vault` is false, so without a trial
- * every vault test would 403. The licence path that would otherwise grant this arrives in
- * Phase 4.1.
+ * Hopshot is pay-first (PRD F8.1): there is no trial, so `resolvePlan` grants nothing
+ * without a device token. A `bundle` licence resolves to `sync`, which is what the trial
+ * used to grant — so tests written against trial-level access keep their meaning.
+ *
+ * The token is remembered and sent as `X-Hopshot-License` by `post` and `postJson`, the way
+ * the real app always sends the token it stored at purchase.
  */
-export async function startTrial(installId = "install-test"): Promise<void> {
-  const response = await postJson("/v1/trial/start", {}, { "X-Hopshot-Install": installId });
-  if (response.status !== 200) {
-    throw new Error(`could not start a trial: ${response.status} ${await response.text()}`);
+export async function licenseInstall(
+  installId = "install-test",
+  plan: "lifetime" | "bundle" = "bundle",
+): Promise<string> {
+  const licenseId = await recordPurchase(env, {
+    customerId: `cus_${installId}`,
+    email: `${installId}@example.com`,
+    plan,
+    sessionId: `cs_${installId}`,
+    paymentIntentId: `pi_${installId}`,
+  });
+
+  const slot = await claimDeviceSlot(env, licenseId, installId, "Test PC");
+  if (!slot.ok) {
+    throw new Error(`could not license ${installId}: no slot free`);
   }
+
+  currentLicense = slot.deviceToken;
+  return slot.deviceToken;
 }
+
+/** The licence header `post`/`postJson` send, empty until a test issues one. */
+function licenseHeader(): Record<string, string> {
+  return currentLicense ? { "X-Hopshot-License": currentLicense } : {};
+}
+
+let currentLicense: string | null = null;
 
 export type Enrolled = { vaultId: string; deviceId: string; deviceToken: string };
 
 /** A vault with its first desktop device, ready to use. */
 export async function createVault(deviceName = "Test PC"): Promise<Enrolled> {
-  await startTrial();
+  await licenseInstall();
   const response = await postJson("/v1/vaults", { deviceName, kind: "desktop" });
   if (response.status !== 201) {
     throw new Error(`could not create a vault: ${response.status} ${await response.text()}`);

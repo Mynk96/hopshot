@@ -1,8 +1,4 @@
 {
-  "trial": {
-    "days": 7,
-    "includes": "sync"
-  },
   "lifetime": {
     "shelfCapacity": 100,
     "itemTtlOptions": ["1h", "24h", "7d"],
