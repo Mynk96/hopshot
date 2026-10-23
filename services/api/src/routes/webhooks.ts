@@ -26,11 +26,7 @@ export const webhooks = new Hono<{ Bindings: Env }>();
 webhooks.post("/stripe", async (c) => {
   // The raw text, not a parsed body: the signature covers the exact bytes sent.
   const raw = await c.req.text();
-  const event = await verifyWebhook(
-    c.env,
-    raw,
-    c.req.header("Stripe-Signature") ?? null,
-  );
+  const event = await verifyWebhook(c.env, raw, c.req.header("Stripe-Signature") ?? null);
 
   // Deliberately vague: a prober must not learn whether it was the secret, the timestamp or
   // the digest that failed.
@@ -93,6 +89,11 @@ type Session = {
   payment_intent?: string | null;
   customer_details?: { email?: string | null; name?: string | null } | null;
   metadata?: Record<string, string> | null;
+  /** Minor units, after any promotion code — i.e. what was actually charged. */
+  amount_total?: number | null;
+  currency?: string | null;
+  /** Seconds, as everything in a Stripe object is. */
+  created?: number | null;
 };
 
 async function onCheckoutCompleted(env: Env, object: Record<string, unknown>): Promise<void> {
@@ -131,8 +132,18 @@ async function onCheckoutCompleted(env: Env, object: Record<string, unknown>): P
   // The app is polling this; marking it ready is what unlocks the app (PRD F8.3).
   await fulfilClaim(env, claim, licenseId);
 
-  // After the claim, so a mail failure can never delay the unlock.
-  await sendReceipt(env, email, plan, licenseId);
+  // After the claim, so a mail failure can never delay the unlock. The amount and date come
+  // from the session rather than from `Date.now()`: a webhook Stripe retries for two days
+  // must still produce a receipt that says when the payment happened.
+  await sendReceipt(env, {
+    email,
+    plan,
+    licenseId,
+    name: session.customer_details?.name ?? null,
+    amountTotal: session.amount_total ?? null,
+    currency: session.currency ?? null,
+    paidAt: typeof session.created === "number" ? session.created * 1000 : null,
+  });
 
   console.log(`licence ${licenseId} issued (${plan})`);
 }

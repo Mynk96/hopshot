@@ -9,6 +9,10 @@
  * not fail to exist because an email bounced.
  */
 
+import { renderReceipt, type Purchase } from "../emails/receipt.ts";
+
+import { BUNDLE_SYNC_MS } from "./license.ts";
+
 const API = "https://api.resend.com/emails";
 
 function config(env: Env): { key: string; from: string } | null {
@@ -22,6 +26,7 @@ async function send(
   to: string,
   subject: string,
   text: string,
+  html?: string,
 ): Promise<boolean> {
   const settings = config(env);
   if (!settings) {
@@ -35,7 +40,9 @@ async function send(
       Authorization: `Bearer ${settings.key}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: settings.from, to, subject, text }),
+    // Both parts when there is an HTML one: the text part is what a plain-text client, a
+    // screen reader in text mode and most spam filters actually read.
+    body: JSON.stringify({ from: settings.from, to, subject, text, ...(html ? { html } : {}) }),
   });
 
   if (!response.ok) {
@@ -79,31 +86,23 @@ async function once(
   }
 }
 
-/** PRD F8.3: the receipt doubles as the record of what they bought. */
-export async function sendReceipt(
-  env: Env,
-  email: string,
-  plan: "lifetime" | "bundle",
-  licenseId: string,
-): Promise<void> {
-  const what = plan === "bundle" ? "Hopshot Lifetime + Sync" : "Hopshot Lifetime";
+/**
+ * PRD F8.3: the receipt doubles as the record of what they bought.
+ *
+ * Sent once per licence, so the amount and date are those of the payment that created it —
+ * a redelivered webhook cannot produce a second, differently worded receipt.
+ */
+export async function sendReceipt(env: Env, purchase: Purchase): Promise<void> {
+  const paidAt = purchase.paidAt ?? Date.now();
+  const { subject, html, text } = renderReceipt({
+    ...purchase,
+    paidAt,
+    // The included year runs from the licence, and the licence is created by this payment.
+    syncEndsAt: purchase.plan === "bundle" ? paidAt + BUNDLE_SYNC_MS : null,
+  });
 
-  await once(env, licenseId, "receipt", "", () =>
-    send(
-      env,
-      email,
-      `Your ${what} purchase`,
-      [
-        `Thanks for buying ${what}.`,
-        "",
-        "Hopshot is already unlocked on the computer you bought it from — there is no licence key to enter.",
-        "",
-        "If you reinstall or move to another computer, open Settings → License → Already bought? Restore and we'll email you a code.",
-        "",
-        "Hopshot",
-        "https://hopshot.xyz",
-      ].join("\n"),
-    ),
+  await once(env, purchase.licenseId, "receipt", "", () =>
+    send(env, purchase.email, subject, text, html),
   );
 }
 
@@ -160,11 +159,7 @@ export async function sendRenewalNotice(
  * Not deduplicated by `once`: asking again is how someone recovers from a lost email, and
  * each request issues a fresh code that supersedes the last.
  */
-export async function sendRestoreCode(
-  env: Env,
-  email: string,
-  code: string,
-): Promise<boolean> {
+export async function sendRestoreCode(env: Env, email: string, code: string): Promise<boolean> {
   return send(
     env,
     email,

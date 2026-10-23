@@ -150,7 +150,7 @@ export async function readClaim(
 /* ── The computer limit (PRD F8.3, ARCHITECTURE §7.5) ────────────────────── */
 
 /** A year of Sync comes with the bundle, paid once (PRD §7). */
-const BUNDLE_SYNC_MS = 365 * 86_400_000;
+export const BUNDLE_SYNC_MS = 365 * 86_400_000;
 
 /**
  * Is Sync currently active for this licence?

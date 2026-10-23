@@ -97,6 +97,11 @@ export type CheckoutSession = {
   payment_intent?: string | null;
   payment_status?: string;
   metadata?: Record<string, string> | null;
+  /** Minor units, after any promotion code. What the receipt reports as paid.  */
+  amount_total?: number | null;
+  currency?: string | null;
+  /** Seconds. */
+  created?: number | null;
 };
 
 /** Which thing is being bought. `bundle` is Lifetime plus the first year of Sync. */

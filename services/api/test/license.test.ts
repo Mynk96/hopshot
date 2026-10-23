@@ -2,7 +2,14 @@ import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { limits } from "shared";
 
-import { claimDeviceSlot, createClaim, fulfilClaim, planForDeviceToken, recordPurchase, revokeByPaymentIntent } from "../src/lib/license.ts";
+import {
+  claimDeviceSlot,
+  createClaim,
+  fulfilClaim,
+  planForDeviceToken,
+  recordPurchase,
+  revokeByPaymentIntent,
+} from "../src/lib/license.ts";
 import { verifyWebhook } from "../src/lib/stripe.ts";
 import { applyMigrations, freshId, send } from "./helpers.ts";
 
@@ -45,12 +52,51 @@ function withSecret(): Env {
   return env;
 }
 
+/**
+ * Switch email on and capture what would have been sent, instead of calling Resend.
+ *
+ * Email is off in tests unless a test asks for it: with no key configured `send` logs and
+ * returns false, which is what keeps every other test from needing a fetch stub.
+ */
+function captureEmail(): Array<{ to: string; subject: string; text: string; html?: string }> {
+  const vars = env as unknown as Record<string, string | undefined>;
+  vars.RESEND_API_KEY = "re_test_not_a_real_key";
+  vars.EMAIL_FROM = "Hopshot <founder@hopshot.xyz>";
+
+  const sent: Array<{ to: string; subject: string; text: string; html?: string }> = [];
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith("https://api.resend.com")) {
+      throw new Error(`unexpected outbound request to ${url}`);
+    }
+    sent.push(JSON.parse(String(init?.body)));
+    return Response.json({ id: "re_1" });
+  });
+  return sent;
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  const vars = env as unknown as Record<string, string | undefined>;
+  delete vars.RESEND_API_KEY;
+  delete vars.EMAIL_FROM;
+});
+
 describe("webhook signature verification", () => {
-  const body = JSON.stringify({ id: "evt_1", type: "checkout.session.completed", data: { object: {} } });
+  const body = JSON.stringify({
+    id: "evt_1",
+    type: "checkout.session.completed",
+    data: { object: {} },
+  });
 
   it("accepts a correctly signed event", async () => {
     const now = Date.now();
-    const event = await verifyWebhook(withSecret(), body, await sign(body, Math.floor(now / 1000)), now);
+    const event = await verifyWebhook(
+      withSecret(),
+      body,
+      await sign(body, Math.floor(now / 1000)),
+      now,
+    );
 
     expect(event).not.toBeNull();
     expect(event!.id).toBe("evt_1");
@@ -125,7 +171,11 @@ describe("POST /v1/webhooks/stripe", () => {
   it("refuses an unsigned delivery", async () => {
     const response = await send("/v1/webhooks/stripe", {
       method: "POST",
-      body: JSON.stringify({ id: "evt_x", type: "checkout.session.completed", data: { object: {} } }),
+      body: JSON.stringify({
+        id: "evt_x",
+        type: "checkout.session.completed",
+        data: { object: {} },
+      }),
     });
     expect(response.status).toBe(400);
   });
@@ -148,6 +198,59 @@ describe("POST /v1/webhooks/stripe", () => {
 
     const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM licenses").first<{ n: number }>();
     expect(row!.n).toBe(0);
+  });
+
+  /**
+   * PRD F8.3: the purchase email is the customer's receipt, so the amount and the date have
+   * to be the payment's own — not whatever the clock said when a retried webhook landed.
+   */
+  it("mails a receipt carrying the amount, currency and date Stripe sent", async () => {
+    const sent = captureEmail();
+    const claim = await createClaim(env, "install-1", "lifetime");
+
+    await deliver(claim, {
+      amount_total: 1200,
+      currency: "usd",
+      created: Math.floor(Date.UTC(2026, 9, 23, 14, 11) / 1000),
+    });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.to).toBe("buyer@example.com");
+    expect(sent[0]!.subject).toBe("Your Hopshot Lifetime receipt");
+    expect(sent[0]!.text).toContain("$12.00");
+    expect(sent[0]!.text).toContain("23 October 2026");
+    // Both parts, so a plain-text client gets the same receipt.
+    expect(sent[0]!.html).toContain("$12.00");
+  });
+
+  /** PRD F8.8: the bundle's year is stated on the receipt, with the fact that it stops. */
+  it("tells a bundle buyer on the receipt when their Sync year ends", async () => {
+    const sent = captureEmail();
+    const claim = await createClaim(env, "install-1", "bundle");
+
+    await deliver(claim, {
+      metadata: { claim, plan: "bundle" },
+      amount_total: 2900,
+      currency: "usd",
+      created: Math.floor(Date.UTC(2026, 9, 23, 14, 11) / 1000),
+    });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.subject).toBe("Your Hopshot Lifetime + Sync receipt");
+    // 365 days on from the payment.
+    expect(sent[0]!.text).toContain("23 October 2027");
+    expect(sent[0]!.text).toContain("Nothing renews by itself");
+  });
+
+  /** One payment is one receipt, however many times Stripe redelivers the event. */
+  it("does not mail a second receipt for a redelivered event", async () => {
+    const sent = captureEmail();
+    const claim = await createClaim(env, "install-1", "lifetime");
+
+    await deliver(claim, { amount_total: 1200, currency: "usd" });
+    await deliver(claim, { amount_total: 1200, currency: "usd" });
+
+    expect(sent).toHaveLength(1);
   });
 });
 
@@ -253,7 +356,9 @@ describe("the automatic 3-computer limit", () => {
     }
 
     const dormant = Date.now() - (limits.server.licenseOfflineGraceDays + 1) * 86_400_000;
-    await env.DB.prepare("UPDATE license_devices SET last_seen_at = ?1 WHERE install_id = 'install-0'")
+    await env.DB.prepare(
+      "UPDATE license_devices SET last_seen_at = ?1 WHERE install_id = 'install-0'",
+    )
       .bind(dormant)
       .run();
 
