@@ -7,20 +7,5 @@
 	"compatibility_date": "2026-10-01",
 	"assets": {
 		"directory": "./marketing/site"
-	},
-	"d1_databases": [
-		{
-			"binding": "hopshot",
-			"database_name": "hopshot",
-			"database_id": "8f9c769d-9d3a-4e3f-ae2f-5cea7d0fd52d",
-			"remote": true
-		}
-	],
-	"r2_buckets": [
-		{
-			"bucket_name": "hopshot-blobs",
-			"binding": "hopshot_blobs",
-			"remote": true
-		}
-	]
+	}
 }
