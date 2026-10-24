@@ -72,9 +72,6 @@ jobs:
         run: pnpm -F desktop tauri build --bundles nsis
 
       # What tauri-plugin-updater fetches (ARCHITECTURE §9). Written by hand rather than
-      # pulling in tauri-action: it is a dozen lines, and the reasoning that keeps `gh` as the
-      # only thing holding `contents: write` applies to the build step too.
-      # What tauri-plugin-updater fetches (ARCHITECTURE §9). Written by hand rather than
       # pulling in tauri-action: it is a few lines, and the reasoning that keeps `gh` as the
       # only thing holding `contents: write` applies to the build step too.
       #

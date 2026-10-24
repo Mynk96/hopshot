@@ -66,7 +66,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_ME_UPDATER_PUBKEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU1QzBCRDVBNDI0OUE4MEMKUldRTXFFbENXcjNBVmVTaVhVOHgrMzJraXI1RGliaWFwZ0FtbFR3SUR1dWYwWURUSTB1Nm9lQk8K",
       "endpoints": [
         "https://github.com/Mynk96/hopshot/releases/latest/download/latest.json"
       ]

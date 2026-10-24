@@ -17,6 +17,11 @@ target/
 *.pem
 *.p12
 *.pfx
+# The Tauri updater signing key (ARCHITECTURE §9). Committing it would let anyone sign an
+# "update" that every install accepts and executes, so it is the worst secret in the project
+# to leak. Generate it outside the repo; this is defence in depth, not the plan.
+*.key
+!*.key.pub
 # OS / editor
 .DS_Store
 Thumbs.db
