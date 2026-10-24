@@ -20,10 +20,11 @@ import tauriConf from "../../../desktop/src-tauri/tauri.conf.json";
 const version = tauriConf.version;
 
 /*
- * The exact asset `.github/workflows/release.yml` uploads — Tauri's own NSIS naming, so the
- * workflow does not get to choose it and this string has to match byte for byte.
+ * Served from our own R2 bucket, not GitHub Releases: this repo is private, and private
+ * release assets 404 for anyone without a token. The filename is Tauri's own NSIS naming,
+ * so the workflow does not get to choose it and this string has to match byte for byte.
  */
-const installer = `https://github.com/Mynk96/hopshot/releases/download/v${version}/Hopshot_${version}_x64-setup.exe`;
+const installer = `https://downloads.hopshot.xyz/v${version}/Hopshot_${version}_x64-setup.exe`;
 ---
 
 <Base

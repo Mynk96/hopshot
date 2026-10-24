@@ -82,7 +82,7 @@ jobs:
         working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
         env:
           TAG: ${{ github.ref_name }}
-          REPO: ${{ github.repository }}
+          DOWNLOAD_BASE: ${{ vars.DOWNLOAD_BASE || 'https://downloads.hopshot.xyz' }}
         run: node "$GITHUB_WORKSPACE/scripts/update-manifest.mjs"
 
       - name: Checksum
@@ -92,6 +92,39 @@ jobs:
           for file in *-setup.exe; do
             sha256sum "$file" | tee "$file.sha256"
           done
+
+      # The actual distribution channel (ARCHITECTURE §9). GitHub Releases cannot serve this
+      # repo's assets: it is private, and private release downloads 404 without a token, which
+      # an installed app never has. R2 behind downloads.hopshot.xyz is public, keeps the repo
+      # and its business docs private, and gives us download counts GitHub would not.
+      #
+      # A bucket of its own, never hopshot-blobs: that one holds users' encrypted drops and
+      # must stay private.
+      - name: Publish to R2
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          put() {
+            npx --yes wrangler@4 r2 object put "hopshot-downloads/$1"               --file="$2" --content-type="$3" --cache-control="$4" --remote
+          }
+
+          installer=$(ls *-setup.exe)
+
+          # Version-qualified, so a URL handed out in a manifest never changes underneath an
+          # install that is mid-download.
+          put "$TAG/$installer"         "$installer"         "application/octet-stream" "public, max-age=31536000, immutable"
+          put "$TAG/$installer.sha256"  "$installer.sha256"  "text/plain"               "public, max-age=31536000, immutable"
+
+          # The one mutable key: every install polls exactly this URL forever. Short cache so
+          # a release is noticed within minutes rather than hours.
+          put "latest.json" "latest.json" "application/json" "public, max-age=300"
 
       - uses: actions/upload-artifact@v4
         with:
