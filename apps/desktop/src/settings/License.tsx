@@ -97,30 +97,24 @@ export function License() {
             there is no licence key to enter.
           </p>
 
-          {/* DESIGN S9 price block, at the launch prices from PRD §7. */}
+          {/*
+            * DESIGN S9 price block. One plan (PRD §7): the Lifetime-only tier is gone,
+            * because it could not pair a phone — the thing Hopshot is for.
+            */}
           {buying ? (
             <p className="text-body text-text-2">Finish paying in your browser…</p>
           ) : (
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => void buy("lifetime")}
-                >
-                  Buy Lifetime · $12
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => void buy("bundle")}
-                >
-                  Buy Lifetime + Sync · $19
-                </button>
-              </div>
+              <button
+                type="button"
+                className="btn btn-primary self-start"
+                onClick={() => void buy("bundle")}
+              >
+                Buy Hopshot · $19
+              </button>
               <span className="text-caption text-text-3">
-                Lifetime covers one computer. Sync adds three computers, three phones and
-                longer links, and includes the first year. 14-day refund, no questions asked.
+                Up to 3 computers and 3 phones, with the first year of Sync included.
+                7-day refund, no questions asked.
               </span>
             </div>
           )}
