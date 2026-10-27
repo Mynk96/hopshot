@@ -131,7 +131,7 @@ Send last to phone
 ─────────────
 Pair phone…            (SYNC badge if not on Sync)
 Settings…                   ⌘,
-Buy Hopshot — $19      (unlicensed only) / Add Sync — $24/yr (Lifetime only)
+Buy Hopshot — $19      (unlicensed only)
 ─────────────
 Quit Hopshot                ⌘Q
 ```

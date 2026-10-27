@@ -105,14 +105,13 @@ only thing that mints a licence. Everything below has to exist before the buy bu
 | Env var | What | Mode |
 |---|---|---|
 | `STRIPE_PRICE_BUNDLE` | $19 launch ($43 after) — Lifetime **and** the first year of Sync | one-time |
-| `STRIPE_PRICE_SYNC_YEARLY` | $24/year | **recurring, yearly** |
 
 Price ids are not secrets; they live in `services/api/wrangler.toml` under `[vars]`. Give each
 one a **lookup key** so a price change is a dashboard edit rather than a deploy.
 
 The bundle is deliberately a one-time price, not a subscription: the $19 is
 charged at checkout, and the card is saved (`setup_future_usage: off_session`) so that the
-renewal a year later is one click. **Nothing renews automatically** — see §2c.
+Hopshot takes one payment and never charges again, so no card is stored.
 
 ### Three secrets
 
@@ -135,43 +134,6 @@ Also `STRIPE_WEBHOOK_SECRET` and `RESEND_API_KEY` the same way.
 
 Then enable the **Customer Portal** (Settings → Billing → Customer portal), which is what
 Settings → License → Manage Sync opens. Allow cancellation and payment-method updates.
-
-## 2c. How the Sync renewal works (PRD F8.8)
-
-The bundle includes the first year of Sync. It does **not** auto-renew — that is a deliberate
-product decision, not a missing feature:
-
-1. A daily 09:00 UTC cron finds bundles whose year ends within 10 days.
-2. Each gets **one** email (deduplicated per licence per year through `emails_sent`) with a
-   single-use link: *"Nothing will be charged. If you want to keep syncing…"*
-3. The link burns the token and redirects into Checkout for `STRIPE_PRICE_SYNC_YEARLY`,
-   against the saved card.
-4. If they do nothing, Sync stops: phones unpair and the computer limit drops from 3 to 1.
-   **Lifetime keeps working forever** — shelf, capture, drag-out and share links.
-
-Settings → License shows the end date while Sync is live, so nobody learns about it on the day.
-
-### Verify it before launch
-
-Run the test clock. It fast-forwards a simulated year in about a minute and charges a
-year-old card, which is the one thing code review cannot tell you:
-
-```bash
-STRIPE_SECRET_KEY=sk_test_... STRIPE_PRICE_SYNC_YEARLY=price_... node scripts/test-renewal-clock.mjs
-```
-
-`FAIL=1` uses a card that declines off-session, to exercise the `past_due` path and the
-`limits.sync.paymentGraceDays` window. The script refuses to run against a live key and
-deletes its test clock (and the customer, charge and subscription with it) when it finishes.
-
-### India / RBI
-
-Recurring card mandates on Indian cards need an e-mandate, and registration fails above
-₹15,000 without additional authentication. $24/year is well inside that, but confirm with
-Stripe support that your account can take recurring INR mandates before relying on renewal
-revenue.
-
----
 
 ## 2d. End-to-end test in the Stripe sandbox (do this before the first real sale)
 
@@ -232,69 +194,19 @@ DESIGN S9's "Move it here?".
 Capture, drag into a browser, **Send to phone** → scan → the image opens on the phone →
 Share works. Then send from the phone back to the shelf and watch it arrive in under 3 s.
 
-### Part 4 — the renewal mail, without waiting a year
+### Part 4 — confirm there is nothing recurring
 
-The cron only notices a licence whose included Sync year ends within 10 days, so make one.
-Find it first:
-
-```bash
-npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "SELECT l.id, c.email, l.plan, l.created_at FROM licenses l JOIN customers c ON c.stripe_customer_id = l.customer_id ORDER BY l.created_at DESC LIMIT 5"
-```
-
-Move its purchase date back 356 days, so the year ends in 9 days — inside the notice window:
+Hopshot is bought once (PRD §7), so there is deliberately nothing to test here: no renewal
+email, no subscription, no saved card. Worth confirming that is actually true rather than
+assuming it:
 
 ```bash
-npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "UPDATE licenses SET created_at = created_at - 356*86400000 WHERE id = 'PASTE_LICENCE_ID'"
+npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "SELECT COUNT(*) AS subscriptions FROM subscriptions"
 ```
 
-Then run the job that the 09:00 UTC cron would run:
-
-```bash
-curl -X POST https://api.hopshot.xyz/v1/admin/renewals/run -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
-```
-
-`{"sent":1}` and one email. Call it again: still `{"sent":1}` but **no second email** — that
-is `emails_sent` doing its job. Settings → License should now read "Sync runs until …" with
-a date about nine days out.
-
-> Re-testing the email needs that record cleared, or nothing will send:
-> ```bash
-> npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "DELETE FROM emails_sent WHERE kind = 'sync_renewal'"
-> ```
-
-### Part 5 — opting in
-
-Click the link in the email. It burns the token and drops you into Checkout for $24/year
-against the **saved card** — you should not have to type a card number. Pay.
-
-Expect in the log: `customer.subscription.created` then `invoice.paid`. Then:
-
-```bash
-npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "SELECT stripe_subscription_id, status, current_period_end, past_due_since FROM subscriptions"
-```
-
-`status = active`, `past_due_since` null. Settings → License shows a date a year out and a
-**Manage Sync** button that opens Stripe's portal. Three computers again.
-
-Now click the email link a **second** time: it must land on `/pricing?renew=expired` rather
-than starting another checkout. A single-use token is what stops a forwarded email buying
-twice.
-
-### Part 6 — opting out, which is doing nothing
-
-Cancel the subscription in the Stripe sandbox dashboard (that is what a customer does in the
-portal), and push the licence past its year:
-
-```bash
-npx wrangler d1 execute hopshot --remote --config services/api/wrangler.toml --command "UPDATE licenses SET created_at = created_at - 20*86400000 WHERE id = 'PASTE_LICENCE_ID'"
-```
-
-Expect, at the app's next licence check: Sync off, phones unpaired, the computer limit back
-to 1 — and **capture, the shelf, drag-out and share links all still working**. That last part
-is the promise; if anything in Lifetime breaks here, that is a launch blocker.
-
-To see the dunning path instead, use `FAIL=1` with the test-clock script in §2c rather than
-doing it by hand.
+Zero. And in the Stripe dashboard, the customer created by your test purchase should have no
+subscription and no saved payment method — `setup_future_usage` was removed with the renewal,
+so Checkout no longer stores a card.
 
 ### When you are done
 
@@ -333,7 +245,7 @@ everyone, which is the state to be in when you are not testing.
 >
 > Hopshot fixes that: press a hotkey, grab part of the screen, and it lands on a small floating shelf. Drag it straight into Gmail/Slack/ChatGPT, or scan a QR code to open it on your phone. Everything disappears after 24 hours, and anything that goes online is end-to-end encrypted (the key never reaches our server).
 >
-> Try everything free for 7 days on Mac and Windows. Then it's $19 once ($15 this week). Add Sync ($24/year) and every capture lands on your phone automatically, and you can send photos back to your laptop.
+> $19 once, for Windows. Every capture lands on your phone automatically, and you can send photos back to your laptop. No subscription — phone sync is included, permanently.
 >
 > I'd love to hear where drag-and-drop *doesn't* work for you. That's the thing I'm testing hardest.
 

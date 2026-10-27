@@ -191,9 +191,9 @@ Sections: **General** (launch at login, hotkeys, after-capture actions, theme) �
 | F8.3 | **Activation without keys.** Each computer gets a hidden device token kept in the OS keychain. **(a) Bought in the app:** the app unlocks by itself a few seconds after payment; no input. **(b) Bought on the website (and founders):** the thanks page and the purchase email have an **Open in Hopshot** button that unlocks the app in one click. **(c) New computer or reinstall:** "Already bought? Restore" → enter the purchase email → click the link in the email (or type its 6-digit code). **Computer limit, counted automatically:** **Lifetime = 1 computer**; **Lifetime + Sync = up to 3** while Sync is active. A computer over the limit silently takes the slot of one unused for 30+ days; otherwise the app asks which computer to move from (Lifetime: "Hopshot is active on {other computer}. Move it here?" with an **Add Sync to use up to 3 computers** link). **If Sync ends**, the most recently used computer stays licensed and the others show the same move-or-renew screen; nothing on them is deleted. Settings → License lists the computers, each with Remove. |
 | F8.4 | **Offline:** the license is re-checked every 7 days; paid plans keep working for 30 days offline. |
 | F8.5 | Paid features unlock instantly; no restart. |
-| F8.7 | **Sync lapses:** if Sync is cancelled, its included year ends without a card, or a renewal payment fails (Stripe retries; 7-day grace), Sync features stop at the end of the paid period. Lifetime features keep working forever. Items already on the user's devices stay until they expire. |
+| F8.7 | **Sync does not lapse.** It is part of the purchase and has no end date, no renewal and no card on file. The only way a licence loses Sync is a refund or chargeback, which revokes the whole licence (F8.9). Fair-use limits bound the cost instead: `sync.vaultUploadsPerDay` items a day and `sync.vaultLiveBytes` held at once, every item expiring on its own. |
 | F8.6 | If Hopshot isn't installed yet when the user clicks **Open in Hopshot**, the page offers the download; the link keeps working after install (valid 30 days, up to the purchase's computer limit). |
-| F8.8 | **Sync renewal at $24/year.** **(a) Included year** (Lifetime + Sync buyers, and $19 founders from the public launch date): Sync starts as a Stripe subscription with 365 free days and **no card on file**, so nobody is charged by surprise. Hopshot emails **7 days before** the year ends, and the app shows a reminder in the shelf footer; both link to a page where the user adds a card. Adding a card any time before the end keeps Sync running, and the first $24 charge happens on the end date (no lost days). With no card, the subscription pauses on the end date, Hopshot emails "Sync has paused (the app keeps working)", and adding a card later resumes it. **(b) Paid yearly Sync** auto-renews; Hopshot emails **30 days before** each renewal with the date, the amount and a one-click manage/cancel link. Reminder emails have a "stop these reminders" link; renewal notices for paid subscriptions are always sent. |
+| F8.8 | **No subscription.** Hopshot is bought once and that is the end of the money. There is no renewal email, no billing portal, no saved card and no dunning. This replaced an opt-in $24/year Sync renewal: at this scale the infrastructure it paid for costs under a cent per user per month (ARCHITECTURE §11), and "pay once, forever" is both simpler to explain and simpler to run than Stripe Billing, a renewal cron, a grace window and RBI e-mandates. |
 | F8.9 | **Refunds, 14 days, no questions asked.** With no trial this is the only risk reversal, so it is stated on the buy button and on /pricing rather than only in the terms. Mechanically (14 days after purchase): refunding a payment in Stripe revokes its license automatically and cancels any included Sync; the app falls back to the locked state (F8.1a) at its next check. |
 
 ### F9 — Updates (P0)
@@ -223,7 +223,7 @@ No free plan and no trial. Hopshot is **pay-first**: free to download, locked un
 | Computers it runs on | up to 3, Mac + PC in any mix |
 | One shelf across computers (P1) | ✅ |
 | Updates | all 1.x updates |
-| After the first year | Sync is $24/year, **opt-in** (F8.8). Decline and the cloud features stop; everything else keeps working. |
+| After the first year | Nothing happens. There is no renewal and no expiry — Sync is part of what you bought. |
 
 **Why one price.** A Lifetime-only tier existed at $12 and was removed. It could not pair a phone — the thing Hopshot is actually for — so it sold a worse product at a lower margin, split the funnel, and made "why can't I pair?" a support question. The cost is losing the cheap entry point and the price anchor $12 gave $19; the gain is that every buyer can do the demo that sells the product.
 
@@ -295,7 +295,7 @@ Test on both **macOS** and **Windows** in Chrome, Edge and Safari (Mac only) plu
 | Week-2 retention | % of activated users who capture in days 8–14 | 20% |
 | Download → paid | Purchases / downloads | 10% |
 | Sync attach | % of buyers who add Sync | 25% |
-| Sync renewal | % of yearly Sync subscribers who renew (measured at month 12) | 60% |
+| Repeat purchases | Second licences bought by existing customers (gifts, second seats) | — |
 | Refund rate | Refunds / purchases | < 5% |
 | Crash-free sessions | Opt-in crash data | > 99.5% |
 
@@ -325,7 +325,7 @@ Test on both **macOS** and **Windows** in Chrome, Edge and Safari (Mac only) plu
 |---|---|
 | 1 | Desktop core: tray app, hotkey, capture overlay (Mac + Win), shelf, drag-out, copy, expiry |
 | 2 | Backend + encrypted drops + QR send + viewer page; settings; onboarding |
-| 3 | Licensing (Stripe: Lifetime, Lifetime + Sync, Sync renewals), vault pairing, phone web app (feed + upload), live sync; packaging/signing; private beta (20 users) |
+| 3 | Licensing (Stripe: the one $19 purchase), vault pairing, phone web app (feed + upload), live sync; packaging/signing; private beta (20 users) |
 | 4 | Fix beta issues, landing page, Store listing, launch assets → **launch week** |
 
 Details: `BUILD_PLAN.md`. Launch checklist: `docs/LAUNCH.md`.

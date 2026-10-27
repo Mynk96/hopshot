@@ -32,8 +32,6 @@ export type LicenseStatus = {
   plan: string;
   limit?: number | null;
   syncActive?: boolean | null;
-  /** Unix ms when Sync lapses if nothing is renewed; null once it is off. */
-  syncEndsAt?: number | null;
   devices?: LicensedComputer[] | null;
 };
 

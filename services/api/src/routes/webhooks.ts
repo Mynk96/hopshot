@@ -6,7 +6,6 @@ import {
   isNewEvent,
   recordPurchase,
   revokeByPaymentIntent,
-  upsertSubscription,
 } from "../lib/license.ts";
 import { verifyWebhook } from "../lib/stripe.ts";
 
@@ -50,23 +49,6 @@ webhooks.post("/stripe", async (c) => {
         break;
       case "charge.dispute.created":
         await onRefund(c.env, event.data.object, "revoked");
-        break;
-
-      /*
-       * Sync subscriptions (PRD F8.8). All four land in one place because `syncActive` only
-       * cares about the latest status, and Stripe does not guarantee delivery order — so the
-       * upsert is keyed on the subscription id and the most recent write wins.
-       */
-      case "customer.subscription.created":
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted":
-        await onSubscription(c.env, event.data.object, event.type);
-        break;
-
-      // Recorded so `past_due` starts its grace window from the first failure.
-      case "invoice.payment_failed":
-      case "invoice.paid":
-        await onInvoice(c.env, event.data.object);
         break;
 
       default:
@@ -148,64 +130,7 @@ async function onCheckoutCompleted(env: Env, object: Record<string, unknown>): P
   console.log(`licence ${licenseId} issued (${plan})`);
 }
 
-type Subscription = {
-  id?: string;
-  customer?: string | null;
-  status?: string;
-  current_period_end?: number | null;
-  cancel_at_period_end?: boolean;
-  default_payment_method?: string | null;
-};
 
-async function onSubscription(
-  env: Env,
-  object: Record<string, unknown>,
-  type: string,
-): Promise<void> {
-  const subscription = object as Subscription;
-  if (!subscription.id || !subscription.customer) {
-    console.warn("subscription event missing id or customer");
-    return;
-  }
-
-  // A deletion is terminal whatever the object still says, so it is forced rather than
-  // trusted: Stripe sends `canceled` here, but being explicit means a future status rename
-  // cannot silently leave Sync switched on.
-  const status = type === "customer.subscription.deleted" ? "canceled" : subscription.status;
-
-  await upsertSubscription(env, {
-    id: subscription.id,
-    customerId: subscription.customer,
-    status: status ?? "canceled",
-    // Stripe sends seconds; everything in D1 is ms.
-    currentPeriodEnd: subscription.current_period_end
-      ? subscription.current_period_end * 1000
-      : null,
-    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
-    hasPaymentMethod: Boolean(subscription.default_payment_method),
-  });
-
-  console.log(`subscription ${subscription.id} -> ${status ?? "canceled"}`);
-}
-
-async function onInvoice(env: Env, object: Record<string, unknown>): Promise<void> {
-  const invoice = object as {
-    subscription?: string | null;
-    customer?: string | null;
-    status?: string;
-    period_end?: number | null;
-  };
-
-  // A one-off invoice has no subscription, and nothing here applies to it.
-  if (!invoice.subscription || !invoice.customer) return;
-
-  await upsertSubscription(env, {
-    id: invoice.subscription,
-    customerId: invoice.customer,
-    status: invoice.status === "paid" ? "active" : "past_due",
-    currentPeriodEnd: invoice.period_end ? invoice.period_end * 1000 : null,
-  });
-}
 
 async function onRefund(
   env: Env,

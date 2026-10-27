@@ -36,7 +36,6 @@ export interface SyncLimits {
   readonly maxComputers: number;
   readonly vaultUploadsPerDay: number;
   readonly vaultLiveBytes: number;
-  readonly paymentGraceDays: number;
 }
 
 export interface ServerLimits {

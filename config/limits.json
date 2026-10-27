@@ -16,8 +16,7 @@
     "maxPhones": 3,
     "maxComputers": 3,
     "vaultUploadsPerDay": 500,
-    "vaultLiveBytes": 1073741824,
-    "paymentGraceDays": 7
+    "vaultLiveBytes": 1073741824
   },
   "server": {
     "maxCiphertextBytes": 12582912,

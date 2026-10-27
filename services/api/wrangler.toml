@@ -49,8 +49,5 @@ crons = ["*/15 * * * *", "0 9 * * *"]
 # The one plan (PRD §7): Lifetime plus the first year of Sync, $19 once. The old $12
 # Lifetime-only price is retired — it could not pair a phone, which is what Hopshot is for.
 STRIPE_PRICE_BUNDLE = "price_1UM4rpSAaYIq0lX8oRSba6nK"
-# The yearly Sync renewal (PRD F8.8). Only reached from a confirmed renewal link, so leaving
-# this unset makes renewals fail closed rather than charging anyone — nothing else breaks.
-STRIPE_PRICE_SYNC_YEARLY = "REPLACE_ME_price_sync_yearly"
 EMAIL_FROM = "Hopshot <founder@hopshot.xyz>"
 WEB_ORIGIN = "https://app.hopshot.xyz"

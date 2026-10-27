@@ -76,7 +76,6 @@ pub struct SyncLimits {
     pub max_computers: u32,
     pub vault_uploads_per_day: u32,
     pub vault_live_bytes: u64,
-    pub payment_grace_days: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -135,7 +134,6 @@ mod tests {
         assert!(l.sync.vault);
         assert_eq!(l.sync.max_phones, 3);
         assert_eq!(l.sync.vault_live_bytes, 1_073_741_824);
-        assert_eq!(l.sync.payment_grace_days, 7);
 
         assert_eq!(l.server.max_ciphertext_bytes, 12_582_912);
         assert_eq!(l.server.invite_ttl_seconds, 600);

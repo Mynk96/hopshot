@@ -20,7 +20,7 @@ This is the build spec that goes with `PRD.md`. It's written so Claude Code can 
 │   ├─ D1 (SQLite)   : drops, vaults, devices, invites, items, usage       │
 │   ├─ Durable Object: VaultHub (one per vault, WebSocket fan-out)         │
 │   ├─ Cron (15 min) : delete expired rows + objects                       │
-│   └─ Cron (daily)  : Sync renewal reminder emails (Resend)               │
+│   └─ Cron (15 min)  : delete expired drops and vault items + their R2 objects       │
 │  hopshot.xyz      — Pages (Astro): landing · /d/:id viewer · /app PWA    │
 └───────────────▲──────────────────────────────────────────────────────────┘
                 │ HTTPS (decrypts in the browser)
@@ -131,8 +131,7 @@ Every limit lives here. Rust reads it with `include_str!` + serde, TS imports it
     "maxPhones": 3,
     "maxComputers": 3,
     "vaultUploadsPerDay": 500,
-    "vaultLiveBytes": 1073741824,
-    "paymentGraceDays": 7
+    "vaultLiveBytes": 1073741824
   },
   "server": {
     "maxCiphertextBytes": 12582912,
@@ -309,14 +308,14 @@ Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 3
 | Product | Price | Lookup key | Metadata |
 |---|---|---|---|
 | Hopshot | one-time, $19 | `bundle` | `plan=bundle`, `sync_days=365` |
-| Hopshot Sync | recurring, $24/year | `sync_yearly` | `plan=sync` |
+| _(retired)_ Hopshot Sync | was recurring, $24/year | — | Sync is now part of the one-time purchase |
 
 One plan (PRD §7): `Purchasable` is `"bundle"` and nothing else, so `/license/buy/lifetime` is a 400. The `lifetime` *plan name* survives as the state a licence falls back to when Sync lapses. Code refers to prices only by **lookup key**. To change a price, create a new Price in the dashboard and transfer the lookup key to it; no deploy. Turn on the **customer portal** (update card, invoices, cancel at period end; no plan switching). Turn on Stripe's built-in emails for receipts, failed payments and expiring cards, plus Smart Retries. Turn **off** Stripe's free-trial reminder emails: Hopshot sends its own, and "trial" is the wrong word for an included year.
 
 **Checkout** is created by the Worker, so the website and the app never hold Stripe keys:
 
 - `GET /buy/{lifetime|bundle}?ref=` → Checkout Session with `mode=payment`, `customer_creation=always`, `billing_address_collection=required`, name collection on, `client_reference_id=ref`, `metadata.plan`, `success_url=https://hopshot.xyz/thanks?s={CHECKOUT_SESSION_ID}`, `cancel_url=https://hopshot.xyz/#pricing` → `303`. Stripe India requires the customer's name and billing address on export payments.
-- `POST /billing/sync-checkout` (device token header) → for a Lifetime owner without Sync: Checkout Session with `mode=subscription`, price `sync_yearly`, `customer` = their Stripe customer. If they already have a trialing or paused Sync subscription, return the add-card link instead.
+- _(retired)_ `POST /billing/sync-checkout` — there is no Sync subscription to sell. A pre-launch Lifetime holder who wants phone sync buys the current $19 licence.
 - `GET /billing/add-card?t={token}` → Checkout Session with `mode=setup` for that customer. On completion, set the card as the Sync subscription's default payment method and resume it if paused.
 - `POST /billing/portal` (device token header) and `GET /billing/manage?t={token}` → customer portal session → `303`.
 
@@ -326,7 +325,7 @@ One plan (PRD §7): `Purchasable` is `"bundle"` and nothing else, so `/license/b
 2. **Link (website buyers, founders):** `hopshot://activate?t={token}`, signed, valid 30 days, reusable until the computer limit. The thanks page (`GET /buy/session/{id}`) and the `license_ready` email carry it, as a normal https link `https://hopshot.xyz/activate#t=…` that opens the app (and offers the download if it isn't installed). The desktop registers the `hopshot` scheme with `tauri-plugin-deep-link` and calls `POST /license/claim`.
 3. **Restore (new computer, reinstall):** `POST /license/restore {email, installId}` always returns `202`; if that email owns a license, it emails a 6-digit code (10 min, 5 attempts) and an activation link. `POST /license/restore/verify {email, code, installId, label}` returns the device token.
 
-**Computer limit, tracked automatically:** `computerLimit(license)` = `sync.maxComputers` (3) while the customer's Sync is active (trialing, active, or within `paymentGraceDays`); otherwise `lifetime.maxComputers` (1). Registering again from the same `install_id` reuses its slot. A computer over the limit takes the slot of a device not seen for 30+ days (that device is marked removed and falls back to the locked state, PRD F8.1a, at its next check). If every slot was seen within 30 days, the API returns `409 device_limit` with `{pendingId, devices: [{id, label, lastSeenAt}]}`, and the app asks which to remove, then calls `POST /license/claim/finish {pendingId, removeDeviceId}`. `GET /license/status` updates `last_seen_at`; the app calls it at launch and every 7 days. **When the limit drops** (Sync ends), the most recently seen devices up to the new limit stay licensed; `GET /license/status` returns `{valid: false, reason: "over_limit", devices}` to the others, which show the move-or-renew screen (`POST /license/move-here` deactivates the chosen other device and licenses this one). Nothing is deleted; adding Sync again re-licenses them at their next check.
+**Computer limit, tracked automatically:** `computerLimit(license)` = `sync.maxComputers` (3) for a `bundle`, `lifetime.maxComputers` (1) for a pre-launch Lifetime licence. Registered on first unlock; a slot unused for 30 days is reclaimed silently, otherwise the app asks which computer to move from (DESIGN S9).
 
 **Webhook** `POST /webhooks/stripe` (secret `STRIPE_WEBHOOK_SECRET`; verify with `stripe.webhooks.constructEventAsync` and `Stripe.createSubtleCryptoProvider()`; record event IDs in `stripe_events` and skip duplicates):
 
@@ -339,19 +338,16 @@ One plan (PRD §7): `Purchasable` is `"bundle"` and nothing else, so `/license/b
 | `charge.refunded` (full) | license → `refunded`; cancel the included Sync subscription |
 | `charge.dispute.created` | license → `revoked`; email founder@hopshot.xyz |
 
-**Resolving the plan:** an `active` license → `lifetime`, upgraded to `sync` if the same customer has a subscription that is `trialing` or `active`, or `past_due` for at most `paymentGraceDays`. Everything is read from D1: no external call, no cache.
+**Resolving the plan:** an `active` `bundle` license → `sync`; an `active` pre-launch Lifetime license → `lifetime`; anything absent, refunded or revoked → `expired`. Read from D1 only, never Stripe, so a Stripe outage cannot lock out paying users.
 
-**Renewal emails (PRD F8.8):** a daily cron at 09:00 UTC; `lib/email.ts` sends through Resend from `Hopshot <founder@hopshot.xyz>`; `emails_sent` makes every send idempotent.
+**Transactional email:** `lib/email.ts` sends through Resend from `Hopshot <founder@hopshot.xyz>`; `emails_sent` makes every send idempotent.
 
 | Email | Who | When |
 |---|---|---|
 | `license_ready` | new license | on purchase or founder import: **Open in Hopshot** button + "restore with this email on other computers" |
 | `restore_code` | restore request | immediately: 6-digit code + activation link |
-| `sync_renewal` | `bundle` licence, no live subscription | inside `RENEWAL_NOTICE_DAYS` (10) of `licenses.created_at + 365d`, from the daily 09:00 UTC cron. Deduplicated per licence per renewal year by `emails_sent.period_key`, and carries a single-use confirm link — **nothing renews itself** (F8.8). |
-| `sync_paused` | subscription paused | on the `paused` webhook |
-| `sync_renewal_notice` | `active`, card on file, not cancelling | 30 days before `current_period_end` |
 
-Email links use a signed token valid for 30 days (`REMINDER_TOKEN_SECRET`). Reminder emails (not receipts or renewal notices) carry an unsubscribe link. Templates live in `services/api/src/emails/` (HTML + text). `GET /admin/emails/preview` (admin token) lists what the cron would send today.
+Templates live in `services/api/src/emails/` (HTML + text). Only two messages exist now — the receipt and the restore code — and both are transactional, so neither carries an unsubscribe link.
 
 **Founders and testers:** `POST /admin/licenses` (`ADMIN_TOKEN`) with `{email, name?, plan: "lifetime"|"bundle", source: "founder"|"comp", syncStartsAt?}` creates or reuses the Stripe customer, creates the license and, for `bundle`, the Sync subscription with `trial_end = syncStartsAt + 365 days`, then sends `license_ready`. On launch day, `scripts/export-founders.mjs` lists the paid pre-order sessions into `founders.csv`, and each row is imported with `syncStartsAt` = the launch date (as the pre-order terms promise).
 
@@ -459,7 +455,7 @@ CREATE TABLE trials (             -- retired with the trial (PRD F8.1); kept so 
 CREATE TABLE stripe_events (
   id TEXT PRIMARY KEY, type TEXT NOT NULL, received_at INTEGER NOT NULL
 );
-CREATE TABLE emails_sent (           -- period_key = the renewal date, so yearly notices repeat each year
+CREATE TABLE emails_sent (           -- period_key is '' for one-off mail; kept for any future recurring send
   subject_id TEXT NOT NULL, kind TEXT NOT NULL, period_key TEXT NOT NULL DEFAULT '',
   sent_at INTEGER NOT NULL, PRIMARY KEY (subject_id, kind, period_key)
 );
@@ -477,7 +473,7 @@ CREATE TABLE reports (
 - **Cron every 15 min:** select expired `drops`/`items`, delete their R2 objects, then the rows; delete used or expired `invites`; drop `usage` rows older than 7 days.
 - **R2 lifecycle rule** as a safety net: delete objects under the `d/` and `v/` prefixes 8 days after upload (the maximum TTL is 7 days).
 - R2 keys: `d/{dropId}` and `v/{vaultId}/{itemId}`.
-- **Cron daily (09:00 UTC):** Sync renewal reminders (§7.5).
+- **Cron daily (09:00 UTC):** declared but idle since Sync stopped renewing (§7.5).
 
 ### 7.9 Abuse and rate limits
 

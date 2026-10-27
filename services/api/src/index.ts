@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 
 import { sweep } from "./lib/cleanup.ts";
-import { sendRenewalNotices } from "./lib/renewals.ts";
 import { apiCors } from "./lib/cors.ts";
 
 import { admin } from "./routes/admin.ts";
@@ -79,15 +78,13 @@ export default {
             .catch((error) => console.error("retention sweep failed", error)),
         );
         break;
+      /*
+       * Kept but idle. Sync no longer renews (PRD §7: bought once, Sync forever), so the
+       * daily job it existed for is gone. The trigger stays declared in wrangler.toml so
+       * removing it is a deliberate config change rather than a silent drift, and so there
+       * is somewhere obvious to hang the next daily job.
+       */
       case "0 9 * * *":
-        // PRD F8.8: ask whether to continue Sync. Nothing renews itself.
-        ctx.waitUntil(
-          sendRenewalNotices(env)
-            .then((sent) => {
-              if (sent > 0) console.log(`sent ${sent} Sync renewal notice(s)`);
-            })
-            .catch((error) => console.error("renewal notices failed", error)),
-        );
         break;
       default:
         console.warn("unhandled cron trigger", event.cron);

@@ -101,7 +101,6 @@ pub fn run() {
             commands::license_buy,
             commands::license_move_here,
             commands::license_remove_computer,
-            commands::license_manage_sync,
             commands::update_supported,
             commands::update_check,
             commands::update_install,
