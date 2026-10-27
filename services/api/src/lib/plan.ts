@@ -92,6 +92,8 @@ export type VaultLimits = {
   maxPhones: number;
   maxComputers: number;
   uploadsPerDay: number;
+  /** Total live bytes a single vault may hold at once (ARCHITECTURE §4). */
+  liveBytes: number;
   itemTtlOptions: readonly Ttl[];
 };
 
@@ -102,6 +104,7 @@ export function vaultLimitsFor(plan: PlanName): VaultLimits {
       maxPhones: limits.sync.maxPhones,
       maxComputers: limits.sync.maxComputers,
       uploadsPerDay: limits.sync.vaultUploadsPerDay,
+      liveBytes: limits.sync.vaultLiveBytes,
       // Vault items follow the Lifetime item options; Sync widens drops, not shelf items.
       itemTtlOptions: limits.lifetime.itemTtlOptions,
     };
@@ -112,6 +115,7 @@ export function vaultLimitsFor(plan: PlanName): VaultLimits {
     maxPhones: 0,
     maxComputers: limits.lifetime.maxComputers,
     uploadsPerDay: 0,
+    liveBytes: 0,
     itemTtlOptions: limits.lifetime.itemTtlOptions,
   };
 }

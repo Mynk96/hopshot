@@ -937,3 +937,61 @@ describe("pay-first plan resolution (PRD F8.1)", () => {
     expect(limits.lifetime.vault).toBe(false);
   });
 });
+
+describe("the per-vault storage cap (limits.sync.vaultLiveBytes)", () => {
+  /*
+   * The daily upload cap bounds how *fast* a vault fills; this bounds how *much* it holds.
+   * Hopshot is bought once (PRD §7), so storage is the one cost that recurs without any
+   * revenue behind it — an unbounded vault is a bill that arrives every month forever.
+   */
+  async function fill(vault: Enrolled, bytes: number, expiresAt: number): Promise<void> {
+    await env.DB.prepare(
+      `INSERT INTO items (id, vault_id, source_device_id, r2_key, size, meta, created_at, expires_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, 'meta', ?6, ?7)`,
+    )
+      .bind(freshId(), vault.vaultId, vault.deviceId, `v/${freshId()}`, bytes, Date.now(), expiresAt)
+      .run();
+  }
+
+  it("refuses an upload that would push the vault past its cap", async () => {
+    const vault = await createVault();
+    // One byte of headroom left.
+    await fill(vault, limits.sync.vaultLiveBytes - 1, Date.now() + 86_400_000);
+
+    const response = await postItem(vault, vault.deviceToken, freshId(), new Uint8Array(64));
+
+    expect(response.status).toBe(429);
+    const body = await response.json<{ error: { code: string; message: string } }>();
+    expect(body.error.code).toBe("limit_reached");
+    // The message has to tell them space comes back, or "full" reads as permanent.
+    expect(body.error.message).toContain("expire");
+  });
+
+  it("still accepts an upload that fits", async () => {
+    const vault = await createVault();
+    await fill(vault, limits.sync.vaultLiveBytes / 2, Date.now() + 86_400_000);
+
+    const response = await postItem(vault, vault.deviceToken, freshId(), new Uint8Array(64));
+    expect(response.status).toBe(201);
+  });
+
+  /** Expiry is what makes the cap self-healing rather than a permanent wall. */
+  it("does not count items that have already expired", async () => {
+    const vault = await createVault();
+    // Over the cap on paper, but all of it is past its expiry.
+    await fill(vault, limits.sync.vaultLiveBytes * 2, Date.now() - 1000);
+
+    const response = await postItem(vault, vault.deviceToken, freshId(), new Uint8Array(64));
+    expect(response.status).toBe(201);
+  });
+
+  it("counts each vault separately", async () => {
+    const full = await createVault();
+    await fill(full, limits.sync.vaultLiveBytes, Date.now() + 86_400_000);
+
+    // A different install, so a different licence and a different vault.
+    const other = await createVault("Second PC");
+    const response = await postItem(other, other.deviceToken, freshId(), new Uint8Array(64));
+    expect(response.status).toBe(201);
+  });
+});

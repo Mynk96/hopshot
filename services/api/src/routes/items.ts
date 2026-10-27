@@ -78,6 +78,34 @@ items.post("/:vaultId/items/:itemId", async (c) => {
     return fail(c, "limit_reached", `That's ${caps.uploadsPerDay} synced items today.`);
   }
 
+  /*
+   * How much this vault is holding right now (`limits.sync.vaultLiveBytes`).
+   *
+   * The daily cap above bounds the *rate*; this bounds the *total*. Without it, 500 uploads
+   * a day at 12 MB with a 7-day expiry settles at ~42 GB in a single vault — paid for once,
+   * stored forever (PRD §7 is a one-time purchase, so there is no recurring revenue behind
+   * recurring storage).
+   *
+   * Counts only unexpired rows, so space comes back as items age out rather than needing a
+   * separate accounting table that could drift from reality. `idx_items_vault_created`
+   * covers the lookup.
+   */
+  const live = await c.env.DB.prepare(
+    "SELECT COALESCE(SUM(size), 0) AS bytes FROM items WHERE vault_id = ?1 AND expires_at > ?2",
+  )
+    .bind(vaultId, now)
+    .first<{ bytes: number }>();
+
+  const held = live?.bytes ?? 0;
+  if (held + declared > caps.liveBytes) {
+    const gb = Math.round(caps.liveBytes / 1_073_741_824);
+    return fail(
+      c,
+      "limit_reached",
+      `This vault is full. It holds up to ${gb} GB at a time; older items free up space as they expire.`,
+    );
+  }
+
   // Sealed metadata, opaque to us. Required: without it the receiving device has no file
   // name or dimensions and cannot render a card.
   const meta = c.req.header("X-Hopshot-Meta");
