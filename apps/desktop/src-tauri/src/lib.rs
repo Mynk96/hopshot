@@ -294,9 +294,9 @@ fn build_menu<R: Runtime>(
         None::<&str>,
     )?;
 
-    // Phone pairing comes with every purchase (PRD §7). The only plan without it is a
-    // pre-launch Lifetime licence, which cannot be upgraded by buying an add-on that no
-    // longer exists — so the label says it is unavailable rather than offering to sell it.
+    // Phone pairing comes with every purchase (PRD §7). The only plan without it is an
+    // older `lifetime` licence, which cannot be upgraded by buying an add-on that no longer
+    // exists — so the label says it is unavailable rather than offering to sell it.
     let pair_label = if plan.includes_sync() {
         "Pair phone…"
     } else {
@@ -340,7 +340,7 @@ fn build_menu<R: Runtime>(
             )?;
             menu.append(&buy)?;
         }
-        // A pre-launch Lifetime licence. Sync is not sold separately any more, so there is
+        // An older `lifetime` licence. Sync is not sold separately any more, so there is
         // nothing to add here; Settings → License explains the one way to get it.
         Plan::Lifetime => {}
         // Nothing left to sell.

@@ -6,9 +6,9 @@ import { OverLimit, type LicenseStatus } from "./OverLimit";
 /**
  * Settings → License (DESIGN S7, S9).
  *
- * The over-limit case is the substance here: PRD F8.3 gives a pre-launch Lifetime licence
- * one computer and the current $19 licence three, so an old licence can hold more slots than
- * it is allowed. `OverLimit` renders S9's chooser for that.
+ * The over-limit case is the substance here: PRD F8.3 gives the $19 licence three computers
+ * and an older `lifetime` one just one, so a licence can hold more slots than it is allowed.
+ * `OverLimit` renders S9's chooser for that.
  *
  * Buying and restoring arrive with the plans sheet; this pane reports what the server says
  * and offers the one action a blocked computer actually needs.
@@ -106,7 +106,7 @@ export function License() {
       {status?.valid && (
         <div className="flex flex-col gap-1">
           <b className="text-body-strong">
-            {status.plan === "sync" ? "Hopshot" : "Hopshot Lifetime (pre-launch)"}
+            {status.plan === "sync" ? "Hopshot" : "Hopshot (older licence)"}
           </b>
           <span className="text-small text-text-2">
             {status.limit === 1
@@ -118,7 +118,7 @@ export function License() {
           <span className="text-small text-text-2">
             {status.syncActive
               ? "Phone sync is included, for good. No subscription, nothing to renew."
-              : "A pre-launch licence, before phone sync was part of the price. Sync isn't sold separately — email founder@hopshot.xyz and we'll sort it out."}
+              : "This licence doesn't include phone sync. It isn't sold separately — email founder@hopshot.xyz and we'll sort it out."}
           </span>
         </div>
       )}

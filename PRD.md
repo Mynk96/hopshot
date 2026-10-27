@@ -227,11 +227,11 @@ No free plan and no trial. Hopshot is **pay-first**: free to download, locked un
 
 **Why one price.** A Lifetime-only tier existed at $12 and was removed. It could not pair a phone — the thing Hopshot is actually for — so it sold a worse product at a lower margin, split the funnel, and made "why can't I pair?" a support question. The cost is losing the cheap entry point and the price anchor $12 gave $19; the gain is that every buyer can do the demo that sells the product.
 
-**Lifetime as a state, not a tier.** `lifetime` still exists internally: it is what a purchase becomes when its Sync year lapses, and what pre-launch $12 buyers hold. Nobody can buy it.
+**Lifetime as a state, not a tier.** `lifetime` still exists internally — it is the shape of a licence without Sync — but nothing produces one: the $12 tier is retired and Sync no longer lapses. It is kept so an older licence, or one created by hand, still resolves to something sensible rather than to `expired`.
 
 **Renewal economics, honestly.** Bundling Sync with every purchase means the renewal cohort is no longer self-selected — many buyers will never have used Sync and will ignore the renewal email. Treat the 60% renewal target below as applying to a cohort that no longer exists, and plan on $19 one-time with renewal as upside.
 
-**Founder pre-orders (validation phase, now closed):** $12 Lifetime and $19 bundle, sold before launch. $12 holders keep a `lifetime` licence; $19 holders are indistinguishable from any buyer today. On launch day, founders get an email with an **Open in Hopshot** button, created automatically from their Stripe payments (and $19 founders get their Sync year, starting that day); there is nothing to redeem or type.
+**Everything is launched.** There is no pre-order, beta or founder phase: the app is downloadable, the one price is live, and anyone who paid before launch is given a `bundle` licence like every other customer. On launch day, founders get an email with an **Open in Hopshot** button, created automatically from their Stripe payments (and $19 founders get their Sync year, starting that day); there is nothing to redeem or type.
 
 **Launch pricing:** one price, **$19**, not time-limited. The struck-through "was $43" framing is gone with the second tier — a discount against a price that was never charged is a lie, and there is nothing left to compare against.
 
@@ -336,5 +336,5 @@ Details: `BUILD_PLAN.md`. Launch checklist: `docs/LAUNCH.md`.
 
 1. Trademark search for "Hopshot" (USPTO/WIPO) and Microsoft Store name reservation.
 2. Store version pricing: the Store listing is a free download with in-app Stripe checkout (Microsoft allows non-game apps to use their own payment system; confirm current Store policy before submitting).
-3. Founder pre-order: cap at 200 buyers or at 7 days, whichever comes first?
+3. Anyone who paid through the pre-order Payment Links has no licence: `POST /admin/licenses` was never built and those links are archived. Check Stripe for completed payments and settle them before launch — they paid and have nothing.
 4. Is it worth making Window capture (F1.6) P0 for Mac users, who expect it from ⌘⇧4 + Space?

@@ -5,7 +5,7 @@ import { Icon } from "../shelf/icons";
 /**
  * Over the computer limit (DESIGN S9, PRD F8.3).
  *
- * Three computers on the current $19 licence, one on a pre-launch Lifetime licence. A
+ * Three computers on the $19 licence, one on an older `lifetime` licence. A
  * licence can hold more slots than it is allowed — usually an old licence that was used on
  * several machines — so the server keeps the most recently seen devices valid and tells the
  * rest `over_limit`. This is what those machines see.
@@ -14,7 +14,7 @@ import { Icon } from "../shelf/icons";
  *
  * - **Three computers**: "Hopshot is on 3 computers. Remove one to use it here." with the
  *   list and Remove buttons.
- * - **One computer** (pre-launch licence): "Hopshot is active on {other}. Move it here?"
+ * - **One computer** (older licence): "Hopshot is active on {other}. Move it here?"
  *   with **Move here**. S9's *Add Sync* link is gone — Sync is not sold separately.
  */
 
@@ -49,7 +49,7 @@ export function OverLimit({
 
   /*
    * A limit above one is the current $19 licence, so this is the "remove one" case. At one
-   * it is a pre-launch Lifetime licence, and the only option is moving the licence rather
+   * it is an older `lifetime` licence, and the only option is moving the licence rather
    * than freeing a slot — there is no longer an add-on to sell that would raise the cap.
    */
   const isMoveCase = limit <= 1;
@@ -150,8 +150,7 @@ export function OverLimit({
       */}
       {isMoveCase && (
         <p className="text-caption text-text-3">
-          This is a pre-launch licence, good for one computer. Email founder@hopshot.xyz if
-          you need it on more.
+          This licence covers one computer. Email founder@hopshot.xyz if you need it on more.
         </p>
       )}
     </section>

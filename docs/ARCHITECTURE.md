@@ -338,7 +338,7 @@ One plan (PRD §7): `Purchasable` is `"bundle"` and nothing else, so `/license/b
 | `charge.refunded` (full) | license → `refunded`; cancel the included Sync subscription |
 | `charge.dispute.created` | license → `revoked`; email founder@hopshot.xyz |
 
-**Resolving the plan:** an `active` `bundle` license → `sync`; an `active` pre-launch Lifetime license → `lifetime`; anything absent, refunded or revoked → `expired`. Read from D1 only, never Stripe, so a Stripe outage cannot lock out paying users.
+**Resolving the plan:** an `active` `bundle` license → `sync`; an `active` `lifetime` license → `lifetime` (nothing creates one today); anything absent, refunded or revoked → `expired`. Read from D1 only, never Stripe, so a Stripe outage cannot lock out paying users.
 
 **Transactional email:** `lib/email.ts` sends through Resend from `Hopshot <founder@hopshot.xyz>`; `emails_sent` makes every send idempotent.
 

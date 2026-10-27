@@ -147,7 +147,7 @@ mod tests {
         assert!(Plan::Sync.includes_sync());
         assert!(
             !Plan::Lifetime.includes_sync(),
-            "a pre-launch Lifetime licence predates phone sync"
+            "an older lifetime licence does not include phone sync"
         );
         assert!(!Plan::Expired.includes_sync());
     }
