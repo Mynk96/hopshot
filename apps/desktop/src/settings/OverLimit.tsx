@@ -5,18 +5,17 @@ import { Icon } from "../shelf/icons";
 /**
  * Over the computer limit (DESIGN S9, PRD F8.3).
  *
- * One computer on Lifetime, three while Sync is active. When the limit drops — a bundle's
- * included Sync year ending — the licence can hold more slots than it is now allowed, so the
- * server keeps the most recently seen devices valid and tells the rest `over_limit`. This is
- * what those machines see.
+ * Three computers on the current $19 licence, one on a pre-launch Lifetime licence. A
+ * licence can hold more slots than it is allowed — usually an old licence that was used on
+ * several machines — so the server keeps the most recently seen devices valid and tells the
+ * rest `over_limit`. This is what those machines see.
  *
- * Three shapes, exactly as S9 specifies:
+ * Two shapes now that there is one plan (PRD §7):
  *
- * - **Lifetime (1)**: "Hopshot is active on {other}. Move it here?" with **Move here** and a
- *   small *Add Sync to use up to 3 computers* link.
- * - **Lifetime + Sync (3)**: "Hopshot is on 3 computers. Remove one to use it here." with the
+ * - **Three computers**: "Hopshot is on 3 computers. Remove one to use it here." with the
  *   list and Remove buttons.
- * - **After Sync ends**: the Lifetime shape, but the link reads *Renew Sync*.
+ * - **One computer** (pre-launch licence): "Hopshot is active on {other}. Move it here?"
+ *   with **Move here**. S9's *Add Sync* link is gone — Sync is not sold separately.
  */
 
 export type LicensedComputer = {
@@ -49,14 +48,11 @@ export function OverLimit({
   const limit = status.limit ?? 1;
 
   /*
-   * A limit above one means Sync is still active, so this is the "remove one" case. At one,
-   * it is the move case — and whether the link offers *Add Sync* or *Renew Sync* depends on
-   * whether this licence ever had Sync, which is what `plan` tells us: a bundle whose year
-   * lapsed reports `lifetime`, same as a plain Lifetime, so the distinguishing signal is
-   * `syncActive === false` on a licence that has devices beyond the cap.
+   * A limit above one is the current $19 licence, so this is the "remove one" case. At one
+   * it is a pre-launch Lifetime licence, and the only option is moving the licence rather
+   * than freeing a slot — there is no longer an add-on to sell that would raise the cap.
    */
   const isMoveCase = limit <= 1;
-  const hadSync = status.plan === "sync" || (status.syncActive === false && others.length > 1);
 
   const moveHere = async (releaseDeviceId: string) => {
     setBusy(releaseDeviceId);
@@ -148,20 +144,16 @@ export function OverLimit({
       </ul>
 
       {/*
-        S9: the Lifetime case carries a small upsell link, which reads "Renew Sync" when this
-        licence used to have Sync rather than never having had it.
+        S9 used to carry an "Add Sync" upsell here. Sync is not sold separately any more
+        (PRD §7), so there is nothing to offer: a one-computer licence is a pre-launch one,
+        and the only route to three is a conversation, not a checkout.
       */}
       {isMoveCase && (
-        <button
-          type="button"
-          className="btn btn-ghost btn-compact self-start text-caption"
-          onClick={() => void invoke("open_plans").catch(() => undefined)}
-        >
-          {hadSync ? "Renew Sync" : "Add Sync to use up to 3 computers"}
-        </button>
+        <p className="text-caption text-text-3">
+          This is a pre-launch licence, good for one computer. Email founder@hopshot.xyz if
+          you need it on more.
+        </p>
       )}
-
-      <p className="text-caption text-text-3">Secure checkout by Stripe · 14-day refund</p>
     </section>
   );
 }

@@ -265,9 +265,10 @@ fn poll_claim<R: Runtime>(app: &AppHandle<R>, install_id: &str, claim: &str) {
 }
 
 /// PRD F8.2 opens Stripe Checkout in the browser.
-pub fn open_checkout<R: Runtime>(app: &AppHandle<R>, plan: Plan) {
-    let product = if plan.includes_sync() { "bundle" } else { "lifetime" };
-    if let Err(error) = buy(app, product) {
+///
+/// Always the bundle: one plan (PRD §7), and the API refuses anything else with a 400.
+pub fn open_checkout<R: Runtime>(app: &AppHandle<R>) {
+    if let Err(error) = buy(app, "bundle") {
         log::warn!("could not start checkout: {error}");
     }
 }

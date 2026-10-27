@@ -294,12 +294,13 @@ fn build_menu<R: Runtime>(
         None::<&str>,
     )?;
 
-    // DESIGN S1 marks this row with a SYNC badge when the plan doesn't include sync. A
-    // native menu has nowhere to put a badge, so the label carries it.
+    // Phone pairing comes with every purchase (PRD §7). The only plan without it is a
+    // pre-launch Lifetime licence, which cannot be upgraded by buying an add-on that no
+    // longer exists — so the label says it is unavailable rather than offering to sell it.
     let pair_label = if plan.includes_sync() {
         "Pair phone…"
     } else {
-        "Pair phone… (Sync)"
+        "Pair phone… (not on this licence)"
     };
     let pair_phone = MenuItem::with_id(app, menu_id::PAIR_PHONE, pair_label, true, None::<&str>)?;
 
@@ -326,8 +327,8 @@ fn build_menu<R: Runtime>(
         &settings_item,
     ])?;
 
-    // Prices are the PRD §7 list prices. Launch pricing is decided server-side, so this
-    // label moves to the plan payload in Phase 4 rather than growing more constants here.
+    // One plan at one price (PRD §7), so there is exactly one thing to offer and only to
+    // someone who has not bought yet.
     match plan {
         Plan::Expired => {
             let buy = MenuItem::with_id(
@@ -339,16 +340,9 @@ fn build_menu<R: Runtime>(
             )?;
             menu.append(&buy)?;
         }
-        Plan::Lifetime => {
-            let add_sync = MenuItem::with_id(
-                app,
-                menu_id::BUY,
-                "Add Sync — $24/yr",
-                true,
-                None::<&str>,
-            )?;
-            menu.append(&add_sync)?;
-        }
+        // A pre-launch Lifetime licence. Sync is not sold separately any more, so there is
+        // nothing to add here; Settings → License explains the one way to get it.
+        Plan::Lifetime => {}
         // Nothing left to sell.
         Plan::Sync => {}
     }
@@ -374,7 +368,7 @@ fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
             }
             let _ = app.emit("settings:tab", "devices");
         }
-        menu_id::BUY => license::open_checkout(app, license::current_plan(app)),
+        menu_id::BUY => license::open_checkout(app),
         menu_id::SETTINGS => {
             if let Err(error) = show_settings_window(app) {
                 log::error!("could not open Settings: {error}");

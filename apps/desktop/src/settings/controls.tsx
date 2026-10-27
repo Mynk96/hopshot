@@ -4,8 +4,10 @@ import { Icon } from "../shelf/icons";
 /**
  * The Settings controls from `design/mockups.html`: `.srow`, `.switch` and `.seg`.
  *
- * `locked` is the Sync gate (DESIGN S7): a Lifetime user sees the control with a padlock,
- * and touching it opens the plans sheet instead of changing anything.
+ * `locked` shows a control with a padlock and opens the plans sheet instead of changing
+ * anything (DESIGN S7). Currently unused: with one plan (PRD §7) every buyer has every
+ * feature, so nothing is gated. Kept because it is the affordance any future gate should
+ * reuse rather than reinvent.
  */
 
 export function Row({
@@ -84,7 +86,7 @@ export function Segmented({
 }: {
   options: { value: string; label: string }[];
   value: string;
-  /** Values only available with Sync; they show a padlock (DESIGN S7). */
+  /** Values the current plan cannot pick; they show a padlock (DESIGN S7). Unused today. */
   lockedValues?: string[];
   onChange: (next: string) => void;
 }) {

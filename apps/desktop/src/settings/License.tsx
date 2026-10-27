@@ -6,9 +6,9 @@ import { OverLimit, type LicenseStatus } from "./OverLimit";
 /**
  * Settings → License (DESIGN S7, S9).
  *
- * The over-limit case is the substance here: PRD F8.3 gives Lifetime one computer and Sync
- * three, so a licence can end up holding more slots than it is allowed — most often when a
- * bundle's included Sync year runs out. `OverLimit` renders S9's chooser for that.
+ * The over-limit case is the substance here: PRD F8.3 gives a pre-launch Lifetime licence
+ * one computer and the current $19 licence three, so an old licence can hold more slots than
+ * it is allowed. `OverLimit` renders S9's chooser for that.
  *
  * Buying and restoring arrive with the plans sheet; this pane reports what the server says
  * and offers the one action a blocked computer actually needs.
@@ -95,8 +95,8 @@ export function License() {
                 Buy Hopshot · $19
               </button>
               <span className="text-caption text-text-3">
-                Up to 3 computers and 3 phones, with the first year of Sync included.
-                14-day refund, no questions asked.
+                Up to 3 computers and 3 phones, phone sync included permanently.
+                No subscription. 14-day refund, no questions asked.
               </span>
             </div>
           )}
@@ -106,7 +106,7 @@ export function License() {
       {status?.valid && (
         <div className="flex flex-col gap-1">
           <b className="text-body-strong">
-            {status.plan === "sync" ? "Lifetime + Sync" : "Lifetime"}
+            {status.plan === "sync" ? "Hopshot" : "Hopshot Lifetime (pre-launch)"}
           </b>
           <span className="text-small text-text-2">
             {status.limit === 1
@@ -118,7 +118,7 @@ export function License() {
           <span className="text-small text-text-2">
             {status.syncActive
               ? "Phone sync is included, for good. No subscription, nothing to renew."
-              : "This licence predates Sync. Phones and extra computers aren't included."}
+              : "A pre-launch licence, before phone sync was part of the price. Sync isn't sold separately — email founder@hopshot.xyz and we'll sort it out."}
           </span>
         </div>
       )}

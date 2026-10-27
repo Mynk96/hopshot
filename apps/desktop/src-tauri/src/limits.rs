@@ -141,11 +141,14 @@ mod tests {
         assert_eq!(l.server.per_ip_drops_per_day, 100);
     }
 
-    /// Drives the SYNC badge on the tray menu's "Pair phone…" row (DESIGN S1).
+    /// Drives whether the tray's "Pair phone…" row is offered (DESIGN S1).
     #[test]
     fn sync_availability_follows_the_limits_file() {
         assert!(Plan::Sync.includes_sync());
-        assert!(!Plan::Lifetime.includes_sync(), "sync is a paid add-on");
+        assert!(
+            !Plan::Lifetime.includes_sync(),
+            "a pre-launch Lifetime licence predates phone sync"
+        );
         assert!(!Plan::Expired.includes_sync());
     }
 
