@@ -104,12 +104,18 @@ export type CheckoutSession = {
   created?: number | null;
 };
 
-/** Which thing is being bought. `bundle` is Lifetime plus the first year of Sync. */
-export type Purchasable = "lifetime" | "bundle";
+/**
+  * Which thing is being bought. One plan now (PRD §7): `bundle` is the whole product —
+  * Lifetime plus the first year of Sync.
+  *
+  * `lifetime` is deliberately absent. It still exists as a *licence state* — it is what a
+  * bundle becomes when its Sync year lapses, and what pre-launch Lifetime buyers hold — but
+  * it is no longer something anyone can buy.
+  */
+export type Purchasable = "bundle";
 
-function priceId(env: Env, plan: Purchasable): string {
-  const vars = env as { STRIPE_PRICE_LIFETIME?: string; STRIPE_PRICE_BUNDLE?: string };
-  const id = plan === "lifetime" ? vars.STRIPE_PRICE_LIFETIME : vars.STRIPE_PRICE_BUNDLE;
+function priceId(env: Env, _plan: Purchasable): string {
+  const id = (env as { STRIPE_PRICE_BUNDLE?: string }).STRIPE_PRICE_BUNDLE;
   if (!id) throw new StripeError(500, "That plan is not configured yet.");
   return id;
 }

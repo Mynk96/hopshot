@@ -41,7 +41,9 @@ function webOrigin(env: Env): string {
 }
 
 function isPurchasable(value: string): value is Purchasable {
-  return value === "lifetime" || value === "bundle";
+  // One plan (PRD §7). `lifetime` remains a licence *state* but is not for sale, so a
+  // request for it is a 400 rather than a checkout nobody should be able to reach.
+  return value === "bundle";
 }
 
 /**

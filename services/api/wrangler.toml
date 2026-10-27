@@ -46,7 +46,8 @@ new_sqlite_classes = ["VaultHub"]
 crons = ["*/15 * * * *", "0 9 * * *"]
 
 [vars]
-STRIPE_PRICE_LIFETIME = "price_1UTKyKSAaYIq0lX8kOyG4XUJ"
+# The one plan (PRD §7): Lifetime plus the first year of Sync, $19 once. The old $12
+# Lifetime-only price is retired — it could not pair a phone, which is what Hopshot is for.
 STRIPE_PRICE_BUNDLE = "price_1UM4rpSAaYIq0lX8oRSba6nK"
 # The yearly Sync renewal (PRD F8.8). Only reached from a confirmed renewal link, so leaving
 # this unset makes renewals fail closed rather than charging anyone — nothing else breaks.

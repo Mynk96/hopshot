@@ -163,7 +163,7 @@ export function OverLimit({
         </button>
       )}
 
-      <p className="text-caption text-text-3">Secure checkout by Stripe · 7-day refund</p>
+      <p className="text-caption text-text-3">Secure checkout by Stripe · 14-day refund</p>
     </section>
   );
 }

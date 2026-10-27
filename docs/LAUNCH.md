@@ -42,9 +42,9 @@
 | Icon | 1024 px master + all sizes (DESIGN §6) |
 | Tagline (≤ 60 chars) | "Screenshots that drag anywhere and clean up after themselves" |
 | Short description | "Hopshot puts every screenshot on a floating shelf. Drag it into any website, send it to your phone, and it's gone in 24 hours. Mac & Windows." |
-| Landing page | Live, with Download (free, locked until bought) + Lifetime and Sync checkout; FAQ covers privacy, SmartScreen, macOS permission and the 14-day refund |
+| Landing page | Live, with Download (free, locked until bought) and one $19 plan; FAQ covers privacy, SmartScreen, macOS permission and the 14-day refund |
 | Support | founder@hopshot.xyz + a short FAQ; canned replies for the top 5 questions |
-| Launch pricing | Lifetime $12 and Lifetime + Sync $19 for a limited launch period, then $19 / $43; change a price by moving its Stripe lookup key (no deploy). Site buttons go to `https://api.hopshot.xyz/v1/buy/{lifetime|bundle}?ref=…` |
+| Launch pricing | One price, $19, not time-limited (PRD §7). Change it by moving its Stripe lookup key (no deploy). Site buttons go to `https://api.hopshot.xyz/v1/buy/{lifetime|bundle}?ref=…` |
 | Founders | Launch day: run `scripts/export-founders.mjs`, import each row with `POST /admin/licenses` (syncStartsAt = launch date); keys go out by email automatically. Then switch the site's pre-order buttons to the `/buy` links |
 
 ---
@@ -104,7 +104,6 @@ only thing that mints a licence. Everything below has to exist before the buy bu
 
 | Env var | What | Mode |
 |---|---|---|
-| `STRIPE_PRICE_LIFETIME` | $12 launch ($19 after) | one-time |
 | `STRIPE_PRICE_BUNDLE` | $19 launch ($43 after) — Lifetime **and** the first year of Sync | one-time |
 | `STRIPE_PRICE_SYNC_YEARLY` | $24/year | **recurring, yearly** |
 
@@ -208,7 +207,7 @@ pnpm -F desktop tauri build
 ```
 
 Install from `apps/desktop/src-tauri/target/release/bundle/nsis/`, then in the app:
-Settings → License → **Buy Lifetime + Sync · $19**. Pay with `4242 4242 4242 4242`, any
+Settings → License → **Buy Hopshot · $19**. Pay with `4242 4242 4242 4242`, any
 future expiry, any CVC.
 
 Expect: the app unlocks **by itself** within a few seconds of payment — no key, no restart —

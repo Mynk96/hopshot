@@ -210,13 +210,13 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 1. **Welcome:** display text "Screenshots that clean up after themselves." + 3 bullets (Drag anywhere · Open on your phone · Gone in 24h) → `Get started`.
 2. **Permission (macOS only):** "Hopshot needs Screen Recording permission to capture your screen." → `Open System Settings`. A live status row goes from ◌ Waiting… to ✓ Granted. Small print: "macOS may ask you to confirm this again from time to time."
 3. **Try it:** keycaps animation `⌘ ⇧ 2` → "Select anything on your screen." Completes automatically when the first capture lands, then shows "Now drag it from the shelf into any browser tab."
-4. **Done:** "Buy Hopshot to start capturing — $12 once, or $19 with Sync. 14-day refund, no questions." → `See plans` / `Finish`, plus a stats opt-in checkbox (unchecked).
+4. **Done:** "Buy Hopshot to start capturing — $19 once, everything included. 14-day refund, no questions." → `See plans` / `Finish`, plus a stats opt-in checkbox (unchecked).
 
 ### S9 — Plans sheet
 
-- Two columns, **Lifetime** vs **Lifetime + Sync** (the table from PRD §7, trimmed to the 6 most important rows). Lifetime owners see only the Sync column.
-- Price block: **Lifetime $12** (launch price, later $19) · **Lifetime + Sync $19** (includes the first year of Sync, then $24/year, optional). Lifetime owners see only **Add Sync · $24/year**.
-- Buttons: `Buy Lifetime` · `Buy Lifetime + Sync` (primary) · `Already bought? Restore`.
+- One column (PRD §7 has one plan). Owners whose Sync has lapsed see the renewal instead.
+- Price block: **$19 once**, everything included, first year of Sync bundled, then $24/year opt-in. A licence whose Sync has lapsed sees only **Add Sync · $24/year**.
+- Buttons: `Buy Hopshot · $19` (primary) · `Already bought? Restore`.
 - After a Buy click the sheet shows "Finish paying in your browser…" and unlocks by itself when payment completes ("You're all set"). Restore: email field → "Check your email" → the link opens the app, or a 6-digit code field.
 - Over the computer limit. **Lifetime (1):** "Hopshot is active on {other computer}. Move it here?" with **Move here** (primary) and a small link **Add Sync to use up to 3 computers**. **Lifetime + Sync (3):** "Hopshot is on 3 computers. Remove one to use it here." with the list (name, last used) and Remove buttons. After Sync ends, extra computers show the Lifetime version with **Renew Sync** as the link.
 - Trust line: "Secure checkout by Stripe · 14-day refund".

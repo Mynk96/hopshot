@@ -114,7 +114,7 @@ export function License() {
               </button>
               <span className="text-caption text-text-3">
                 Up to 3 computers and 3 phones, with the first year of Sync included.
-                7-day refund, no questions asked.
+                14-day refund, no questions asked.
               </span>
             </div>
           )}

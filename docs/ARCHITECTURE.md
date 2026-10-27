@@ -308,11 +308,10 @@ Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 3
 
 | Product | Price | Lookup key | Metadata |
 |---|---|---|---|
-| Hopshot Lifetime | one-time, $12 at launch, later $19 | `lifetime` | `plan=lifetime` |
-| Hopshot Lifetime + Sync | one-time, $19 | `bundle` | `plan=bundle`, `sync_days=365` |
+| Hopshot | one-time, $19 | `bundle` | `plan=bundle`, `sync_days=365` |
 | Hopshot Sync | recurring, $24/year | `sync_yearly` | `plan=sync` |
 
-Code refers to prices only by **lookup key**. To change a price (e.g. Lifetime $12 → $19), create a new Price in the dashboard and transfer the lookup key to it; no deploy. Turn on the **customer portal** (update card, invoices, cancel at period end; no plan switching). Turn on Stripe's built-in emails for receipts, failed payments and expiring cards, plus Smart Retries. Turn **off** Stripe's free-trial reminder emails: Hopshot sends its own, and "trial" is the wrong word for an included year.
+One plan (PRD §7): `Purchasable` is `"bundle"` and nothing else, so `/license/buy/lifetime` is a 400. The `lifetime` *plan name* survives as the state a licence falls back to when Sync lapses. Code refers to prices only by **lookup key**. To change a price, create a new Price in the dashboard and transfer the lookup key to it; no deploy. Turn on the **customer portal** (update card, invoices, cancel at period end; no plan switching). Turn on Stripe's built-in emails for receipts, failed payments and expiring cards, plus Smart Retries. Turn **off** Stripe's free-trial reminder emails: Hopshot sends its own, and "trial" is the wrong word for an included year.
 
 **Checkout** is created by the Worker, so the website and the app never hold Stripe keys:
 

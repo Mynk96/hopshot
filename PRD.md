@@ -209,38 +209,42 @@ On computer A: Settings → Devices → "Link another computer" shows a 12-chara
 
 ## 7. Pricing and packaging
 
-No free plan and no trial. Hopshot is **pay-first**: free to download, locked until bought, with a **14-day refund, no questions asked**. Two options.
+No free plan and no trial. Hopshot is **pay-first**: free to download, locked until bought, with a **14-day refund, no questions asked**. **One price.**
 
-| | **Lifetime: $19 once** ($12 at launch) | **Sync add-on: $24/year** |
-|---|---|---|
-| What it is | The app, forever, on 1 computer | Cloud features on top of Lifetime (requires Lifetime) |
-| Hotkey capture, shelf, drag out, copy | ✅ | ✅ |
-| Shelf size / item expiry | 100 / 1 h, 24 h or 7 d, pin (P1) | same |
-| Catch other screenshots, window capture (P1) | ✅ | ✅ |
-| Send to phone via QR + share links | 10/day, 24 h | 200/day, up to 7 d |
-| Paired phone feed (auto-sync) | — | ✅ up to 3 phones |
-| Phone → computer | — | ✅ |
-| Computers it runs on | 1 | up to 3, Mac + PC in any mix |
-| One shelf across computers, e.g. Mac + PC (P1) | — | ✅ |
-| Updates | all 1.x updates | all 1.x updates |
-| If you stop paying | — | Cloud features stop; Lifetime keeps working |
+| | **Hopshot: $19 once** |
+|---|---|
+| What it is | The whole app, forever, plus the first year of Sync |
+| Hotkey capture, shelf, drag out, copy | ✅ |
+| Shelf size / item expiry | 100 / 1 h, 24 h or 7 d, pin (P1) |
+| Catch other screenshots, window capture (P1) | ✅ |
+| Send to phone via QR + share links | 200/day, up to 7 d |
+| Paired phone feed (auto-sync) | ✅ up to 3 phones |
+| Phone → computer | ✅ |
+| Computers it runs on | up to 3, Mac + PC in any mix |
+| One shelf across computers (P1) | ✅ |
+| Updates | all 1.x updates |
+| After the first year | Sync is $24/year, **opt-in** (F8.8). Decline and the cloud features stop; everything else keeps working. |
 
-**Lifetime + Sync bundle:** Lifetime plus the first year of Sync, paid once; Sync then continues at $24/year only if the buyer adds a card (F8.8).
+**Why one price.** A Lifetime-only tier existed at $12 and was removed. It could not pair a phone — the thing Hopshot is actually for — so it sold a worse product at a lower margin, split the funnel, and made "why can't I pair?" a support question. The cost is losing the cheap entry point and the price anchor $12 gave $19; the gain is that every buyer can do the demo that sells the product.
 
-**Founder pre-order (validation phase only):** $19 = Lifetime + the first year of Sync (normally $43). Limited to the first 200 buyers, with a full refund at any time until 14 days after the app ships. On launch day, founders get an email with an **Open in Hopshot** button, created automatically from their Stripe payments (and $19 founders get their Sync year, starting that day); there is nothing to redeem or type.
+**Lifetime as a state, not a tier.** `lifetime` still exists internally: it is what a purchase becomes when its Sync year lapses, and what pre-launch $12 buyers hold. Nobody can buy it.
 
-**Launch pricing:** Lifetime **$12** and Lifetime + Sync **$19** (Lifetime + the first year of Sync), the same as founder prices, for a limited launch period. After that: Lifetime $19 and Lifetime + Sync $43 (or a small bundle discount). The site shows $19 / $43 struck through, so the price must actually go up when the launch period ends.
+**Renewal economics, honestly.** Bundling Sync with every purchase means the renewal cohort is no longer self-selected — many buyers will never have used Sync and will ignore the renewal email. Treat the 60% renewal target below as applying to a cohort that no longer exists, and plan on $19 one-time with renewal as upside.
+
+**Founder pre-orders (validation phase, now closed):** $12 Lifetime and $19 bundle, sold before launch. $12 holders keep a `lifetime` licence; $19 holders are indistinguishable from any buyer today. On launch day, founders get an email with an **Open in Hopshot** button, created automatically from their Stripe payments (and $19 founders get their Sync year, starting that day); there is nothing to redeem or type.
+
+**Launch pricing:** one price, **$19**, not time-limited. The struck-through "was $43" framing is gone with the second tier — a discount against a price that was never charged is a lie, and there is nothing left to compare against.
 
 **Pricing reasons**
 
 - **One-time for what costs nothing to run, subscription for what does.** Local features have no running cost, so they're sold once. Sync uses servers every day, so it's billed yearly. CleanShot X uses the same split (one-time app + cloud subscription).
-- **Lifetime is one computer; more computers come with Sync.** Someone using Hopshot on two computers almost always wants the same shelf on both, which is what Sync does.
-- **Sync is an add-on, not a separate app plan.** Nobody loses the app if they cancel, which makes the subscription an easy yes and keeps support simple.
+- **Three computers and three phones, included.** Someone using Hopshot on two computers almost always wants the same shelf on both; charging separately for that was friction without revenue.
+- **Sync is an add-on in year two, not a separate app plan.** Nobody loses the app if they decline the renewal, which keeps the ask easy and support simple.
 - **Pay-first, with a refund instead of a trial.** A free plan mostly attracts people who never pay, and a trial asks someone to still want the product a week after they stopped thinking about it. At $12–19 the decision is small enough to make at the moment of interest, and a no-questions 14-day refund carries the same "risk nothing" promise without the second ask. The cost is real and accepted: a cold purchase on an unsigned download converts worse than a trial would, so the refund has to be loud wherever the price appears.
 - **Yearly only at launch.** One Sync price is simpler to explain and to remind people about. A monthly price can be added later as a second Stripe Price without code changes.
 - **Comparable prices:** Gyazo Pro is $4.99/month; CleanShot X is about $35 one-time plus a monthly cloud plan; Dropover and Yoink are under $15 one-time. $19 + $24/year sits in the middle.
 - **Payments: Stripe, directly.** BAS Technologies is the seller, and Hopshot tracks purchases and computers itself (no license keys). Foreign sales are exports of services, zero-rated for GST under a LUT; Indian customers pay 18% GST. EU/UK VAT on consumer sales is a known, accepted risk at launch: revisit with the CA if EU/UK sales grow, and move to a merchant of record (e.g. Polar) if it becomes a burden.
-- **Net per sale** (Stripe India, international card in USD: 4.3% + 2% currency conversion, plus 0.7% Stripe Billing on subscriptions): ≈ $11.25 for Lifetime at $12, ≈ $17.80 for Lifetime + Sync at $19, ≈ $22.30 per yearly Sync renewal.
+- **Net per sale** (Stripe India, international card in USD: 4.3% + 2% currency conversion, plus 0.7% Stripe Billing on subscriptions): ≈ $17.80 on the $19 purchase, ≈ $22.30 per yearly Sync renewal.
 - **Rough revenue picture:** 100 Lifetime buyers = $1,900 once. 100 Sync subscribers = about $2,400 every year (~$200 a month recurring).
 - A 2.x major version *may* be a paid upgrade later. Say "all 1.x updates included" on the pricing page and nothing more.
 

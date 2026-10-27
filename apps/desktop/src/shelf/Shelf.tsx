@@ -302,7 +302,7 @@ export default function Shelf() {
         >
           <b className="text-caption">Buy Hopshot to start capturing</b>
           <span className="text-caption leading-4 text-text-2">
-            It unlocks itself the moment you pay. 7-day refund, no questions.
+            It unlocks itself the moment you pay. 14-day refund, no questions.
           </span>
           <button
             type="button"
