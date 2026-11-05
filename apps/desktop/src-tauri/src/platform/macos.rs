@@ -1,13 +1,11 @@
 //! macOS: ActivationPolicy::Accessory, NSPanel shelf, NSScreenSaverWindowLevel overlay,
 //! CGPreflightScreenCaptureAccess (CLAUDE.md "Known platform gotchas").
-//!
-//! Phase 1.2 adds the overlay window level and the permission check; the NSPanel shelf
-//! arrives in Phase 1.3.
 
 use std::process::Command;
 
 use core_graphics::access::ScreenCaptureAccess;
 use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
+use tauri::image::Image;
 use tauri::tray::TrayIcon;
 use tauri::{ActivationPolicy, AppHandle, Runtime, WebviewWindow};
 
@@ -25,16 +23,25 @@ const NS_SCREEN_SAVER_WINDOW_LEVEL: isize = 1000;
 /// `NSFloatingWindowLevel` — above normal windows, nowhere near the overlay.
 const NS_FLOATING_WINDOW_LEVEL: isize = 3;
 
-/// `NSWindowStyleMaskNonactivatingPanel` (1 << 7) plus `NSWindowStyleMaskBorderless` (0).
-/// This is the bit that stops a click on the shelf activating Hopshot.
-const NS_NONACTIVATING_PANEL_MASK: i32 = 1 << 7;
-
 /// Hopshot lives in the menu bar, so it has no Dock icon and no app menu of its own
 /// (ARCHITECTURE §5.1).
 pub fn apply_activation_policy<R: Runtime>(app: &AppHandle<R>) {
     if let Err(error) = app.set_activation_policy(ActivationPolicy::Accessory) {
         // Worth saying out loud: the app still works, it just grew a Dock icon.
         log::error!("could not switch to the accessory activation policy: {error}");
+    }
+}
+
+/// A monochrome template image for the menu bar (DESIGN S1). The coloured app icon cannot be
+/// used here: marked as a template, macOS keeps only its alpha channel, and an opaque square
+/// icon becomes a solid white block.
+pub fn tray_icon<R: Runtime>(_app: &AppHandle<R>) -> Option<Image<'static>> {
+    match Image::from_bytes(include_bytes!("../../icons/tray-template.png")) {
+        Ok(icon) => Some(icon),
+        Err(error) => {
+            log::warn!("the menu-bar template icon would not load: {error}");
+            None
+        }
     }
 }
 
@@ -142,25 +149,60 @@ pub fn configure_shelf<R: Runtime>(window: &WebviewWindow<R>) -> bool {
     vibrancy
 }
 
+// The shelf's panel class. It may become key — clicking a card should let ↑/↓, Enter and
+// Esc reach it (DESIGN §7) — but never main, and the non-activating style mask below means
+// becoming key does not activate Hopshot or take the front app's focus away.
+//
+// In a module of its own because the macro brings its own `use` lines (NSWindow and
+// friends), which would collide with this file's imports.
+mod shelf_panel {
+    tauri_nspanel::tauri_panel! {
+        panel!(ShelfPanel {
+            config: {
+                can_become_key_window: true,
+                can_become_main_window: false,
+                is_floating_panel: true
+            }
+        })
+    }
+}
+use shelf_panel::ShelfPanel;
+
+/// Register the plugin that keeps track of converted panels. Must be added to the builder
+/// before [`make_shelf_non_activating`] runs.
+pub fn panel_plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri_nspanel::init()
+}
+
 /// Convert the shelf window into a non-activating `NSPanel`.
 ///
 /// Separate from [`configure_shelf`] because it must happen once, at setup, before the
 /// window is ever shown — converting a visible window drops it.
 pub fn make_shelf_non_activating<R: Runtime>(window: &WebviewWindow<R>) {
+    use tauri_nspanel::objc2_app_kit::NSWindowStyleMask;
     use tauri_nspanel::WebviewWindowExt;
 
-    match window.to_panel() {
-        Ok(panel) => {
-            // NSWindowStyleMaskNonactivatingPanel. Clicking the shelf now routes events to
-            // it without making Hopshot the active app, so the browser keeps focus.
-            panel.set_style_mask(NS_NONACTIVATING_PANEL_MASK);
-            // Releasing on close would free the panel behind Tauri's back.
-            panel.set_released_when_closed(false);
+    let panel = match window.to_panel::<ShelfPanel<R>>() {
+        Ok(panel) => panel,
+        Err(error) => {
+            log::error!(
+                "the shelf could not become an NSPanel ({error}); it will steal focus on click"
+            );
+            return;
         }
-        Err(error) => log::error!(
-            "the shelf could not become an NSPanel ({error:?}); it will steal focus on click"
-        ),
+    };
+
+    // NSWindowStyleMaskNonactivatingPanel. Clicking the shelf now routes events to it
+    // without making Hopshot the active app, so the browser keeps focus. Added to, not
+    // replacing, the existing mask so Tauri's borderless/transparent setup survives.
+    if let Err(error) = panel.add_style_mask(NSWindowStyleMask::NonactivatingPanel) {
+        log::error!("the shelf panel refused the non-activating style ({error:?})");
     }
+    // Releasing on close would free the panel behind Tauri's back.
+    panel.set_released_when_closed(false);
+    // A panel hides itself when its app deactivates by default — and Hopshot is never the
+    // active app while the shelf is in use, so it would vanish the moment it appeared.
+    panel.set_hides_on_deactivate(false);
 }
 
 /// Order the shelf forward without activating Hopshot.
