@@ -3,6 +3,7 @@
 //!
 //! Phase 1.2 covers the capture overlay; the shelf window styles arrive in Phase 1.3.
 
+use tauri::image::Image;
 use tauri::tray::TrayIcon;
 use tauri::{AppHandle, Runtime, WebviewWindow};
 use windows_sys::Win32::Foundation::HWND;
@@ -21,6 +22,11 @@ pub const SHOW_SHELF_ON_LEFT_CLICK: bool = true;
 /// opening no window at startup; the Settings window is the only one that gets a button
 /// (ARCHITECTURE §5.1).
 pub fn apply_activation_policy<R: Runtime>(_app: &AppHandle<R>) {}
+
+/// The tray takes the full-colour app icon on Windows (DESIGN S1).
+pub fn tray_icon<R: Runtime>(app: &AppHandle<R>) -> Option<Image<'static>> {
+    app.default_window_icon().cloned()
+}
 
 /// Keep the menu on right click so the left click stays free for the shelf.
 pub fn configure_tray<R: Runtime>(tray: &TrayIcon<R>) {
@@ -112,6 +118,12 @@ pub fn configure_shelf<R: Runtime>(window: &WebviewWindow<R>) -> bool {
             false
         }
     }
+}
+
+/// macOS needs a plugin to turn the shelf into an NSPanel. Windows gets the same behaviour
+/// from window styles, so this is an empty plugin that keeps the builder chain identical.
+pub fn panel_plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::new("nspanel").build()
 }
 
 /// Show the shelf without activating it. The window style already prevents focus, so there

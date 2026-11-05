@@ -93,6 +93,10 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = [
     "NSResponder",
     "NSWindow",
 ] }
+# The shelf has to be a non-activating NSPanel (ARCHITECTURE §5.1 names this crate): AppKit
+# rejects NSWindowStyleMaskNonactivatingPanel on a plain NSWindow, and there is no other way
+# to stop a click on the shelf from activating Hopshot.
+tauri-nspanel = "2.1.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }

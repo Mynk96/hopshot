@@ -109,9 +109,17 @@ export default function Shelf() {
     };
   }, [refresh, flash, refreshPlan]);
 
+  /**
+   * The "Buy Hopshot" banner has no fixed height (its copy wraps), so it is measured rather
+   * than budgeted for. Without it the window was sized for the cards alone and the banner
+   * pushed the list off the bottom of the shelf.
+   */
+  const banner = useRef<HTMLDivElement>(null);
+
   /** Grow the window to fit, capped at DESIGN S3's 80% of the screen. */
   useEffect(() => {
     const content =
+      (banner.current?.offsetHeight ?? 0) +
       HEADER_PX +
       FOOTER_PX +
       LIST_PADDING_PX * 2 +
@@ -119,7 +127,7 @@ export default function Shelf() {
       Math.max(0, items.length - 1) * CARD_GAP_PX;
     const cap = Math.round(window.screen.availHeight * MAX_VIEWPORT_FRACTION);
     void invoke("resize_shelf", { height: Math.min(content, cap) });
-  }, [items.length]);
+  }, [items.length, plan?.capturePaused]);
 
   const hide = useCallback(() => void invoke("hide_shelf"), []);
 
@@ -294,6 +302,7 @@ export default function Shelf() {
 
       {plan?.capturePaused && (
         <div
+          ref={banner}
           className="flex shrink-0 flex-col gap-1.5 px-3 py-2.5"
           style={{
             background: "color-mix(in srgb, var(--warning) 14%, transparent)",

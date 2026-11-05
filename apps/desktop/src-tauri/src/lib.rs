@@ -63,6 +63,7 @@ pub fn run() {
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(platform::panel_plugin())
         .plugin(tauri_plugin_autostart::init(
             // Hopshot is a tray app: starting it with the login session is the point, and
             // it opens no window, so there is nothing to suppress on launch.
@@ -247,9 +248,8 @@ fn build_tray<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
             }
         });
 
-    // The bundled app icon stands in until there is a real monochrome template asset
-    // (DESIGN S1 asks for one on macOS).
-    if let Some(icon) = app.default_window_icon().cloned() {
+    // macOS: a monochrome template glyph; Windows: the full-colour app icon (DESIGN S1).
+    if let Some(icon) = platform::tray_icon(app) {
         tray = tray.icon(icon);
     }
 
