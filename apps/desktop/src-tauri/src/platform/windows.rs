@@ -25,7 +25,8 @@ pub fn apply_activation_policy<R: Runtime>(_app: &AppHandle<R>) {}
 
 /// The tray takes the full-colour app icon on Windows (DESIGN S1).
 pub fn tray_icon<R: Runtime>(app: &AppHandle<R>) -> Option<Image<'static>> {
-    app.default_window_icon().cloned()
+    // The app hands out a borrow; `to_owned` copies the pixels so the icon can outlive it.
+    app.default_window_icon().cloned().map(Image::to_owned)
 }
 
 /// Keep the menu on right click so the left click stays free for the shelf.
