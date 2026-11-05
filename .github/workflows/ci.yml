@@ -44,12 +44,11 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             experimental: false
-          # macOS cannot be checked from the Windows dev machine, so this leg is the only
-          # signal for platform/macos.rs. It is advisory until there is a Mac to fix
-          # failures on — flip `experimental` to false then.
+          # Required now that macOS ships: a red Mac build blocks the merge, exactly as a
+          # red Windows one does.
           - os: macos-latest
             target: aarch64-apple-darwin
-            experimental: true
+            experimental: false
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable

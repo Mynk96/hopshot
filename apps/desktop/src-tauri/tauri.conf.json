@@ -62,7 +62,11 @@
     ],
     "shortDescription": "Screenshots that clean up after themselves",
     "category": "Productivity",
-    "copyright": "Hopshot"
+    "copyright": "Hopshot",
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "hardenedRuntime": true
+    }
   },
   "plugins": {
     "updater": {
