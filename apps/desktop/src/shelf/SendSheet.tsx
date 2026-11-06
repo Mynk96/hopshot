@@ -22,6 +22,8 @@ import { Icon } from "./icons";
 type Drop = { id: string; url: string; expiresAt: number; qrSvg: string };
 
 type Mode =
+  /** No licence on this computer: the phone is the paid part (free shelf, phase 1). */
+  | { name: "paywall" }
   | { name: "deciding" }
   | { name: "sending" }
   | { name: "sent"; phones: string[] }
@@ -36,14 +38,17 @@ const QUIET_ZONE_PX = 12;
 
 export function SendSheet({
   itemId,
+  paywall,
   onClose,
   onToast,
 }: {
   itemId: string;
+  /** True when nothing has been bought: show the offer instead of calling the server. */
+  paywall: boolean;
   onClose: () => void;
   onToast: (text: string, kind?: "info" | "error") => void;
 }) {
-  const [mode, setMode] = useState<Mode>({ name: "deciding" });
+  const [mode, setMode] = useState<Mode>(paywall ? { name: "paywall" } : { name: "deciding" });
   const container = useRef<HTMLDivElement>(null);
   /** Tracks whether the shelf is currently widened, so it is always restored once. */
   const widened = useRef(false);
@@ -72,6 +77,8 @@ export function SendSheet({
   }, [itemId, widen]);
 
   useEffect(() => {
+    // The server would refuse every phone action anyway; the offer is the honest answer.
+    if (paywall) return;
     let cancelled = false;
 
     void (async () => {
@@ -101,7 +108,7 @@ export function SendSheet({
     return () => {
       cancelled = true;
     };
-  }, [itemId, showQr]);
+  }, [itemId, showQr, paywall]);
 
   // Always hand the shelf back its width, however the sheet closes.
   useEffect(() => {
@@ -155,7 +162,11 @@ export function SendSheet({
     >
       <header className="flex items-center gap-1.5">
         <b className="flex-1 text-body-strong">
-          {mode.name === "sent" ? "Sent" : "Send to phone"}
+          {mode.name === "sent"
+            ? "Sent"
+            : mode.name === "paywall"
+              ? "Phone · $19 once"
+              : "Send to phone"}
         </b>
         <button type="button" className="icon-btn size-6" aria-label="Close" onClick={onClose}>
           <Icon name="x" size={14} />
@@ -163,6 +174,40 @@ export function SendSheet({
       </header>
 
       {mode.name === "deciding" && <p className="text-caption text-text-2">Checking…</p>}
+
+      {/* Free shelf, paid phone: the offer appears at the moment of intent, never as a nag. */}
+      {mode.name === "paywall" && (
+        <>
+          <p className="text-caption leading-4 text-text-2">
+            Send to phone, share links and a paired phone feed. Pay once, no subscription. 14-day
+            refund, no questions.
+          </p>
+          {/* Stacked: the shelf is 208px and this sheet does not widen it (no QR to fit). */}
+          <div className="flex flex-col items-start gap-1">
+
+            <button
+              type="button"
+              className="btn btn-primary btn-compact text-caption"
+              onClick={() =>
+                void invoke("license_buy", { plan: "bundle" }).catch(() =>
+                  onToast("Couldn't open checkout. Try again in a moment.", "error"),
+                )
+              }
+            >
+              Buy · $19 once
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-compact text-caption"
+              onClick={() =>
+                void invoke("open_settings", { tab: "license" }).catch(() => undefined)
+              }
+            >
+              Already bought? Restore
+            </button>
+          </div>
+        </>
+      )}
 
       {mode.name === "sending" && (
         <p className="flex items-center gap-1.5 text-caption text-text-2">
@@ -249,26 +294,28 @@ export function SendSheet({
         </>
       )}
 
-      <div
-        className="flex items-center justify-between gap-2"
-        style={{ borderTop: "1px solid var(--raised-border)", paddingTop: 8 }}
-      >
-        <button
-          type="button"
-          disabled={mode.name !== "ready"}
-          onClick={() => mode.name === "ready" && void deleteNow(mode.drop)}
-          className="btn btn-danger-ghost btn-compact text-caption"
+      {mode.name !== "paywall" && (
+        <div
+          className="flex items-center justify-between gap-2"
+          style={{ borderTop: "1px solid var(--raised-border)", paddingTop: 8 }}
         >
-          Delete now
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="btn btn-primary btn-compact text-caption"
-        >
-          Done
-        </button>
-      </div>
+          <button
+            type="button"
+            disabled={mode.name !== "ready"}
+            onClick={() => mode.name === "ready" && void deleteNow(mode.drop)}
+            className="btn btn-danger-ghost btn-compact text-caption"
+          >
+            Delete now
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-primary btn-compact text-caption"
+          >
+            Done
+          </button>
+        </div>
+      )}
     </div>
   );
 }

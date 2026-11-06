@@ -42,6 +42,6 @@ export function timeLeft(item: ShelfItem, now = Date.now()): { label: string; wa
 /** Mirrors `license::PlanState` — PRD F8.1/F8.1a. */
 export type PlanState = {
   plan: "expired" | "lifetime" | "sync";
-  /** Nothing has been bought yet: capture is paused, the shelf is not (PRD F8.1). */
+  /** Always false since the shelf became free; `expired` gates only the phone (PRD F8.1). */
   capturePaused: boolean;
 };

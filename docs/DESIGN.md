@@ -150,7 +150,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **Size:** 208 px wide; height fits its content up to 80% of the screen, then scrolls. Margin 12 px from the screen edge, vertically centered.
 - **Header (36 px):** app mark + "Hopshot" (`title`), item count chip, pin-open toggle, settings, close.
 - **List:** newest first, 8 px gap.
-- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip: pay-first means there is nothing to count down (PRD F8.1). When an update is pending, `· Update to 0.1.3` is appended — a plain underlined word, no badge and no colour, that opens Settings → About rather than installing in place (ARCHITECTURE §9).
+- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip and no plan banner: the shelf is free, so there is nothing to count down or unlock (docs/designs/free-shelf-phone-trial.md). When an update is pending, `· Update to 0.1.3` is appended — a plain underlined word, no badge and no colour, that opens Settings → About rather than installing in place (ARCHITECTURE §9).
 
 **States**
 
@@ -165,7 +165,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 | Upload error | Small danger dot on the card + toast "Couldn't send — Retry" |
 | Offline | Footer: "Offline — sending paused" |
 | Capacity reached (100) | Oldest unpinned card fades out when a new one arrives |
-| Locked (nothing bought, or refunded) | Capture paused; banner at the top of the shelf: **"Buy Hopshot to start capturing"** / "It unlocks itself the moment you pay. 14-day refund, no questions." + `See plans`. The shelf stays readable and draggable (PRD F8.1a). |
+| Unlicensed (nothing bought, or refunded) | Capture, shelf, drag and copy all work; no banner. The phone is the paid part: the Send to phone sheet shows the offer instead (S4, "Unlicensed"). |
 
 ### S4 — Send to phone (QR popover)
 
@@ -176,6 +176,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - Actions: `Delete now` (danger-ghost), `Done`.
 - **Sync + paired:** instead of the QR, show "Sent to Mayank's iPhone ✓" with a "Show QR instead" link.
 - Loading: QR placeholder with a shimmer and "Encrypting…" → "Uploading 62%".
+- **Unlicensed** (nothing bought): the sheet makes no request. Title **"Phone · $19 once"**, body "Send to phone, share links and a paired phone feed. Pay once, no subscription. 14-day refund, no questions." Actions `Buy · $19 once` (primary, opens Checkout) and `Already bought? Restore` (ghost, opens Settings → License). This is the only place the shelf asks for money: at the moment of intent, never as a nag.
 
 ### S5 — Phone web app (`/app`)
 
@@ -232,7 +233,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 | Sent to phone (paired) | "Sent to {device}" |
 | Limit (Lifetime drops) | "That's 10 sends today. Sync raises it to 200." |
 | Capacity | "Shelf holds 100. Oldest one made room." |
-| Locked | "Buy Hopshot to start capturing — it unlocks itself the moment you pay." |
+| Phone offer (unlicensed) | "Phone · $19 once" / "Send to phone, share links and a paired phone feed. Pay once, no subscription. 14-day refund, no questions." |
 | Sync lapsed | "Sync is off — your phone won't get new screenshots. Everything else still works." |
 | Expired item clicked (race) | "That one just expired." |
 | Permission missing | "Hopshot can't see your screen yet. Fix in one click →" |

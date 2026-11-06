@@ -111,14 +111,15 @@ pub fn remove_computer(device_id: &str) -> Result<(), ClientError> {
     client::delete(&format!("/license/devices/{device_id}"), &token)
 }
 
-/* ── The locked state (PRD F8.1) ─────────────────────────────────────────── */
+/* ── Plan state: the shelf is free, the phone is paid ────────────────────── */
 
 /// What the app is allowed to do right now, decided locally.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanState {
     pub plan: Plan,
-    /// PRD F8.1 — nothing has been bought yet, so capture is paused.
+    /// Always `false` since the shelf became free (docs/designs/free-shelf-phone-trial.md,
+    /// phase 1). Kept so the shelf UI's field still deserializes; remove once nothing reads it.
     pub capture_paused: bool,
 }
 
@@ -128,25 +129,29 @@ pub struct PlanState {
 /// hotkey press and cannot wait on a request. The server is still the authority and refuses
 /// an unlicensed caller on every API call.
 ///
-/// **Pay-first (PRD F8.1).** No licence means no capture — there is no trial and no grace,
-/// so the answer here is the same whether the app has never been online or is simply unpaid.
-/// That is deliberate: a local-only "allow" would be a bypass.
+/// **Free shelf, paid phone.** Capture, the shelf, drag-out and copy are local and free
+/// forever, so no licence never pauses capture — there is nothing local left to bypass. What
+/// costs money is everything that touches the server (send to phone, links, pairing), and the
+/// server refuses an `expired` caller for all of it; `includes_sync()` hides pairing too.
 pub fn plan_state<R: Runtime>(app: &AppHandle<R>) -> PlanState {
     let _ = app;
+    state_for(token().is_some())
+}
 
+/// [`plan_state`] without the keychain, so the rule itself is testable.
+fn state_for(has_token: bool) -> PlanState {
     // A stored licence token means a purchase happened. Which plan it is comes from the
-    // server's last word; absent that, Lifetime is the safe floor — it unlocks capture
-    // without granting Sync, and the server rejects anything beyond it.
-    if token().is_some() {
-        return PlanState {
-            plan: Plan::Lifetime,
-            capture_paused: false,
-        };
-    }
+    // server's last word; absent that, Lifetime is the safe floor — it never grants Sync,
+    // and the server rejects anything beyond it.
+    let plan = if has_token {
+        Plan::Lifetime
+    } else {
+        Plan::Expired
+    };
 
     PlanState {
-        plan: Plan::Expired,
-        capture_paused: true,
+        plan,
+        capture_paused: false,
     }
 }
 
@@ -276,6 +281,22 @@ pub fn open_checkout<R: Runtime>(app: &AppHandle<R>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The free shelf: no licence still captures, but grants no server plan.
+    #[test]
+    fn no_licence_never_pauses_capture_and_stays_unlicensed() {
+        let state = state_for(false);
+        assert!(!state.capture_paused);
+        assert_eq!(state.plan, Plan::Expired);
+        assert!(!state.plan.includes_sync(), "pairing must stay paid");
+    }
+
+    #[test]
+    fn a_stored_licence_resolves_to_the_lifetime_floor() {
+        let state = state_for(true);
+        assert!(!state.capture_paused);
+        assert_eq!(state.plan, Plan::Lifetime);
+    }
 
     /// The over-limit payload is the one the S9 screens branch on, so its shape matters.
     #[test]

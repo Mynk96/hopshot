@@ -487,6 +487,8 @@ export async function recordPurchase(
     plan: "lifetime" | "bundle";
     sessionId: string;
     paymentIntentId?: string | null;
+    /** `comp` for a session a 100%-off promotion code made free; matches the schema CHECK. */
+    source?: "checkout" | "comp";
   },
   now = Date.now(),
 ): Promise<string> {
@@ -509,9 +511,17 @@ export async function recordPurchase(
   await env.DB.prepare(
     `INSERT INTO licenses (id, customer_id, plan, source, checkout_session_id,
                            payment_intent_id, status, created_at)
-     VALUES (?1, ?2, ?3, 'checkout', ?4, ?5, 'active', ?6)`,
+     VALUES (?1, ?2, ?3, ?7, ?4, ?5, 'active', ?6)`,
   )
-    .bind(id, input.customerId, input.plan, input.sessionId, input.paymentIntentId ?? null, now)
+    .bind(
+      id,
+      input.customerId,
+      input.plan,
+      input.sessionId,
+      input.paymentIntentId ?? null,
+      now,
+      input.source ?? "checkout",
+    )
     .run();
 
   return id;

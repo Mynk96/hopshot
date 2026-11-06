@@ -146,7 +146,7 @@ Every limit lives here. Rust reads it with `include_str!` + serde, TS imports it
 
 Plan resolution: `expired` (nothing bought, or bought and refunded) → `lifetime` (valid Lifetime licence) → `sync` (valid Lifetime licence + active Sync subscription; gets Lifetime limits overridden by the `sync` block).
 
-Hopshot is **pay-first** (PRD F8.1): there is no trial, so every install starts `expired` with capture paused, and a licence is the only thing that grants a plan. `resolvePlan` therefore reads one header — `X-Hopshot-License` — and anything else is `expired`, which is also what makes a refund take the app away.
+The shelf is free and the phone is paid (PRD F8.1): every install starts `expired` — which now means *no server features*, not *no capture* — and a licence is the only thing that grants a plan. `resolvePlan` therefore reads one header — `X-Hopshot-License` — and anything else is `expired`, which is also what makes a refund take the phone features away.
 
 ---
 
@@ -301,7 +301,7 @@ Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 3
 
 ### 7.5 Licenses and billing (Stripe)
 
-**No trial.** Pay-first (PRD F8.1): a new install is `expired` and capture is paused until a purchase completes. The desktop decides this locally from the keychain so the hotkey path never waits on a request, and an install that has *never* reached the server is locked too — treating "unknown" as permissive would make staying offline a bypass.
+**No trial yet** (a 7-day phone trial is phase 2, TODOS.md). A new install is `expired`: capture is never paused, because capture is free and local, so there is nothing to bypass offline. The server refuses an `expired` caller every drop, vault and pairing request. `POST /trial/start` stays a stub reporting an ended trial for v0.1.x builds.
 
 **Stripe setup** (test mode first, then live; the India account used for pre-orders, payouts in INR):
 
