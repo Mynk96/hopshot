@@ -36,7 +36,7 @@ export default function Shelf() {
   /** Item whose QR popover is open (DESIGN S4). Also what "Copy link" opens. */
   const [qrFor, setQrFor] = useState<string | null>(null);
   const [pinnedOpen, setPinnedOpen] = useState(false);
-  /** PRD F8.1 — the locked banner shown until something is bought. */
+  /** Unlicensed (`expired`) turns the phone sheet into the $19 offer; the shelf is free. */
   const [plan, setPlan] = useState<PlanState | null>(null);
 
   /** id → staged path promise, so a drag never waits on IPC. */
@@ -109,17 +109,9 @@ export default function Shelf() {
     };
   }, [refresh, flash, refreshPlan]);
 
-  /**
-   * The "Buy Hopshot" banner has no fixed height (its copy wraps), so it is measured rather
-   * than budgeted for. Without it the window was sized for the cards alone and the banner
-   * pushed the list off the bottom of the shelf.
-   */
-  const banner = useRef<HTMLDivElement>(null);
-
   /** Grow the window to fit, capped at DESIGN S3's 80% of the screen. */
   useEffect(() => {
     const content =
-      (banner.current?.offsetHeight ?? 0) +
       HEADER_PX +
       FOOTER_PX +
       LIST_PADDING_PX * 2 +
@@ -127,7 +119,7 @@ export default function Shelf() {
       Math.max(0, items.length - 1) * CARD_GAP_PX;
     const cap = Math.round(window.screen.availHeight * MAX_VIEWPORT_FRACTION);
     void invoke("resize_shelf", { height: Math.min(content, cap) });
-  }, [items.length, plan?.capturePaused]);
+  }, [items.length]);
 
   const hide = useCallback(() => void invoke("hide_shelf"), []);
 
@@ -300,29 +292,6 @@ export default function Shelf() {
         </IconButton>
       </header>
 
-      {plan?.capturePaused && (
-        <div
-          ref={banner}
-          className="flex shrink-0 flex-col gap-1.5 px-3 py-2.5"
-          style={{
-            background: "color-mix(in srgb, var(--warning) 14%, transparent)",
-            borderBottom: "1px solid var(--border)",
-          }}
-        >
-          <b className="text-caption">Buy Hopshot to start capturing</b>
-          <span className="text-caption leading-4 text-text-2">
-            It unlocks itself the moment you pay. 14-day refund, no questions.
-          </span>
-          <button
-            type="button"
-            className="btn btn-primary btn-compact mt-0.5 self-start text-caption"
-            onClick={() => void invoke("open_settings", { tab: "license" }).catch(() => undefined)}
-          >
-            See plans
-          </button>
-        </div>
-      )}
-
       {items.length === 0 ? (
         <EmptyState />
       ) : (
@@ -352,7 +321,12 @@ export default function Shelf() {
       <Footer count={items.length} />
 
       {qrFor && (
-        <SendSheet itemId={qrFor} onClose={() => setQrFor(null)} onToast={flash} />
+        <SendSheet
+          itemId={qrFor}
+          paywall={plan?.plan === "expired"}
+          onClose={() => setQrFor(null)}
+          onToast={flash}
+        />
       )}
 
       {menuItem && (
@@ -502,7 +476,7 @@ function EmptyState() {
  * DESIGN S3 footer: the item count and the privacy line, which is the whole pitch.
  *
  * Plan-independent on purpose. It used to carry the trial countdown; with no trial there is
- * nothing plan-shaped left to say here, and the locked state has its own banner above.
+ * nothing plan-shaped left to say here; the $19 offer lives in the phone sheet instead.
  *
  * The one thing it does carry is a pending update (ARCHITECTURE §9) — one quiet word, no
  * badge, no colour. Clicking opens Settings → About rather than installing in place, so the

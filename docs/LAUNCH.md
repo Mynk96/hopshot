@@ -69,12 +69,33 @@ To release:
    git tag v0.1.0 && git push origin v0.1.0
    ```
 
-3. `.github/workflows/release.yml` runs `cargo test` and `clippy -D warnings`, then builds
-   `--bundles nsis` and **drafts** a GitHub release holding
-   `Hopshot_<version>_x64-setup.exe` and its `.sha256`.
+3. `.github/workflows/release.yml` builds both platforms in parallel, each gated on
+   `cargo test` and `clippy -D warnings`:
+   - **Windows:** `--bundles nsis` → `Hopshot_<version>_x64-setup.exe`
+   - **macOS:** `--target universal-apple-darwin --bundles app,dmg`, signed, notarised and
+     stapled → `Hopshot_<version>_universal.dmg` (one file for Apple Silicon and Intel), plus
+     `Hopshot.app.tar.gz` for the updater
 
-4. **Install it once from the draft release** — click through the SmartScreen warning exactly
-   as a buyer will — then press Publish. The download page starts resolving immediately.
+   A publish job then writes one `latest.json` covering both, uploads everything to R2
+   (`downloads.hopshot.xyz/v<version>/…`), and **drafts** a GitHub release.
+
+4. **Install both once** — the Windows one through the SmartScreen warning, the Mac one from
+   the .dmg through the Screen Recording prompt, exactly as a buyer will — then press Publish.
+
+### macOS signing secrets (do once)
+
+A tagged release fails on purpose unless these repository secrets are set. Without
+notarisation macOS will not open the app from a double-click, and without a stable signature
+the Screen Recording permission is lost on every update.
+
+| Secret | What it is |
+|---|---|
+| `APPLE_CERTIFICATE` | The **Developer ID Application** certificate exported from Keychain Access as `.p12`, base64-encoded: `base64 -i cert.p12 \| pbcopy` |
+| `APPLE_CERTIFICATE_PASSWORD` | The password chosen when exporting the `.p12` |
+| `APPLE_SIGNING_IDENTITY` | The certificate's full name, e.g. `Developer ID Application: Your Name (TEAMID)` |
+| `APPLE_ID` | The Apple ID email on the developer account |
+| `APPLE_PASSWORD` | An **app-specific password** from account.apple.com, not the account password |
+| `APPLE_TEAM_ID` | The 10-character team id from developer.apple.com → Membership |
 
 A tag that disagrees with `tauri.conf.json` fails the workflow before anything is built, which
 is the specific mistake that would publish an installer no one can reach. `workflow_dispatch`

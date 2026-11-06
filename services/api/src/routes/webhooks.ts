@@ -82,8 +82,13 @@ async function onCheckoutCompleted(env: Env, object: Record<string, unknown>): P
   const session = object as Session;
 
   // `completed` can fire for an unpaid session (e.g. a delayed payment method). Only a paid
-  // one may produce a licence.
-  if (session.payment_status !== "paid") {
+  // one may produce a licence — or one a 100%-off promotion code made free, which Stripe
+  // reports as `no_payment_required` rather than `paid`. Checkout allows promotion codes
+  // (lib/stripe.ts), so without this branch a fully discounted buyer would finish checkout
+  // and get nothing. Both conditions are required: `no_payment_required` with money still
+  // owing is not a comp.
+  const comp = session.payment_status === "no_payment_required" && session.amount_total === 0;
+  if (session.payment_status !== "paid" && !comp) {
     console.log("checkout completed but not paid; no licence issued");
     return;
   }
@@ -108,7 +113,10 @@ async function onCheckoutCompleted(env: Env, object: Record<string, unknown>): P
     name: session.customer_details?.name ?? null,
     plan,
     sessionId: session.id,
+    // A $0 session has no payment intent, so a comp can't be revoked by a refund event;
+    // revoke it by hand if ever needed.
     paymentIntentId: session.payment_intent ?? null,
+    source: comp ? "comp" : "checkout",
   });
 
   // The app is polling this; marking it ready is what unlocks the app (PRD F8.3).

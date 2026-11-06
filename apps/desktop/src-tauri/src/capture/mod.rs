@@ -69,12 +69,10 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, mode: Mode) {
 
 fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureError> {
     /*
-     * PRD F8.1: Hopshot is pay-first, so capture is paused until a purchase. The shelf stays
-     * readable and draggable — that is deliberately untouched here — so anything already on
-     * it (including items a refunded licence left behind) remains usable until it expires.
-     *
+     * The shelf is free, so `plan_state` never pauses capture any more (license.rs). The
+     * check stays as the one place a future pause would be enforced; it is a no-op today.
      * Decided locally so a hotkey never waits on the network; the server refuses an
-     * unlicensed caller independently.
+     * unlicensed caller independently for every phone feature.
      */
     if crate::license::plan_state(app).capture_paused {
         log::info!("capture is paused: no licence on this computer");

@@ -8,45 +8,60 @@ import tauriConf from "../../../desktop/src-tauri/tauri.conf.json";
 /*
  * Download (PRD §9, ARCHITECTURE §9).
  *
- * Windows only at launch. The installer is **unsigned**, so SmartScreen will warn — PRD §9
+ * Windows and macOS. The Windows installer is **unsigned**, so SmartScreen will warn — PRD §9
  * contemplates exactly this for the direct channel and asks for the "More info → Run anyway"
  * note rather than hiding it. Saying so plainly is also the only honest option: a user who
  * hits an unexplained scary dialog assumes the worst and leaves.
  *
- * macOS is not listed because it is not shipped. Promising it here and then not having a
- * build would be worse than saying "not yet".
+ * The Mac app is signed and notarised (release.yml refuses to publish it otherwise), so it
+ * opens normally; the only thing to warn about is the Screen Recording prompt.
  */
 
 const version = tauriConf.version;
 
 /*
  * Served from our own R2 bucket, not GitHub Releases: this repo is private, and private
- * release assets 404 for anyone without a token. The filename is Tauri's own NSIS naming,
- * so the workflow does not get to choose it and this string has to match byte for byte.
+ * release assets 404 for anyone without a token. The filenames are Tauri's own bundle
+ * naming, so the workflow does not get to choose them and these strings have to match byte
+ * for byte.
  */
-const installer = `https://downloads.hopshot.xyz/v${version}/Hopshot_${version}_x64-setup.exe`;
+const base = `https://downloads.hopshot.xyz/v${version}`;
+const windowsInstaller = `${base}/Hopshot_${version}_x64-setup.exe`;
+// One universal binary for Apple Silicon and Intel, so there is nothing to choose.
+const macInstaller = `${base}/Hopshot_${version}_universal.dmg`;
 ---
 
 <Base
-  title="Download Hopshot for Windows"
-  description="Hopshot for Windows. $19 once, everything included, 14-day refund."
+  title="Download Hopshot for Windows and Mac"
+  description="Hopshot for Windows and macOS. $19 once, everything included, 14-day refund."
 >
   <main class="mx-auto flex max-w-2xl flex-col gap-10 px-6 py-16">
     <header class="flex flex-col gap-3">
       <h1 class="text-display">Download Hopshot</h1>
       <p class="text-body text-text-2">
-        Install it, then buy from inside the app — it unlocks itself the moment you pay. No
-        account, no licence key, and a 14-day refund if it isn't for you.
+        Install it and start capturing: the shelf, drag-out and copy are free. Sending to your
+        phone is $19 once, bought from inside the app, and it unlocks itself the moment you pay.
+        No account, no licence key, and a 14-day refund if it isn't for you.
       </p>
     </header>
 
-    <section class="flex flex-col gap-3">
-      <a class="btn btn-primary self-start" href={installer} download>
-        Download for Windows · {version}
-      </a>
-      <p class="text-small text-text-2">
-        Windows 10 or 11, 64-bit. About 3 MB.
-      </p>
+    <!--
+      Both buttons are always there; the script below only moves the visitor's own platform
+      first and makes it the primary one. Without JavaScript, Windows simply stays on top.
+    -->
+    <section class="flex flex-col gap-4" data-downloads>
+      <div class="flex flex-col gap-1.5" data-platform="windows">
+        <a class="btn btn-primary self-start" href={windowsInstaller} download>
+          Download for Windows · {version}
+        </a>
+        <p class="text-small text-text-2">Windows 10 or 11, 64-bit.</p>
+      </div>
+      <div class="flex flex-col gap-1.5" data-platform="mac">
+        <a class="btn self-start" href={macInstaller} download>
+          Download for Mac · {version}
+        </a>
+        <p class="text-small text-text-2">macOS 13 or newer. Apple Silicon and Intel.</p>
+      </div>
     </section>
 
     <section
@@ -67,23 +82,46 @@ const installer = `https://downloads.hopshot.xyz/v${version}/Hopshot_${version}_
     </section>
 
     <section class="flex flex-col gap-2">
-      <h2 class="text-title">macOS</h2>
+      <h2 class="text-title">On a Mac</h2>
       <p class="text-body text-text-2">
-        Not yet. Hopshot is built for both, but the Mac build isn't finished and notarisation
-        takes time — so there's no download to give you today rather than a broken one.
+        Open the download and drag Hopshot into Applications. It's signed and notarised by
+        Apple, so it opens like any other app.
+      </p>
+      <p class="text-body text-text-2">
+        The first time you capture, macOS asks to let Hopshot record your screen. Allow it in
+        <strong>System Settings → Privacy &amp; Security → Screen Recording</strong> — without
+        it, macOS hands over only your wallpaper. Hopshot never records video; it reads the
+        screen once, at the moment you press the hotkey.
       </p>
     </section>
 
     <section class="flex flex-col gap-2">
       <h2 class="text-title">After you install</h2>
       <p class="text-body text-text-2">
-        Hopshot lives in your tray, not the taskbar. Press
+        Hopshot lives in your tray (the menu bar on a Mac), not the taskbar or Dock. Press
         <kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">Ctrl</kbd>
         <kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">Shift</kbd>
         <kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">2</kbd>
-        to capture, then drag the result straight into any app or browser tab.
+        (<kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">⌘</kbd>
+        <kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">Shift</kbd>
+        <kbd class="rounded border px-1.5 py-0.5 text-caption" style="border-color: var(--border); font-family: var(--mono)">2</kbd>
+        on a Mac) to capture, then drag the result straight into any app or browser tab.
       </p>
       <a class="text-body" style="color: var(--accent-text)" href="/pricing">See pricing →</a>
     </section>
   </main>
 </Base>
+
+<script>
+  // Put the visitor's own platform first and make it the primary button. Bundled by Astro
+  // (not `is:inline`), so the CSP's `script-src 'self'` covers it.
+  const isMac = /Mac/.test(navigator.platform || navigator.userAgent);
+  const list = document.querySelector("[data-downloads]");
+  const mac = list?.querySelector('[data-platform="mac"]');
+  const windows = list?.querySelector('[data-platform="windows"]');
+  if (isMac && list && mac && windows) {
+    list.prepend(mac);
+    mac.querySelector("a")?.classList.add("btn-primary");
+    windows.querySelector("a")?.classList.remove("btn-primary");
+  }
+</script>

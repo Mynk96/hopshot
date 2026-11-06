@@ -1,16 +1,16 @@
 name: Release
 
-# Windows only, which is the launch scope (PRD §9). A macOS leg goes here when there is a Mac
-# to build and notarise on; adding an untested one now would publish a binary nobody has run.
+# Windows and macOS. Each platform builds in its own job; one publish job then writes the
+# single latest.json that covers both, uploads everything to R2 and drafts the release.
 on:
   push:
     tags: ["v*"]
   # So the whole thing can be rehearsed without creating a tag. A dispatch run uploads
-  # nothing — it only proves the build works.
+  # nothing — it only proves the builds and the manifest work.
   workflow_dispatch:
 
 permissions:
-  contents: write # creating the release and uploading the installer
+  contents: write # creating the release and uploading the installers
 
 concurrency:
   group: release-${{ github.ref }}
@@ -63,35 +63,161 @@ jobs:
       #
       # The signing key is what makes self-updates safe: every install verifies the download
       # against the public half compiled into it, so an unsigned or tampered payload is
-      # refused. Without these the build still succeeds but emits no .sig, and the update
-      # manifest below would be useless.
+      # refused. Without these the build emits no .sig, and the manifest step fails.
       - name: Build the installer
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm -F desktop tauri build --bundles nsis
 
-      # What tauri-plugin-updater fetches (ARCHITECTURE §9). Written by hand rather than
-      # pulling in tauri-action: it is a few lines, and the reasoning that keeps `gh` as the
-      # only thing holding `contents: write` applies to the build step too.
-      #
-      # Node rather than jq because setup-node above guarantees it on every runner, and it
-      # can be run locally to check this logic without pushing a tag.
-      - name: Build the update manifest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hopshot-windows
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+            apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe.sig
+          if-no-files-found: error
+
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Both architectures, because the build is one universal binary: a single download
+      # that runs on Apple Silicon and Intel Macs alike, so the page never has to ask.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          key: release-universal-apple-darwin
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check the tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node scripts/check-version.mjs "${{ github.ref_name }}"
+
+      - run: cargo test
+        working-directory: apps/desktop/src-tauri
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: apps/desktop/src-tauri
+
+      # A tagged release must be signed and notarised. Without notarisation macOS refuses to
+      # open the app from a double-click, and without a stable signature the Screen Recording
+      # permission does not survive an update — every capture after it would be wallpaper
+      # only. Better a red build than shipping that. A dispatch rehearsal may run unsigned.
+      - name: Check the Apple signing secrets are set
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
-        working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
         env:
-          TAG: ${{ github.ref_name }}
-          DOWNLOAD_BASE: ${{ vars.DOWNLOAD_BASE || 'https://downloads.hopshot.xyz' }}
-        run: node "$GITHUB_WORKSPACE/scripts/update-manifest.mjs"
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=0
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repository secret $name is not set"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      # Tauri reads the APPLE_* variables itself: it imports the certificate into a temporary
+      # keychain, signs with the hardened runtime, notarises with Apple and staples the ticket.
+      #
+      # `app,dmg`: the .dmg is what the download page offers; the .app is what the updater
+      # needs, packed by Tauri into Hopshot.app.tar.gz with its .sig.
+      - name: Build, sign and notarise the app
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # An unset secret arrives as an empty string, which Tauri treats as "set" and then
+          # fails to decode. Unsetting the empty ones lets a rehearsal build unsigned.
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then unset "$name"; fi
+          done
+          pnpm -F desktop tauri build --target universal-apple-darwin --bundles app,dmg
+
+      - name: Collect the artifacts
+        shell: bash
+        working-directory: apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/macos"
+          cp dmg/*.dmg macos/*.app.tar.gz macos/*.app.tar.gz.sig "$RUNNER_TEMP/macos/"
+          ls -l "$RUNNER_TEMP/macos"
+
+      # On a tag, prove the notarisation ticket is really stapled to what users download.
+      - name: Verify the notarisation
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: xcrun stapler validate "$RUNNER_TEMP"/macos/*.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hopshot-macos
+          path: ${{ runner.temp }}/macos/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hopshot-windows
+          path: dist/windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: hopshot-macos
+          path: dist/macos
 
       - name: Checksum
-        shell: bash
-        working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
+        working-directory: dist
         run: |
-          for file in *-setup.exe; do
-            sha256sum "$file" | tee "$file.sha256"
+          for file in windows/*-setup.exe macos/*.dmg; do
+            (cd "$(dirname "$file")" && sha256sum "$(basename "$file")" | tee "$(basename "$file").sha256")
           done
+
+      # What tauri-plugin-updater fetches (ARCHITECTURE §9). Runs on a rehearsal too, so a
+      # broken manifest shows up before a tag does.
+      - name: Build the update manifest
+        working-directory: dist
+        env:
+          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v0.0.0-rehearsal' }}
+          DOWNLOAD_BASE: ${{ vars.DOWNLOAD_BASE || 'https://downloads.hopshot.xyz' }}
+          WINDOWS_DIR: windows
+          MACOS_DIR: macos
+        run: node "$GITHUB_WORKSPACE/scripts/update-manifest.mjs"
 
       # The actual distribution channel (ARCHITECTURE §9). GitHub Releases cannot serve this
       # repo's assets: it is private, and private release downloads 404 without a token, which
@@ -102,8 +228,7 @@ jobs:
       # must stay private.
       - name: Publish to R2
         if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
+        working-directory: dist
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -112,58 +237,57 @@ jobs:
           set -euo pipefail
 
           put() {
-            npx --yes wrangler@4 r2 object put "hopshot-downloads/$1"               --file="$2" --content-type="$3" --cache-control="$4" --remote
+            npx --yes wrangler@4 r2 object put "hopshot-downloads/$1" \
+              --file="$2" --content-type="$3" --cache-control="$4" --remote
           }
-
-          installer=$(ls *-setup.exe)
+          immutable="public, max-age=31536000, immutable"
 
           # Version-qualified, so a URL handed out in a manifest never changes underneath an
-          # install that is mid-download.
-          put "$TAG/$installer"         "$installer"         "application/octet-stream" "public, max-age=31536000, immutable"
-          put "$TAG/$installer.sha256"  "$installer.sha256"  "text/plain"               "public, max-age=31536000, immutable"
+          # install that is mid-download. Every file goes up before latest.json, so no install
+          # is ever pointed at a file that is not there yet.
+          for file in windows/*-setup.exe macos/*.dmg macos/*.app.tar.gz; do
+            name=$(basename "$file")
+            put "$TAG/$name" "$file" "application/octet-stream" "$immutable"
+          done
+          for file in windows/*.sha256 macos/*.sha256; do
+            put "$TAG/$(basename "$file")" "$file" "text/plain" "$immutable"
+          done
 
           # The one mutable key: every install polls exactly this URL forever. Short cache so
           # a release is noticed within minutes rather than hours.
           put "latest.json" "latest.json" "application/json" "public, max-age=300"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hopshot-windows
-          path: apps/desktop/src-tauri/target/release/bundle/nsis/*
-          if-no-files-found: error
-
-      # Published as a **draft**. The binary is unsigned, so SmartScreen will warn about it —
-      # the one thing worth doing before it is public is installing it once from the release
-      # itself and clicking through that warning, exactly as a buyer will. Publishing is then
-      # one click in the GitHub UI, and the download page starts working the moment it lands.
-      # `gh` ships on the runner, so no third-party action gets `contents: write` and the
-      # release binary. The notes are written here rather than generated, because "SmartScreen
-      # will warn you" is the single most useful sentence on this page.
+      # Published as a **draft**, so a build is installed once from the release itself before
+      # it is public. The Windows installer is unsigned and SmartScreen will warn; the Mac app
+      # is notarised and opens normally. `gh` ships on the runner, so no third-party action
+      # gets `contents: write` and the release binaries.
       - name: Draft the release
         if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
+        working-directory: dist
         env:
           GH_TOKEN: ${{ github.token }}
-        working-directory: apps/desktop/src-tauri/target/release/bundle/nsis
         run: |
           set -euo pipefail
 
           cat > notes.md <<'NOTES'
-          Hopshot for Windows 10/11, 64-bit.
+          Hopshot for Windows 10/11 (64-bit) and macOS 13 or newer (Apple Silicon and Intel).
 
-          The installer is **unsigned**, so Windows SmartScreen will warn the first time:
-          **More info -> Run anyway**. Verify the download against its `.sha256` if you would
-          rather check it yourself.
+          **Windows:** the installer is **unsigned**, so SmartScreen will warn the first time:
+          **More info -> Run anyway**.
 
-          Free to download. Capture is locked until you buy - $12 once, or $19 with Sync.
+          **macOS:** open the .dmg and drag Hopshot to Applications. On the first capture,
+          macOS asks for Screen Recording permission.
+
+          Verify any download against its `.sha256` if you would rather check it yourself.
+
+          Free to download. Capture is locked until you buy - $19 once, everything included.
           14-day refund, no questions asked.
           NOTES
 
-          # --draft so an unsigned binary is never public until it has been installed once
-          # from the release itself. Publishing is then one click, and the download page
-          # starts resolving the moment it lands.
-          # The same .exe serves both audiences: a new visitor downloads it from the website,
-          # and an existing install downloads it again through latest.json, which carries its
-          # signature. They ship together because a manifest pointing outside its own release
-          # is a dead update.
-          gh release create "${{ github.ref_name }}"             --draft             --title "Hopshot ${{ github.ref_name }}"             --notes-file notes.md             *-setup.exe *-setup.exe.sha256 latest.json
+          gh release create "${{ github.ref_name }}" \
+            --draft \
+            --title "Hopshot ${{ github.ref_name }}" \
+            --notes-file notes.md \
+            windows/*-setup.exe windows/*.sha256 \
+            macos/*.dmg macos/*.app.tar.gz macos/*.sha256 \
+            latest.json

@@ -201,6 +201,41 @@ describe("POST /v1/webhooks/stripe", () => {
   });
 
   /**
+   * A 100%-off promotion code: Stripe completes the session as `no_payment_required` with
+   * nothing charged and no payment intent. It must still unlock the app, recorded as a comp.
+   */
+  it("issues a comp licence for a session a promotion code made free", async () => {
+    const claim = await createClaim(env, "install-1", "lifetime");
+    await deliver(claim, {
+      payment_status: "no_payment_required",
+      amount_total: 0,
+      payment_intent: null,
+    });
+
+    const row = await env.DB.prepare("SELECT source, payment_intent_id FROM licenses").first<{
+      source: string;
+      payment_intent_id: string | null;
+    }>();
+    expect(row).toEqual({ source: "comp", payment_intent_id: null });
+  });
+
+  it("does not treat no_payment_required with money owing as a comp", async () => {
+    const claim = await createClaim(env, "install-1", "lifetime");
+    await deliver(claim, { payment_status: "no_payment_required", amount_total: 1900 });
+
+    const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM licenses").first<{ n: number }>();
+    expect(row!.n).toBe(0);
+  });
+
+  it("records an ordinary paid session as a checkout", async () => {
+    const claim = await createClaim(env, "install-1", "lifetime");
+    await deliver(claim);
+
+    const row = await env.DB.prepare("SELECT source FROM licenses").first<{ source: string }>();
+    expect(row!.source).toBe("checkout");
+  });
+
+  /**
    * PRD F8.3: the purchase email is the customer's receipt, so the amount and the date have
    * to be the payment's own — not whatever the clock said when a retried webhook landed.
    */
