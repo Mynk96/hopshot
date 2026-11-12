@@ -76,11 +76,24 @@ To release:
      stapled → `Hopshot_<version>_universal.dmg` (one file for Apple Silicon and Intel), plus
      `Hopshot.app.tar.gz` for the updater
 
-   A publish job then writes one `latest.json` covering both, uploads everything to R2
-   (`downloads.hopshot.xyz/v<version>/…`), and **drafts** a GitHub release.
+   A publish job then writes one `latest.json` covering both, uploads every file to R2
+   (`downloads.hopshot.xyz/v<version>/…`), uploads `latest.json` **last** to
+   `downloads.hopshot.xyz/latest.json`, and drafts a GitHub release.
 
-4. **Install both once** — the Windows one through the SmartScreen warning, the Mac one from
-   the .dmg through the Screen Recording prompt, exactly as a buyer will — then press Publish.
+   **The `latest.json` upload is the release.** Every installed copy polls that URL (30 s after
+   launch, then daily; cached for 5 minutes), so existing users are offered the update within
+   minutes of the publish job finishing. They still have to click to install, but nothing
+   after the tag holds it back. The GitHub draft is only the public changelog.
+
+4. **Test before you tag, not after.** Run the workflow by hand first
+   (Actions → Release → Run workflow): `workflow_dispatch` builds both platforms and uploads
+   nothing. Install both artifacts from that run once — the Windows one through the
+   SmartScreen warning, the Mac one from the .dmg through the Screen Recording prompt, exactly
+   as a buyer will — and only then push the tag. Afterwards, press Publish on the draft to make
+   the release notes public; it no longer affects who gets the update.
+5. **Deploy `apps/web` after the publish job**, never before: `/download` builds its installer
+   URLs from `tauri.conf.json`, so a page ahead of R2 points at files that don't exist yet
+   (DEPLOY.md, "Web").
 
 ### macOS signing secrets (do once)
 
@@ -107,12 +120,11 @@ rehearses the whole build and uploads nothing.
   and the release notes both say so plainly, which PRD §9 asks for on the direct channel. An
   OV certificate (~$200/yr) removes the warning only after it builds reputation; an EV one
   removes it immediately. Worth revisiting once there is revenue to point at.
-- **The updater.** `tauri.conf.json` has no updater plugin and the `store` Cargo feature that
-  disables it is still a stub, so there is no in-app update path — v0.1.x users will have to
-  download the next version by hand. Enabling it needs a signing keypair generated with
-  `tauri signer generate`; the private key goes in GitHub Actions secrets as
-  `TAURI_SIGNING_PRIVATE_KEY` and must never be committed. Until then, keep the release notes
-  honest about how to update.
+- **A gate between tag and users.** `latest.json` goes live as soon as the publish job
+  finishes, so a bad tagged build reaches every installed copy's update prompt within minutes.
+  The only gate today is the manual `workflow_dispatch` rehearsal in step 4. If that proves too
+  easy to skip, make the publish job stop before `latest.json` and upload it from a separate,
+  manually approved job (a GitHub environment with required reviewers).
 
 ---
 

@@ -214,11 +214,14 @@ to read it.
 - **Apple notarization and the Microsoft Store MSIX** (ARCHITECTURE §9). Those secrets live
   in GitHub Actions, not Cloudflare.
 
-  The Windows release *is* wired up: tag `v*` runs `.github/workflows/release.yml`, which
-  tests, builds the NSIS installer, signs the update archive with `TAURI_SIGNING_PRIVATE_KEY`
-  and drafts a GitHub release holding the `.exe`, its `.sha256` and `latest.json`. For NSIS,
-  Tauri signs the installer itself — there is no separate update archive. **Publishing that draft is what releases the update** — the updater endpoint
-  is `releases/latest/download/latest.json`, and a draft is never "latest".
+  The desktop release is wired up for both platforms: tag `v*` runs
+  `.github/workflows/release.yml`, which tests, builds the Windows NSIS installer and the
+  signed, notarised, stapled universal Mac `.dmg`, signs the update artifacts with
+  `TAURI_SIGNING_PRIVATE_KEY`, uploads everything to the `hopshot-downloads` R2 bucket behind
+  `downloads.hopshot.xyz`, and drafts a GitHub release. **Uploading `latest.json` to
+  `downloads.hopshot.xyz/latest.json` is what releases the update** — it is the updater
+  endpoint in `tauri.conf.json`, and it goes up at the end of the publish job, not when the
+  draft is published (LAUNCH §2a).
 - **`api-deploy.yml` / `web-deploy.yml`** — the CI deploy workflows from ARCHITECTURE §3 do
   not exist yet; `ci.yml` only builds and tests.
 - **Custom domains are already set up**, contrary to what §6 implies: `api.hopshot.xyz`

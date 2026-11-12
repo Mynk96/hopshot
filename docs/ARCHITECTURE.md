@@ -56,7 +56,7 @@ Payments: Stripe (Checkout, Billing, customer portal, webhooks). Licenses live i
 | Phone QR scanner | `qr-scanner` (npm) | For the iOS home-screen re-pair flow |
 | QR generation | `qrcode` (npm) in desktop UI | — |
 | Payments / licensing | **Stripe** (Checkout, Billing subscriptions, customer portal) through the `stripe` npm SDK in the Worker; purchases and licensed computers tracked by the Worker (no user-facing keys); email through **Resend** | Fallback: a merchant of record (e.g. Polar) if tax handling becomes a burden |
-| CI/CD | GitHub Actions + `tauri-apps/tauri-action`, `wrangler` | Builds Mac on macOS runners |
+| CI/CD | GitHub Actions running `tauri build` directly (`release.yml`), `wrangler` | Builds Mac on macOS runners |
 | Monorepo | pnpm workspaces | — |
 
 ---
@@ -103,7 +103,7 @@ hopshot/
 │     │       do/VaultHub.ts  lib/ { auth.ts ratelimit.ts stripe.ts license.ts email.ts ids.ts }  emails/
 │     ├─ migrations/ 0001_init.sql
 │     └─ wrangler.toml
-└─ .github/workflows/ desktop-release.yml  api-deploy.yml  web-deploy.yml  ci.yml
+└─ .github/workflows/ release.yml  ci.yml  (api-deploy.yml, web-deploy.yml: planned, not yet written)
 ```
 
 ---
@@ -504,26 +504,28 @@ CREATE TABLE reports (
 
 | Target | Artifact | Signing | Updates |
 |---|---|---|---|
-| macOS (direct) | Universal `.dmg` (aarch64 + x86_64) | Developer ID Application + notarization (Apple Developer Program, $99/yr) via `tauri-action` | `tauri-plugin-updater` (minisign-signed `latest.json` on GitHub Releases) |
+| macOS (direct) | Universal `.dmg` (aarch64 + x86_64) | Developer ID Application + notarization (Apple Developer Program, $99/yr) by `tauri build` with the `APPLE_*` secrets; the `.dmg` is notarised and stapled separately | `tauri-plugin-updater` (minisign-signed `latest.json` on R2) |
 | Windows — **Microsoft Store** (primary) | MSIX built with Microsoft's `winapp` CLI from the Tauri release exe | **The Store signs it** (free individual registration) | Store |
 | Windows (direct, secondary) | NSIS `.exe` | Unsigned at launch (SmartScreen warning; show "More info → Run anyway" on the download page). Add an OV certificate ($150–300/yr) later. | `tauri-plugin-updater` |
 
 - **Azure Artifact Signing** isn't an option: individual developers must be in the US/Canada, and the organisation country list doesn't include India.
 - Store build: compile with the Cargo feature `store`, which disables the updater, and use `tauri.microsoftstore.conf.json`. Confirm the WebView2 runtime requirement (preinstalled on Windows 11; nearly universal on Windows 10).
-**Built (Windows).** `tauri-plugin-updater` is registered, `bundle.createUpdaterArtifacts`
-is on, and `.github/workflows/release.yml` publishes `latest.json` beside the installer.
+**Built (Windows and macOS).** `tauri-plugin-updater` is registered, `bundle.createUpdaterArtifacts`
+is on, and `.github/workflows/release.yml` uploads one `latest.json` covering
+`windows-x86_64`, `darwin-aarch64` and `darwin-x86_64` to `downloads.hopshot.xyz/latest.json`.
 The app checks 30 s after launch and then daily, announces what it finds on `update:available`,
 and **never installs without a click** — it is a tray app, and restarting someone mid-capture
-reads as a crash. The endpoint is `releases/latest/download/latest.json`, so a draft release
-can never reach anyone: publishing *is* releasing. macOS is unimplemented and must not be
-claimed until it compiles.
+reads as a crash. The endpoint is `https://downloads.hopshot.xyz/latest.json` (cached 5
+minutes), so **uploading `latest.json` is releasing**: it happens at the end of the tagged
+publish job, and the GitHub draft is only the changelog. Test with a `workflow_dispatch`
+rehearsal before tagging (LAUNCH §2a).
 
 The Store build carries the `store` Cargo feature, which stops the plugin being registered and
 turns `update::{check, install}` into stubs; `tauri.microsoftstore.conf.json` also sets
 `createUpdaterArtifacts: false`.
 
-- **CI (`desktop-release.yml`):** on tag `v*` → matrix `macos-latest` (universal) + `windows-latest` → builds, signs (mac), notarizes, uploads to a draft GitHub Release, and generates `latest.json`. MSIX packaging is a separate job, uploaded manually to Partner Center.
-- **Secrets:** `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_API_KEY`, `APPLE_API_ISSUER`, `APPLE_API_KEY_PATH`, `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, `CLOUDFLARE_API_TOKEN`.
+- **CI (`release.yml`):** on tag `v*` → `macos-latest` (universal) + `windows-latest` in parallel → builds, signs and notarises (mac app, then the `.dmg`), then a publish job writes `latest.json`, uploads everything to R2 (`latest.json` last) and drafts a GitHub Release. `workflow_dispatch` rehearses the build and uploads nothing. MSIX packaging is a separate job, uploaded manually to Partner Center.
+- **Secrets:** `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific), `APPLE_TEAM_ID`, `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 
 ---
 

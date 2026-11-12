@@ -283,9 +283,10 @@ jobs:
           # a release is noticed within minutes rather than hours.
           put "latest.json" "latest.json" "application/json" "public, max-age=300"
 
-      # Published as a **draft**, so a build is installed once from the release itself before
-      # it is public. The Windows installer is unsigned and SmartScreen will warn; the Mac app
-      # is notarised and opens normally. `gh` ships on the runner, so no third-party action
+      # A **draft**, but not a gate: latest.json above is already live, so installed copies are
+      # offered this update before anyone presses Publish. Publishing only makes the release
+      # notes public; test with a workflow_dispatch rehearsal before tagging (LAUNCH §2a). The
+      # Windows installer is unsigned and SmartScreen will warn; the Mac app is notarised. `gh` ships on the runner, so no third-party action
       # gets `contents: write` and the release binaries.
       - name: Draft the release
         if: startsWith(github.ref, 'refs/tags/v')
