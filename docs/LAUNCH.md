@@ -77,23 +77,26 @@ To release:
      `Hopshot.app.tar.gz` for the updater
 
    A publish job then writes one `latest.json` covering both, uploads every file to R2
-   (`downloads.hopshot.xyz/v<version>/…`), uploads `latest.json` **last** to
-   `downloads.hopshot.xyz/latest.json`, and drafts a GitHub release.
+   (`downloads.hopshot.xyz/v<version>/…`), **stages** the manifest at
+   `downloads.hopshot.xyz/v<version>/latest.json`, and drafts a GitHub release. Nothing is
+   offered to existing users yet: every installed copy polls the root
+   `downloads.hopshot.xyz/latest.json`, which a tag never touches.
 
-   **The `latest.json` upload is the release.** Every installed copy polls that URL (30 s after
-   launch, then daily; cached for 5 minutes), so existing users are offered the update within
-   minutes of the publish job finishing. They still have to click to install, but nothing
-   after the tag holds it back. The GitHub draft is only the public changelog.
-
-4. **Test before you tag, not after.** Run the workflow by hand first
-   (Actions → Release → Run workflow): `workflow_dispatch` builds both platforms and uploads
-   nothing. Install both artifacts from that run once — the Windows one through the
-   SmartScreen warning, the Mac one from the .dmg through the Screen Recording prompt, exactly
-   as a buyer will — and only then push the tag. Afterwards, press Publish on the draft to make
-   the release notes public; it no longer affects who gets the update.
-5. **Deploy `apps/web` after the publish job**, never before: `/download` builds its installer
-   URLs from `tauri.conf.json`, so a page ahead of R2 points at files that don't exist yet
+4. **Install both once** from the staged files — the Windows one through the SmartScreen
+   warning, the Mac one from the .dmg through the Screen Recording prompt, exactly as a buyer
+   will. The links are `downloads.hopshot.xyz/v<version>/…` (also attached to the draft).
+5. **Go live:** Actions → **Go live** → Run workflow, with the tag (e.g. `v0.1.7`). It checks
+   the staged manifest names that version and that every file it points at answers 200, copies
+   it to the root `latest.json`, and publishes the draft release. Installed copies are offered
+   the update within minutes (they check 30 s after launch, then daily; the manifest is cached
+   for 5 minutes) and still need a click to install. **This run is the release.**
+6. **Deploy `apps/web` after Go live**, never before: `/download` builds its installer URLs
+   from `tauri.conf.json`, so a page ahead of R2 points at files that don't exist yet
    (DEPLOY.md, "Web").
+
+   **Rolling back:** run Go live with the previous tag. That stops offering the bad version to
+   installs that haven't taken it; it can't downgrade ones that have (the updater only offers
+   newer versions), so fix forward with a new tag.
 
 ### macOS signing secrets (do once)
 
@@ -120,11 +123,10 @@ rehearses the whole build and uploads nothing.
   and the release notes both say so plainly, which PRD §9 asks for on the direct channel. An
   OV certificate (~$200/yr) removes the warning only after it builds reputation; an EV one
   removes it immediately. Worth revisiting once there is revenue to point at.
-- **A gate between tag and users.** `latest.json` goes live as soon as the publish job
-  finishes, so a bad tagged build reaches every installed copy's update prompt within minutes.
-  The only gate today is the manual `workflow_dispatch` rehearsal in step 4. If that proves too
-  easy to skip, make the publish job stop before `latest.json` and upload it from a separate,
-  manually approved job (a GitHub environment with required reviewers).
+- **A reviewer-enforced gate.** Go live is a manual workflow, so the gate is "only someone with
+  write access can run it". GitHub's environment required-reviewer rules would add an explicit
+  approval, but this private personal repo's plan rejects them (HTTP 422). Revisit if the repo
+  moves to a paid plan or an organisation.
 
 ---
 

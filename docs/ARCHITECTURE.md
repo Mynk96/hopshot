@@ -103,7 +103,7 @@ hopshot/
 │     │       do/VaultHub.ts  lib/ { auth.ts ratelimit.ts stripe.ts license.ts email.ts ids.ts }  emails/
 │     ├─ migrations/ 0001_init.sql
 │     └─ wrangler.toml
-└─ .github/workflows/ release.yml  ci.yml  (api-deploy.yml, web-deploy.yml: planned, not yet written)
+└─ .github/workflows/ release.yml  go-live.yml  ci.yml  (api-deploy.yml, web-deploy.yml: planned, not yet written)
 ```
 
 ---
@@ -511,20 +511,20 @@ CREATE TABLE reports (
 - **Azure Artifact Signing** isn't an option: individual developers must be in the US/Canada, and the organisation country list doesn't include India.
 - Store build: compile with the Cargo feature `store`, which disables the updater, and use `tauri.microsoftstore.conf.json`. Confirm the WebView2 runtime requirement (preinstalled on Windows 11; nearly universal on Windows 10).
 **Built (Windows and macOS).** `tauri-plugin-updater` is registered, `bundle.createUpdaterArtifacts`
-is on, and `.github/workflows/release.yml` uploads one `latest.json` covering
-`windows-x86_64`, `darwin-aarch64` and `darwin-x86_64` to `downloads.hopshot.xyz/latest.json`.
+is on, and `.github/workflows/release.yml` stages one `latest.json` covering
+`windows-x86_64`, `darwin-aarch64` and `darwin-x86_64` at `downloads.hopshot.xyz/v<version>/latest.json`.
 The app checks 30 s after launch and then daily, announces what it finds on `update:available`,
 and **never installs without a click** — it is a tray app, and restarting someone mid-capture
 reads as a crash. The endpoint is `https://downloads.hopshot.xyz/latest.json` (cached 5
-minutes), so **uploading `latest.json` is releasing**: it happens at the end of the tagged
-publish job, and the GitHub draft is only the changelog. Test with a `workflow_dispatch`
-rehearsal before tagging (LAUNCH §2a).
+minutes), which no tag writes: the manual **Go live** workflow (`go-live.yml`) copies the
+staged manifest there and publishes the draft release, so **running Go live is releasing**
+(LAUNCH §2a).
 
 The Store build carries the `store` Cargo feature, which stops the plugin being registered and
 turns `update::{check, install}` into stubs; `tauri.microsoftstore.conf.json` also sets
 `createUpdaterArtifacts: false`.
 
-- **CI (`release.yml`):** on tag `v*` → `macos-latest` (universal) + `windows-latest` in parallel → builds, signs and notarises (mac app, then the `.dmg`), then a publish job writes `latest.json`, uploads everything to R2 (`latest.json` last) and drafts a GitHub Release. `workflow_dispatch` rehearses the build and uploads nothing. MSIX packaging is a separate job, uploaded manually to Partner Center.
+- **CI (`release.yml`):** on tag `v*` → `macos-latest` (universal) + `windows-latest` in parallel → builds, signs and notarises (mac app, then the `.dmg`), then a publish job writes `latest.json`, uploads everything to R2 with the manifest staged at `v<version>/latest.json`, and drafts a GitHub Release. `workflow_dispatch` rehearses the build and uploads nothing. **`go-live.yml`** (manual, takes the tag) checks the staged manifest, makes it the live `latest.json` and publishes the release. MSIX packaging is a separate job, uploaded manually to Partner Center.
 - **Secrets:** `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific), `APPLE_TEAM_ID`, `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 
 ---

@@ -218,10 +218,10 @@ to read it.
   `.github/workflows/release.yml`, which tests, builds the Windows NSIS installer and the
   signed, notarised, stapled universal Mac `.dmg`, signs the update artifacts with
   `TAURI_SIGNING_PRIVATE_KEY`, uploads everything to the `hopshot-downloads` R2 bucket behind
-  `downloads.hopshot.xyz`, and drafts a GitHub release. **Uploading `latest.json` to
-  `downloads.hopshot.xyz/latest.json` is what releases the update** — it is the updater
-  endpoint in `tauri.conf.json`, and it goes up at the end of the publish job, not when the
-  draft is published (LAUNCH §2a).
+  `downloads.hopshot.xyz`, stages `v<version>/latest.json` and drafts a GitHub release.
+  **Running the manual Go live workflow (`go-live.yml`) is what releases the update**: it
+  copies the staged manifest to `downloads.hopshot.xyz/latest.json`, the updater endpoint in
+  `tauri.conf.json`, and publishes the draft (LAUNCH §2a).
 - **`api-deploy.yml` / `web-deploy.yml`** — the CI deploy workflows from ARCHITECTURE §3 do
   not exist yet; `ci.yml` only builds and tests.
 - **Custom domains are already set up**, contrary to what §6 implies: `api.hopshot.xyz`
