@@ -131,7 +131,7 @@ Send last to phone
 ─────────────
 Pair phone…            (SYNC badge if not on Sync)
 Settings…                   ⌘,
-Buy Hopshot — $19      (unlicensed only)
+Buy Hopshot — $10      (unlicensed only; price from pricing.display)
 ─────────────
 Quit Hopshot                ⌘Q
 ```
@@ -150,7 +150,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **Size:** 208 px wide; height fits its content up to 80% of the screen, then scrolls. Margin 12 px from the screen edge, vertically centered.
 - **Header (36 px):** app mark + "Hopshot" (`title`), item count chip, pin-open toggle, settings, close.
 - **List:** newest first, 8 px gap.
-- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip and no plan banner: the shelf is free, so there is nothing to count down or unlock (docs/designs/free-shelf-phone-trial.md). When an update is pending, `· Update to 0.1.3` is appended — a plain underlined word, no badge and no colour, that opens Settings → About rather than installing in place (ARCHITECTURE §9).
+- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip: pay-first means there is nothing to count down (PRD F8.1). When an update is pending, `· Update to 0.1.3` is appended — a plain underlined word, no badge and no colour, that opens Settings → About rather than installing in place (ARCHITECTURE §9).
 
 **States**
 
@@ -165,7 +165,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 | Upload error | Small danger dot on the card + toast "Couldn't send — Retry" |
 | Offline | Footer: "Offline — sending paused" |
 | Capacity reached (100) | Oldest unpinned card fades out when a new one arrives |
-| Unlicensed (nothing bought, or refunded) | Capture, shelf, drag and copy all work; no banner. The phone is the paid part: the Send to phone sheet shows the offer instead (S4, "Unlicensed"). |
+| Locked (nothing bought, or refunded) | Capture paused; banner at the top of the shelf: **"Unlock Hopshot for $10"** / "One payment, everything included. 14-day refund, no questions." + `Buy · $10 once`. The shelf stays readable and draggable (PRD F8.1a). The price is `pricing.display`. |
 | Feedback ask (once, ~7 days and 5 captures in) | A card under the header: **"Is Hopshot useful to you?"** `Yes` / `Not really` and a close (×, "Not now"). After an answer: "Anything to add?" with an optional comment, `Send` / `Skip`. Answering or closing retires it for good (ARCHITECTURE §7.10). |
 
 ### S4 — Send to phone (QR popover)
@@ -177,7 +177,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - Actions: `Delete now` (danger-ghost), `Done`.
 - **Sync + paired:** instead of the QR, show "Sent to Mayank's iPhone ✓" with a "Show QR instead" link.
 - Loading: QR placeholder with a shimmer and "Encrypting…" → "Uploading 62%".
-- **Unlicensed** (nothing bought): the sheet makes no request. Title **"Phone · $19 once"**, body "Send to phone, share links and a paired phone feed. Pay once, no subscription. 14-day refund, no questions." Actions `Buy · $19 once` (primary, opens Checkout) and `Already bought? Restore` (ghost, opens Settings → License). This is the only place the shelf asks for money: at the moment of intent, never as a nag.
+- **Unlicensed** (rare under pay-first: only items left from before a refund): the sheet makes no request. Title **"Unlock Hopshot · $10 once"**, body "One payment, everything included: capture, the shelf and your phone. No subscription. 14-day refund, no questions." Actions `Buy · $10 once` and `Already bought? Restore`.
 
 ### S5 — Phone web app (`/app`)
 
@@ -211,16 +211,17 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 
 1. **Welcome:** display text "Screenshots that clean up after themselves." + 3 bullets (Drag anywhere · Open on your phone · Gone in 24h) → `Get started`.
 2. **Permission (macOS only):** "Hopshot needs Screen Recording permission to capture your screen." → `Open System Settings`. A live status row goes from ◌ Waiting… to ✓ Granted. Small print: "macOS may ask you to confirm this again from time to time."
-3. **Try it:** keycaps animation `⌘ ⇧ 2` → "Select anything on your screen." Completes automatically when the first capture lands, then shows "Now drag it from the shelf into any browser tab."
-4. **Done:** "You're all set" / "The shelf is free, forever: capture, drag and copy as much as you like. Sending a screenshot to your phone is $19 once, from the phone button on any item. 14-day refund, no questions." / "Hopshot lives in your menu bar. Show the shelf any time with {shelf keys}." → `Finish`.
+3. **Pay:** "Unlock Hopshot for $10" / "One payment, everything included: capture, the shelf, drag anywhere, and your phone. No subscription. 14-day refund, no questions." → `Buy · $10 once` · `Already bought? Restore`. After Buy, "Finish paying in your browser…" until the licence lands (license:changed), then ✓ Unlocked and `Continue` enables. `Not now` jumps to Done (capture is locked, so there is nothing to try). Skipped when already licensed.
+4. **Try it:** keycaps animation `⌘ ⇧ 2` → "Select anything on your screen." Completes automatically when the first capture lands, then shows "Now drag it from the shelf into any browser tab."
+5. **Done:** licensed: "You're all set" / "Every capture lands on the shelf. Drag it into any app, copy it, or send it to your phone."; not yet: "Almost there" / "Hopshot stays locked until you unlock it for $10, from the shelf or Settings → License…". Then "Hopshot lives in your menu bar. Show the shelf any time with {shelf keys}." → `Finish`.
 
 Shown on first launch while `settings.onboarded` is false (fresh installs and upgrades from before 0.1.7 see it once). `Finish` **or** the window's close button sets it. The permission step is skipped when access is already granted, so after macOS's "Quit & Reopen" the user lands on **Try it**. Keycaps show the configured shortcuts, not hard-coded ones. Done also offers an optional email sign-up ("Hear about new tools from the maker of Hopshot", double opt-in). There is no stats checkbox: usage counts are always on and disclosed (ARCHITECTURE §7.10).
 
 ### S9 — Plans sheet
 
 - One column (PRD §7 has one plan). Owners whose Sync has lapsed see the renewal instead.
-- Price block: **$19 once**, everything included, first year of Sync bundled, then $24/year opt-in. A licence whose Sync has lapsed sees only **Add Sync · $24/year**.
-- Buttons: `Buy Hopshot · $19` (primary) · `Already bought? Restore`.
+- Price block: **$10 once** (`pricing.display`), everything included, Sync permanently.
+- Buttons: `Buy Hopshot · $10` (primary) · `Already bought? Restore`.
 - After a Buy click the sheet shows "Finish paying in your browser…" and unlocks by itself when payment completes ("You're all set"). Restore: email field → "Check your email" → the link opens the app, or a 6-digit code field.
 - Over the computer limit. **Lifetime (1):** "Hopshot is active on {other computer}. Move it here?" with **Move here** (primary) and a small link **Add Sync to use up to 3 computers**. **Lifetime + Sync (3):** "Hopshot is on 3 computers. Remove one to use it here." with the list (name, last used) and Remove buttons. After Sync ends, extra computers show the Lifetime version with **Renew Sync** as the link.
 - Trust line: "Secure checkout by Stripe · 14-day refund".
@@ -236,7 +237,7 @@ Shown on first launch while `settings.onboarded` is false (fresh installs and up
 | Sent to phone (paired) | "Sent to {device}" |
 | Limit (Lifetime drops) | "That's 10 sends today. Sync raises it to 200." |
 | Capacity | "Shelf holds 100. Oldest one made room." |
-| Phone offer (unlicensed) | "Phone · $19 once" / "Send to phone, share links and a paired phone feed. Pay once, no subscription. 14-day refund, no questions." |
+| Locked | "Unlock Hopshot for $10" / "One payment, everything included. 14-day refund, no questions." Toast on the capture hotkey: "Unlock Hopshot for $10 to start capturing. It unlocks itself the moment you pay." |
 | Sync lapsed | "Sync is off — your phone won't get new screenshots. Everything else still works." |
 | Expired item clicked (race) | "That one just expired." |
 | Permission missing | "Hopshot can't see your screen yet. Fix in one click →" |

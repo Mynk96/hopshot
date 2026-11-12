@@ -7,6 +7,7 @@ import { ItemCard } from "./ItemCard";
 import { MoreMenu } from "./MoreMenu";
 import { SendSheet } from "./SendSheet";
 import { FeedbackCard } from "./FeedbackCard";
+import { LockedBanner } from "./LockedBanner";
 import { useAutoHide } from "./useAutoHide";
 import { useShelfKeys } from "./useShelfKeys";
 import type { PlanState, ShelfItem, Toast } from "./types";
@@ -37,11 +38,12 @@ export default function Shelf() {
   /** Item whose QR popover is open (DESIGN S4). Also what "Copy link" opens. */
   const [qrFor, setQrFor] = useState<string | null>(null);
   const [pinnedOpen, setPinnedOpen] = useState(false);
-  /** Unlicensed (`expired`) turns the phone sheet into the $19 offer; the shelf is free. */
+  /** Pay-first: without a licence capture is paused and the locked banner shows. */
   const [plan, setPlan] = useState<PlanState | null>(null);
   /** ARCHITECTURE §7.10: the one-time "Is Hopshot useful?" card, and its measured height. */
   const [askFeedback, setAskFeedback] = useState(false);
   const [feedbackPx, setFeedbackPx] = useState(0);
+  const [lockedPx, setLockedPx] = useState(0);
 
   /** id → staged path promise, so a drag never waits on IPC. */
   const staged = useRef(new Map<string, Promise<{ path: string; icon: string }>>());
@@ -131,6 +133,7 @@ export default function Shelf() {
   useEffect(() => {
     const content =
       feedbackPx +
+      lockedPx +
       HEADER_PX +
       FOOTER_PX +
       LIST_PADDING_PX * 2 +
@@ -138,7 +141,7 @@ export default function Shelf() {
       Math.max(0, items.length - 1) * CARD_GAP_PX;
     const cap = Math.round(window.screen.availHeight * MAX_VIEWPORT_FRACTION);
     void invoke("resize_shelf", { height: Math.min(content, cap) });
-  }, [items.length, feedbackPx]);
+  }, [items.length, feedbackPx, lockedPx]);
 
   const hide = useCallback(() => void invoke("hide_shelf"), []);
 
@@ -310,6 +313,8 @@ export default function Shelf() {
           <Icon name="x" />
         </IconButton>
       </header>
+
+      {plan?.capturePaused && <LockedBanner onHeight={setLockedPx} />}
 
       {askFeedback && (
         <FeedbackCard
@@ -504,7 +509,7 @@ function EmptyState() {
  * DESIGN S3 footer: the item count and the privacy line, which is the whole pitch.
  *
  * Plan-independent on purpose. It used to carry the trial countdown; with no trial there is
- * nothing plan-shaped left to say here; the $19 offer lives in the phone sheet instead.
+ * nothing plan-shaped left to say here; the locked state has its own banner above.
  *
  * The one thing it does carry is a pending update (ARCHITECTURE §9) — one quiet word, no
  * badge, no colour. Clicking opens Settings → About rather than installing in place, so the

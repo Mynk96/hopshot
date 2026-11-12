@@ -46,8 +46,10 @@ new_sqlite_classes = ["VaultHub"]
 crons = ["*/15 * * * *", "0 9 * * *"]
 
 [vars]
-# The one plan (PRD §7): Lifetime plus the first year of Sync, $19 once. The old $12
-# Lifetime-only price is retired — it could not pair a phone, which is what Hopshot is for.
+# The one plan (PRD §7, docs/designs/pay-first-10.md): everything included, paid once.
+# Checkout charges exactly this Stripe price id (lib/stripe.ts `priceId`), so a price change
+# is a new Stripe Price + this id + an API deploy. config/limits.json pricing.display is what
+# the app and website *show*; keep the two in step.
 STRIPE_PRICE_BUNDLE = "price_1UM4rpSAaYIq0lX8oRSba6nK"
 EMAIL_FROM = "Hopshot <founder@hopshot.xyz>"
 WEB_ORIGIN = "https://app.hopshot.xyz"

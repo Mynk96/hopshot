@@ -61,11 +61,21 @@ export interface InsightsLimits {
   readonly feedbackMinCaptures: number;
 }
 
+/**
+ * The one price, as shown to people (docs/designs/pay-first-10.md). The amount charged is
+ * whatever Stripe's `bundle` lookup key points at; keep the two in step.
+ */
+export interface PricingLimits {
+  /** e.g. "$10" — used verbatim in the app, the website and the release notes. */
+  readonly display: string;
+}
+
 export interface Limits {
   readonly lifetime: LifetimeLimits;
   readonly sync: SyncLimits;
   readonly server: ServerLimits;
   readonly insights: InsightsLimits;
+  readonly pricing: PricingLimits;
 }
 
 /**

@@ -44,5 +44,8 @@
     "feedbackCommentMaxChars": 1000,
     "feedbackAfterDays": 7,
     "feedbackMinCaptures": 5
+  },
+  "pricing": {
+    "display": "$10"
   }
 }

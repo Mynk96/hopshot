@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
+import { limits } from "shared";
 import { toKeycaps } from "../settings/HotkeyRecorder";
 import type { AppSettings } from "../settings/types";
 import { Icon } from "../shelf/icons";
@@ -13,17 +14,22 @@ import { BrandMark } from "../shelf/Shelf";
  * install shows. Rust opens it while `settings.onboarded` is false; Finish or the close
  * button sets it.
  *
- * Deliberate differences from S8: step 4 carries the free-shelf copy (the "Buy Hopshot to
- * start capturing" line predates it), and the stats opt-in is left out because no setting
- * backs it yet.
+ * Pay-first (docs/designs/pay-first-10.md): a Pay step sits before Try it, because capture
+ * is locked until a purchase. There is no stats checkbox; usage counts are always on and
+ * disclosed (ARCHITECTURE §7.10).
  */
 
-type Step = "welcome" | "permission" | "try" | "done";
+type Step = "welcome" | "permission" | "pay" | "try" | "done";
 type Access = "granted" | "denied" | "unknown";
 
 const isMac = navigator.userAgent.includes("Mac");
-/** The macOS permission step only exists on macOS (Windows has no such gate). */
-const STEPS: Step[] = isMac ? ["welcome", "permission", "try", "done"] : ["welcome", "try", "done"];
+/**
+ * The macOS permission step only exists on macOS (Windows has no such gate). Pay comes before
+ * Try it because capture is locked until a purchase (docs/designs/pay-first-10.md).
+ */
+const STEPS: Step[] = isMac
+  ? ["welcome", "permission", "pay", "try", "done"]
+  : ["welcome", "pay", "try", "done"];
 /** How often the permission row re-checks while the user is in System Settings. */
 const POLL_MS = 1000;
 
@@ -33,6 +39,8 @@ export default function Onboarding() {
   const [shelfHotkey, setShelfHotkey] = useState("CmdOrCtrl+Shift+1");
   const [access, setAccess] = useState<Access>("unknown");
   const [captured, setCaptured] = useState(false);
+  /** Whether this computer holds a licence; null until the first read. */
+  const [licensed, setLicensed] = useState<boolean | null>(null);
   const [theme, setTheme] = useState<AppSettings["theme"] | null>(null);
 
   // index.html ships data-theme="dark" (the shelf and overlay need it before first paint).
@@ -69,6 +77,20 @@ export default function Onboarding() {
     return () => clearInterval(timer);
   }, [step, checkAccess]);
 
+  // Licence state: read now, and again when a purchase or restore lands (the app polls the
+  // checkout claim and emits license:changed when it is done).
+  useEffect(() => {
+    const read = () =>
+      void invoke<{ capturePaused: boolean }>("plan_state")
+        .then((state) => setLicensed(!state.capturePaused))
+        .catch(() => undefined);
+    read();
+    const subscriptions = [listen("license:changed", read), listen("plan:changed", read)];
+    return () => {
+      for (const pending of subscriptions) void pending.then((off) => off());
+    };
+  }, []);
+
   // The "Try it" step completes itself when a capture lands on the shelf.
   useEffect(() => {
     const subscription = listen("shelf:highlight", () => setCaptured(true));
@@ -85,10 +107,16 @@ export default function Onboarding() {
   const advanceFrom = (from: Step) => {
     setStep((current) => {
       if (current !== from) return current;
-      const after = STEPS[STEPS.indexOf(from) + 1];
-      if (!after) return current;
-      // Already granted (or relaunched after "Quit & Reopen"): skip straight to trying it.
-      return after === "permission" && access === "granted" ? "try" : after;
+      let after = STEPS[STEPS.indexOf(from) + 1];
+      // Skip what is already done: permission granted (or relaunched after "Quit & Reopen"),
+      // and payment when this computer is already licensed.
+      while (
+        (after === "permission" && access === "granted") ||
+        (after === "pay" && licensed === true)
+      ) {
+        after = STEPS[STEPS.indexOf(after) + 1];
+      }
+      return after ?? current;
     });
   };
   const next = () => advanceFrom(step);
@@ -109,8 +137,11 @@ export default function Onboarding() {
             onOpen={() => void invoke("permissions_open_settings").catch(() => undefined)}
           />
         )}
+        {step === "pay" && <Pay licensed={licensed === true} />}
         {step === "try" && <TryIt keys={toKeycaps(hotkey)} captured={captured} />}
-        {step === "done" && <Done shelfKeys={toKeycaps(shelfHotkey)} />}
+        {step === "done" && (
+          <Done shelfKeys={toKeycaps(shelfHotkey)} licensed={licensed === true} />
+        )}
       </div>
 
       <footer className="flex items-center justify-between">
@@ -120,6 +151,16 @@ export default function Onboarding() {
           {step === "permission" && access !== "granted" && (
             <button type="button" className="btn btn-ghost" onClick={next}>
               Skip for now
+            </button>
+          )}
+          {step === "pay" && licensed !== true && (
+            // Capture is locked without a licence, so there is nothing to try: go to the end.
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setStep((current) => (current === "pay" ? "done" : current))}
+            >
+              Not now
             </button>
           )}
           {step === "try" && !captured && (
@@ -136,7 +177,9 @@ export default function Onboarding() {
               type="button"
               className="btn btn-primary"
               disabled={
-                (step === "permission" && access !== "granted") || (step === "try" && !captured)
+                (step === "permission" && access !== "granted") ||
+                (step === "pay" && licensed !== true) ||
+                (step === "try" && !captured)
               }
               onClick={next}
             >
@@ -257,13 +300,59 @@ function TryIt({ keys, captured }: { keys: string[]; captured: boolean }) {
   );
 }
 
-function Done({ shelfKeys }: { shelfKeys: string[] }) {
+function Pay({ licensed }: { licensed: boolean }) {
+  const [started, setStarted] = useState(false);
+  const price = limits.pricing.display;
   return (
     <>
-      <h1 className="text-heading">You're all set</h1>
+      <h1 className="text-heading">Unlock Hopshot for {price}</h1>
       <p className="mt-3 text-body text-text-2">
-        The shelf is free, forever: capture, drag and copy as much as you like. Sending a screenshot
-        to your phone is $19 once, from the phone button on any item. 14-day refund, no questions.
+        One payment, everything included: capture, the shelf, drag anywhere, and your phone. No
+        subscription. 14-day refund, no questions.
+      </p>
+      <div className="mt-6 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={licensed}
+          onClick={() => {
+            setStarted(true);
+            void invoke("license_buy", { plan: "bundle" }).catch(() => setStarted(false));
+          }}
+        >
+          Buy · {price} once
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={licensed}
+          onClick={() => void invoke("open_settings", { tab: "license" }).catch(() => undefined)}
+        >
+          Already bought? Restore
+        </button>
+      </div>
+      {(started || licensed) && (
+        <p
+          className="mt-5 flex items-center gap-2 text-body-strong"
+          role="status"
+          style={{ color: licensed ? "var(--success)" : "var(--text-2)" }}
+        >
+          {licensed ? <Icon name="check" size={14} /> : <span aria-hidden>◌</span>}
+          {licensed ? "Unlocked" : "Finish paying in your browser…"}
+        </p>
+      )}
+    </>
+  );
+}
+
+function Done({ shelfKeys, licensed }: { shelfKeys: string[]; licensed: boolean }) {
+  return (
+    <>
+      <h1 className="text-heading">{licensed ? "You're all set" : "Almost there"}</h1>
+      <p className="mt-3 text-body text-text-2">
+        {licensed
+          ? "Every capture lands on the shelf. Drag it into any app, copy it, or send it to your phone."
+          : `Hopshot stays locked until you unlock it for ${limits.pricing.display}, from the shelf or Settings → License. One payment, everything included. 14-day refund, no questions.`}
       </p>
       <p className="mt-3 text-body text-text-2">
         Hopshot lives in your menu bar. Show the shelf any time with {shelfKeys.join(" ")}.

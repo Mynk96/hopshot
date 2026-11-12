@@ -307,9 +307,15 @@ jobs:
 
           Verify any download against its `.sha256` if you would rather check it yourself.
 
-          Free to download, and the shelf is free forever: capture, drag and copy. Sending to
-          your phone is $19 once, no subscription. 14-day refund, no questions asked.
+          Free to download, then __PRICE__ once to unlock everything: capture, the shelf and your
+          phone. No subscription. 14-day refund, no questions asked.
           NOTES
+
+          # The price lives in config/limits.json (pricing.display), shared with the app and
+          # the website; the heredoc stays quoted so the backticks above are never executed.
+          price=$(node -p 'require("../config/limits.json").pricing.display')
+          sed -i "s/__PRICE__/${price}/" notes.md
+          grep -q "__PRICE__" notes.md && { echo "::error::price placeholder not filled"; exit 1; }
 
           gh release create "${{ github.ref_name }}" \
             --draft \

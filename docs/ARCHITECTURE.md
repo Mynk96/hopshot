@@ -146,7 +146,7 @@ Every limit lives here. Rust reads it with `include_str!` + serde, TS imports it
 
 Plan resolution: `expired` (nothing bought, or bought and refunded) → `lifetime` (valid Lifetime licence) → `sync` (valid Lifetime licence + active Sync subscription; gets Lifetime limits overridden by the `sync` block).
 
-The shelf is free and the phone is paid (PRD F8.1): every install starts `expired` — which now means *no server features*, not *no capture* — and a licence is the only thing that grants a plan. `resolvePlan` therefore reads one header — `X-Hopshot-License` — and anything else is `expired`, which is also what makes a refund take the phone features away.
+Hopshot is **pay-first** (PRD F8.1, docs/designs/pay-first-10.md): every install starts `expired` with capture paused, and a licence is the only thing that grants a plan. `resolvePlan` therefore reads one header — `X-Hopshot-License` — and anything else is `expired`, which is also what makes a refund take the app away.
 
 ---
 
@@ -301,13 +301,13 @@ Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 3
 
 ### 7.5 Licenses and billing (Stripe)
 
-**No trial yet** (a 7-day phone trial is phase 2, TODOS.md). A new install is `expired`: capture is never paused, because capture is free and local, so there is nothing to bypass offline. The server refuses an `expired` caller every drop, vault and pairing request. `POST /trial/start` stays a stub reporting an ended trial for v0.1.x builds.
+**No trial.** Pay-first: a new install is `expired` and capture is paused until a purchase completes. The desktop decides this locally from the keychain so the hotkey path never waits on a request, and an install that has *never* reached the server is locked too — treating "unknown" as permissive would make staying offline a bypass. The server refuses an `expired` caller every drop, vault and pairing request. `POST /trial/start` stays a stub reporting an ended trial for v0.1.x builds.
 
 **Stripe setup** (test mode first, then live; the India account used for pre-orders, payouts in INR):
 
 | Product | Price | Lookup key | Metadata |
 |---|---|---|---|
-| Hopshot | one-time, $19 | `bundle` | `plan=bundle`, `sync_days=365` |
+| Hopshot | one-time, $10 | `bundle` | `plan=bundle`, `sync_days=365` |
 | _(retired)_ Hopshot Sync | was recurring, $24/year | — | Sync is now part of the one-time purchase |
 
 One plan (PRD §7): `Purchasable` is `"bundle"` and nothing else, so `/license/buy/lifetime` is a 400. The `lifetime` *plan name* survives as the state a licence falls back to when Sync lapses. Code refers to prices only by **lookup key**. To change a price, create a new Price in the dashboard and transfer the lookup key to it; no deploy. Turn on the **customer portal** (update card, invoices, cancel at period end; no plan switching). Turn on Stripe's built-in emails for receipts, failed payments and expiring cards, plus Smart Retries. Turn **off** Stripe's free-trial reminder emails: Hopshot sends its own, and "trial" is the wrong word for an included year.
@@ -315,7 +315,7 @@ One plan (PRD §7): `Purchasable` is `"bundle"` and nothing else, so `/license/b
 **Checkout** is created by the Worker, so the website and the app never hold Stripe keys:
 
 - `GET /buy/{lifetime|bundle}?ref=` → Checkout Session with `mode=payment`, `customer_creation=always`, `billing_address_collection=required`, name collection on, `client_reference_id=ref`, `metadata.plan`, `success_url=https://hopshot.xyz/thanks?s={CHECKOUT_SESSION_ID}`, `cancel_url=https://hopshot.xyz/#pricing` → `303`. Stripe India requires the customer's name and billing address on export payments.
-- _(retired)_ `POST /billing/sync-checkout` — there is no Sync subscription to sell. A pre-launch Lifetime holder who wants phone sync buys the current $19 licence.
+- _(retired)_ `POST /billing/sync-checkout` — there is no Sync subscription to sell. A pre-launch Lifetime holder who wants phone sync buys the current $10 licence.
 - `GET /billing/add-card?t={token}` → Checkout Session with `mode=setup` for that customer. On completion, set the card as the Sync subscription's default payment method and resume it if paused.
 - `POST /billing/portal` (device token header) and `GET /billing/manage?t={token}` → customer portal session → `303`.
 

@@ -69,17 +69,18 @@ pub fn start<R: Runtime>(app: &AppHandle<R>, mode: Mode) {
 
 fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureError> {
     /*
-     * The shelf is free, so `plan_state` never pauses capture any more (license.rs). The
-     * check stays as the one place a future pause would be enforced; it is a no-op today.
-     * Decided locally so a hotkey never waits on the network; the server refuses an
-     * unlicensed caller independently for every phone feature.
+     * Pay-first (docs/designs/pay-first-10.md): capture is paused until a purchase. The shelf
+     * stays readable and draggable, so anything already on it (including items a refunded
+     * licence left behind) remains usable until it expires. Decided locally so a hotkey never
+     * waits on the network; the server refuses an unlicensed caller independently.
      */
     if crate::license::plan_state(app).capture_paused {
         log::info!("capture is paused: no licence on this computer");
+        let price = &crate::limits::limits().pricing.display;
         toast(
             app,
             "error",
-            "Buy Hopshot to start capturing — it unlocks itself the moment you pay.",
+            &format!("Unlock Hopshot for {price} to start capturing. It unlocks itself the moment you pay."),
         );
         let _ = tauri::Emitter::emit(app, "plan:changed", ());
         crate::shelf::show(app);
