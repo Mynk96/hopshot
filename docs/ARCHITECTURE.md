@@ -484,6 +484,24 @@ CREATE TABLE reports (
 
 ---
 
+### 7.10 Usage counts, mailing list and feedback (0.1.8)
+
+What the founder needs to know (installs, activity, screenshots, whether it helps) and a way to
+reach people later, without breaking rule 1. Disclosed on `/privacy` and `/terms`.
+
+| Route | What it does |
+|---|---|
+| `POST /v1/stats/ping` | Daily from the app (`stats.rs`, 30 s after launch, then every 24 h). Body: `installId`, `version`, `os` (`macos`/`windows`), `days: [{day, captures}]` for the last `insights.pingMaxDays` UTC days. Upserts `installs` and keeps `MAX` per `install_days` row, so repeats never inflate. **Always on**; no in-app switch (product decision, 0.1.8). |
+| `POST /v1/feedback` | "Is Hopshot useful to you?": `useful`, optional `comment` (≤ `feedbackCommentMaxChars`), `installId`, `version`. Asked once on the shelf after `feedbackAfterDays` and `feedbackMinCaptures`. |
+| `POST /v1/subscribe` | Mailing list, double opt-in: stores `pending` with a hashed token and emails confirm + unsubscribe links (Resend). Same answer whatever the address's state, so the list can't be probed. Sources: `onboarding` (via the app's `subscribe` command) and `website` (`/download`). |
+| `GET /v1/subscribe/confirm` · `/unsubscribe` | `?token=`; act, then 303 to `WEB_ORIGIN/subscribed?status=confirmed|unsubscribed|invalid`. An unsubscribed address can't be re-confirmed by an old link. |
+| `GET /v1/admin/stats` | Behind `ADMIN_TOKEN` (404 otherwise): installs (total, new 7 d, active 1/7/30 d), screenshots (total, per day for 14 d), day-7 retention, versions, OS, subscribers by status, feedback split and latest comments. |
+| `GET /v1/admin/subscribers` | Behind `ADMIN_TOKEN`: confirmed addresses, for announcements. |
+
+Never sent or stored: images, file names, window titles, screen content, raw IPs (per-IP caps
+use the daily-salted hash in §7.9). `subscribers` has no install id, so an email is never
+joined to usage. Caps live in `config/limits.json` → `insights`. Tables: `migrations/0004_insights.sql`.
+
 ## 8. Web app (Astro on Cloudflare Pages)
 
 | Route | Type | Purpose |

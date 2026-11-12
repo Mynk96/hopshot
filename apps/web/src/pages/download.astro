@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import EmailSignup from "../components/EmailSignup.astro";
 // The version comes from the file that names the installer, so the two can never disagree.
 // Keeping a second copy here is what made this button 404 in the first place; CI now runs
 // scripts/check-version.mjs to hold every copy of the number together.
@@ -109,6 +110,8 @@ const macInstaller = `${base}/Hopshot_${version}_universal.dmg`;
       </p>
       <a class="text-body" style="color: var(--accent-text)" href="/pricing">See pricing →</a>
     </section>
+
+    <EmailSignup />
   </main>
 </Base>
 

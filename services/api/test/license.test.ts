@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { limits } from "shared";
 
 import {
@@ -11,7 +11,7 @@ import {
   revokeByPaymentIntent,
 } from "../src/lib/license.ts";
 import { verifyWebhook } from "../src/lib/stripe.ts";
-import { applyMigrations, freshId, send } from "./helpers.ts";
+import { applyMigrations, captureEmail, freshId, resetEmail, send } from "./helpers.ts";
 
 /**
  * Licensing (PRD F8, ARCHITECTURE §7.5).
@@ -52,34 +52,8 @@ function withSecret(): Env {
   return env;
 }
 
-/**
- * Switch email on and capture what would have been sent, instead of calling Resend.
- *
- * Email is off in tests unless a test asks for it: with no key configured `send` logs and
- * returns false, which is what keeps every other test from needing a fetch stub.
- */
-function captureEmail(): Array<{ to: string; subject: string; text: string; html?: string }> {
-  const vars = env as unknown as Record<string, string | undefined>;
-  vars.RESEND_API_KEY = "re_test_not_a_real_key";
-  vars.EMAIL_FROM = "Hopshot <founder@hopshot.xyz>";
-
-  const sent: Array<{ to: string; subject: string; text: string; html?: string }> = [];
-  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (!url.startsWith("https://api.resend.com")) {
-      throw new Error(`unexpected outbound request to ${url}`);
-    }
-    sent.push(JSON.parse(String(init?.body)));
-    return Response.json({ id: "re_1" });
-  });
-  return sent;
-}
-
 afterEach(() => {
-  vi.unstubAllGlobals();
-  const vars = env as unknown as Record<string, string | undefined>;
-  delete vars.RESEND_API_KEY;
-  delete vars.EMAIL_FROM;
+  resetEmail();
 });
 
 describe("webhook signature verification", () => {

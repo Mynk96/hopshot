@@ -1,0 +1,71 @@
+---
+/*
+ * Join the maker's mailing list (ARCHITECTURE §7.10). Double opt-in: the API emails a
+ * confirmation link, and nothing is sent until it is followed.
+ *
+ * The CSP has `form-action 'none'`, so the form never navigates: the bundled script below
+ * submits it with fetch (covered by `connect-src` and `script-src 'self'`).
+ */
+---
+
+<section class="flex flex-col gap-2" data-signup>
+  <label for="signup-email" class="text-title">Hear about what's next</label>
+  <p class="text-body text-text-2">
+    New tools from the maker of Hopshot. A few emails a year, one-click unsubscribe.
+  </p>
+  <form class="flex flex-wrap gap-2" novalidate>
+    <input
+      id="signup-email"
+      name="email"
+      type="email"
+      required
+      autocomplete="email"
+      placeholder="you@example.com"
+      class="min-w-0 flex-1 text-body"
+      style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text)"
+    />
+    <button type="submit" class="btn btn-secondary">Keep me posted</button>
+  </form>
+  <p class="text-small text-text-3" role="status" aria-live="polite" data-signup-status></p>
+</section>
+
+<script>
+  const API = import.meta.env.PUBLIC_HOPSHOT_API ?? "https://api.hopshot.xyz/v1";
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-signup]")) {
+    const form = root.querySelector("form");
+    const input = root.querySelector<HTMLInputElement>("input[type=email]");
+    const button = root.querySelector<HTMLButtonElement>("button[type=submit]");
+    const status = root.querySelector<HTMLElement>("[data-signup-status]");
+    if (!form || !input || !button || !status) continue;
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!input.checkValidity()) {
+        status.textContent = "That doesn't look like an email address.";
+        return;
+      }
+      button.disabled = true;
+      status.textContent = "Signing you up…";
+      try {
+        const response = await fetch(`${API}/subscribe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: input.value, source: "website" }),
+        });
+        if (response.ok) {
+          form.hidden = true;
+          status.textContent = "Check your inbox to confirm.";
+          return;
+        }
+        const body = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        status.textContent = body?.error?.message ?? "Couldn't sign you up just now. Try again.";
+      } catch {
+        status.textContent = "Couldn't reach Hopshot. Check your connection and try again.";
+      }
+      button.disabled = false;
+    });
+  }
+</script>

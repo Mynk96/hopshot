@@ -252,6 +252,8 @@ fn deliver<R: Runtime>(app: &AppHandle<R>, path: &std::path::Path, image: &image
 
     if let Some(item) = item {
         let _ = app.emit("shelf:highlight", serde_json::json!({ "id": item.id }));
+        // Counted locally; only the daily number leaves the device (ARCHITECTURE §7.10).
+        crate::stats::record_capture(app);
 
         // PRD F4.3: every new capture goes to the paired phones. On a thread, because the
         // seal-and-upload is a network round trip and this function is on the path between

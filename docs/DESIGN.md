@@ -166,6 +166,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 | Offline | Footer: "Offline — sending paused" |
 | Capacity reached (100) | Oldest unpinned card fades out when a new one arrives |
 | Unlicensed (nothing bought, or refunded) | Capture, shelf, drag and copy all work; no banner. The phone is the paid part: the Send to phone sheet shows the offer instead (S4, "Unlicensed"). |
+| Feedback ask (once, ~7 days and 5 captures in) | A card under the header: **"Is Hopshot useful to you?"** `Yes` / `Not really` and a close (×, "Not now"). After an answer: "Anything to add?" with an optional comment, `Send` / `Skip`. Answering or closing retires it for good (ARCHITECTURE §7.10). |
 
 ### S4 — Send to phone (QR popover)
 
@@ -213,7 +214,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 3. **Try it:** keycaps animation `⌘ ⇧ 2` → "Select anything on your screen." Completes automatically when the first capture lands, then shows "Now drag it from the shelf into any browser tab."
 4. **Done:** "You're all set" / "The shelf is free, forever: capture, drag and copy as much as you like. Sending a screenshot to your phone is $19 once, from the phone button on any item. 14-day refund, no questions." / "Hopshot lives in your menu bar. Show the shelf any time with {shelf keys}." → `Finish`.
 
-Shown on first launch while `settings.onboarded` is false (fresh installs and upgrades from before 0.1.7 see it once). `Finish` **or** the window's close button sets it. The permission step is skipped when access is already granted, so after macOS's "Quit & Reopen" the user lands on **Try it**. Keycaps show the configured shortcuts, not hard-coded ones. Not built yet: the stats opt-in checkbox (no setting backs it).
+Shown on first launch while `settings.onboarded` is false (fresh installs and upgrades from before 0.1.7 see it once). `Finish` **or** the window's close button sets it. The permission step is skipped when access is already granted, so after macOS's "Quit & Reopen" the user lands on **Try it**. Keycaps show the configured shortcuts, not hard-coded ones. Done also offers an optional email sign-up ("Hear about new tools from the maker of Hopshot", double opt-in). There is no stats checkbox: usage counts are always on and disclosed (ARCHITECTURE §7.10).
 
 ### S9 — Plans sheet
 

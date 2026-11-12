@@ -13,7 +13,7 @@ import Base from "../layouts/Base.astro";
  * If the behaviour changes, this page has to change with it. It is a promise, not marketing.
  */
 
-const updated = "21 October 2026";
+const updated = "12 November 2026";
 ---
 
 <Base
@@ -56,8 +56,9 @@ const updated = "21 October 2026";
         <li>a random id, generated on your device</li>
         <li>hashes of the access tokens — never the tokens themselves</li>
         <li>
-          a random install identifier, used only to count your own daily sends against your
-          own limit. It is not linked to you or to any account.
+          a random install identifier, used to count your own daily sends against your own
+          limit and in the daily usage counts described under Analytics. It is not linked to
+          you, your email or any account.
         </li>
         <li>
           a one-way hash of your IP address, salted with the date, kept for 7 days to stop
@@ -96,9 +97,39 @@ const updated = "21 October 2026";
     <section class="flex flex-col gap-3">
       <h2 class="text-heading">Analytics</h2>
       <p class="text-body text-text-2">
-        Anonymous usage statistics and crash reports are <strong>off</strong> unless you turn
-        them on. Hopshot does not include third-party trackers, and the app does not phone
-        home to tell us what you captured.
+        Once a day the app sends us a small set of usage counts, so we know how many people
+        use Hopshot and whether it's actually helping them:
+      </p>
+      <ul class="flex flex-col gap-1.5 pl-5 text-body text-text-2" style="list-style: disc">
+        <li>the random install identifier above</li>
+        <li>the app version, and whether you're on macOS or Windows</li>
+        <li>how many screenshots you took on each of the last 14 days (just the numbers)</li>
+      </ul>
+      <p class="text-body text-text-2">
+        That's all. Never a screenshot, a file name, a window title or anything that was on
+        your screen, and never your IP address. The counts aren't linked to your email or any
+        account. They're part of how the app works and can't be turned off in the app;
+        uninstalling Hopshot stops them. Crash reports are off. Hopshot has no third-party
+        trackers.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Mailing list</h2>
+      <p class="text-body text-text-2">
+        Signing up is optional, in the app or on the download page. We store your email,
+        where you signed up and when you confirmed. We first email you a confirmation link,
+        and send nothing else unless you click it. Every email has a one-click unsubscribe.
+        Your email is kept separate from the usage counts and is never linked to them.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-heading">Feedback</h2>
+      <p class="text-body text-text-2">
+        About a week in, the app asks once whether Hopshot is useful to you. If you answer,
+        we store your answer, any comment you add, the app version and the install
+        identifier.
       </p>
     </section>
 
@@ -111,7 +142,10 @@ const updated = "21 October 2026";
           and card details; we never see your card. We keep your email, name and Stripe
           customer id so a purchase can be restored.
         </li>
-        <li><strong>Resend</strong> delivers receipts and restore codes.</li>
+        <li>
+          <strong>Resend</strong> delivers receipts, restore codes and, if you've signed up,
+          mailing-list emails.
+        </li>
       </ul>
     </section>
 

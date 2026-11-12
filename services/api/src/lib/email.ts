@@ -10,6 +10,7 @@
  */
 
 import { renderReceipt, type Purchase } from "../emails/receipt.ts";
+import { button, escapeHtml, heading, page, paragraph } from "../emails/layout.ts";
 
 import { BUNDLE_SYNC_MS } from "./license.ts";
 
@@ -174,4 +175,45 @@ export async function sendRestoreCode(env: Env, email: string, code: string): Pr
       "Hopshot",
     ].join("\n"),
   );
+}
+
+/**
+ * Double opt-in for the mailing list (ARCHITECTURE §7.10).
+ *
+ * Sent on every subscribe request that is not already confirmed, rate-limited per IP by the
+ * route. The unsubscribe link is in this first email too, so even an unconfirmed address can
+ * make sure it never hears from us.
+ */
+export async function sendSubscribeConfirm(
+  env: Env,
+  email: string,
+  confirmUrl: string,
+  unsubscribeUrl: string,
+): Promise<boolean> {
+  const subject = "Confirm your email for Hopshot updates";
+  const text = [
+    "Confirm you'd like to hear about new tools from the maker of Hopshot:",
+    "",
+    confirmUrl,
+    "",
+    "A few emails a year, no tracking pixels, and you can leave with one click.",
+    "If you didn't ask for this, ignore it and you won't hear from us.",
+    "",
+    `Unsubscribe: ${unsubscribeUrl}`,
+    "",
+    "Hopshot",
+  ].join("\n");
+
+  const html = page({
+    preheader: "One click to confirm, one click to leave.",
+    body: [
+      heading("Confirm your email"),
+      paragraph("You asked to hear about new tools from the maker of Hopshot. Confirm and you're on the list."),
+      button(confirmUrl, "Confirm my email"),
+      paragraph("A few emails a year, no tracking pixels. If you didn't ask for this, ignore it and you won't hear from us.", "muted"),
+    ].join(""),
+    footer: `<a href="${escapeHtml(unsubscribeUrl)}">Unsubscribe</a>`,
+  });
+
+  return send(env, email, subject, text, html);
 }

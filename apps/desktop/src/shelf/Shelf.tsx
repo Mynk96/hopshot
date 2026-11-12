@@ -6,6 +6,7 @@ import { Icon } from "./icons";
 import { ItemCard } from "./ItemCard";
 import { MoreMenu } from "./MoreMenu";
 import { SendSheet } from "./SendSheet";
+import { FeedbackCard } from "./FeedbackCard";
 import { useAutoHide } from "./useAutoHide";
 import { useShelfKeys } from "./useShelfKeys";
 import type { PlanState, ShelfItem, Toast } from "./types";
@@ -38,6 +39,9 @@ export default function Shelf() {
   const [pinnedOpen, setPinnedOpen] = useState(false);
   /** Unlicensed (`expired`) turns the phone sheet into the $19 offer; the shelf is free. */
   const [plan, setPlan] = useState<PlanState | null>(null);
+  /** ARCHITECTURE §7.10: the one-time "Is Hopshot useful?" card, and its measured height. */
+  const [askFeedback, setAskFeedback] = useState(false);
+  const [feedbackPx, setFeedbackPx] = useState(0);
 
   /** id → staged path promise, so a drag never waits on IPC. */
   const staged = useRef(new Map<string, Promise<{ path: string; icon: string }>>());
@@ -87,6 +91,20 @@ export default function Shelf() {
     void refreshPlan();
   }, [refreshPlan]);
 
+  // Rust decides when the usefulness question is due; check on mount and each time the shelf
+  // is shown, so it can appear on the day it becomes due without a restart.
+  useEffect(() => {
+    const check = () =>
+      void invoke<boolean>("feedback_due")
+        .then(setAskFeedback)
+        .catch(() => undefined);
+    check();
+    const subscription = listen("shelf:shown", check);
+    return () => {
+      void subscription.then((off) => off());
+    };
+  }, []);
+
   useEffect(() => {
     void refresh();
 
@@ -112,6 +130,7 @@ export default function Shelf() {
   /** Grow the window to fit, capped at DESIGN S3's 80% of the screen. */
   useEffect(() => {
     const content =
+      feedbackPx +
       HEADER_PX +
       FOOTER_PX +
       LIST_PADDING_PX * 2 +
@@ -119,7 +138,7 @@ export default function Shelf() {
       Math.max(0, items.length - 1) * CARD_GAP_PX;
     const cap = Math.round(window.screen.availHeight * MAX_VIEWPORT_FRACTION);
     void invoke("resize_shelf", { height: Math.min(content, cap) });
-  }, [items.length]);
+  }, [items.length, feedbackPx]);
 
   const hide = useCallback(() => void invoke("hide_shelf"), []);
 
@@ -291,6 +310,14 @@ export default function Shelf() {
           <Icon name="x" />
         </IconButton>
       </header>
+
+      {askFeedback && (
+        <FeedbackCard
+          onDone={() => setAskFeedback(false)}
+          onHeight={setFeedbackPx}
+          onToast={flash}
+        />
+      )}
 
       {items.length === 0 ? (
         <EmptyState />

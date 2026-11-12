@@ -6,6 +6,7 @@ import { apiCors } from "./lib/cors.ts";
 import { admin } from "./routes/admin.ts";
 import { billing } from "./routes/billing.ts";
 import { drops } from "./routes/drops.ts";
+import { insights } from "./routes/insights.ts";
 import { items } from "./routes/items.ts";
 import { license } from "./routes/license.ts";
 import { live } from "./routes/live.ts";
@@ -49,6 +50,7 @@ v1.route("/webhooks", webhooks);
 v1.route("/billing", billing);
 v1.route("/admin", admin);
 v1.route("/report", report);
+v1.route("/", insights);
 
 app.route("/v1", v1);
 app.get("/v1/health", (c) => c.json({ ok: true }));

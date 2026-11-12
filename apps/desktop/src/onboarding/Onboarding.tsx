@@ -268,7 +268,77 @@ function Done({ shelfKeys }: { shelfKeys: string[] }) {
       <p className="mt-3 text-body text-text-2">
         Hopshot lives in your menu bar. Show the shelf any time with {shelfKeys.join(" ")}.
       </p>
+      <EmailSignup />
     </>
+  );
+}
+
+type Signup = { state: "idle" | "sending" | "sent" } | { state: "error"; message: string };
+
+/**
+ * Optional: join the maker's mailing list (ARCHITECTURE §7.10). Double opt-in, so nothing
+ * happens until the emailed link is followed. Its own <form>, so Return in the field submits
+ * this, not the footer's Finish.
+ */
+function EmailSignup() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<Signup>({ state: "idle" });
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setStatus({ state: "sending" });
+    try {
+      await invoke("subscribe", { email });
+      setStatus({ state: "sent" });
+    } catch (error) {
+      setStatus({ state: "error", message: String(error) });
+    }
+  };
+
+  if (status.state === "sent") {
+    return (
+      <p className="mt-8 text-body-strong" role="status" style={{ color: "var(--success)" }}>
+        Check your inbox to confirm.
+      </p>
+    );
+  }
+
+  return (
+    <form className="mt-8 flex flex-col gap-2" onSubmit={(event) => void submit(event)}>
+      <label htmlFor="signup-email" className="text-body-strong">
+        Hear about new tools from the maker of Hopshot
+      </label>
+      <div className="flex gap-2">
+        <input
+          id="signup-email"
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="flex-1 text-body"
+          style={{
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "6px 10px",
+            color: "var(--text)",
+          }}
+        />
+        <button type="submit" className="btn btn-secondary" disabled={status.state === "sending"}>
+          Keep me posted
+        </button>
+      </div>
+      <span
+        className="text-small text-text-3"
+        role={status.state === "error" ? "alert" : undefined}
+      >
+        {status.state === "error"
+          ? "Couldn't sign you up just now. Check your connection and try again."
+          : "Optional. A few emails a year, one-click unsubscribe."}
+      </span>
+    </form>
   );
 }
 
