@@ -5,6 +5,7 @@
   "windows": [
     "settings",
     "shelf",
+    "onboarding",
     "overlay-*"
   ],
   "permissions": [

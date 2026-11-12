@@ -79,6 +79,10 @@ pub struct Settings {
     /// Random, local, and only used to count this install's sends against its own daily
     /// quota (ARCHITECTURE §7.9). Not a user identifier. Written on the first send.
     pub install_id: Option<String>,
+    /// DESIGN S8: the first-launch onboarding has been finished or dismissed. False for a
+    /// fresh install and for a settings.json written before onboarding existed, so every
+    /// install sees it once.
+    pub onboarded: bool,
 }
 
 impl Default for Settings {
@@ -97,6 +101,7 @@ impl Default for Settings {
             auto_sync: true,
             catch_other_screenshots: false,
             install_id: None,
+            onboarded: false,
         }
     }
 }
@@ -176,6 +181,18 @@ pub fn patch<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A settings.json from 0.1.6 has no `onboarded` key; it must read as "not yet", so
+    /// upgraders get the onboarding once instead of a deserialisation error.
+    #[test]
+    fn onboarding_is_pending_for_new_and_older_settings() {
+        assert!(!Settings::default().onboarded);
+        let older: Settings = serde_json::from_str(r#"{"captureHotkey":"CmdOrCtrl+Shift+2"}"#)
+            .expect("an older settings file still loads");
+        assert!(!older.onboarded);
+        let done: Settings = serde_json::from_str(r#"{"onboarded":true}"#).expect("loads");
+        assert!(done.onboarded);
+    }
 
     #[test]
     fn defaults_match_prd_f1_1() {

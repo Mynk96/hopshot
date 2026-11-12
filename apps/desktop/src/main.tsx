@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import Settings from "./settings/Settings.tsx";
 import Overlay from "./overlay/Overlay.tsx";
 import Shelf from "./shelf/Shelf.tsx";
+import Onboarding from "./onboarding/Onboarding.tsx";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -16,6 +17,7 @@ if (!root) throw new Error("#root is missing from index.html");
 const label = getCurrentWindow().label;
 const isOverlay = label.startsWith("overlay-");
 const isShelf = label === "shelf";
+const isOnboarding = label === "onboarding";
 
 // Both are transparent, frameless windows: a page background would paint over the frozen
 // screen (overlay) or the vibrancy layer (shelf).
@@ -36,6 +38,7 @@ if (isOverlay || isShelf) {
 function Window() {
   if (isOverlay) return <Overlay />;
   if (isShelf) return <Shelf />;
+  if (isOnboarding) return <Onboarding />;
   return <Settings />;
 }
 
