@@ -1,0 +1,97 @@
+# Go live: the approval step between a tagged release and every installed copy (LAUNCH §2a).
+#
+# release.yml builds, uploads the installers and stages `v<version>/latest.json` on R2, but
+# never touches the root `latest.json` that every install polls. Running this workflow by hand
+# is the approval: it checks the staged manifest, copies it to the live URL and publishes the
+# drafted GitHub release, so the update prompt and the public notes appear together.
+#
+# Why a manual workflow and not an environment with required reviewers: this is a private
+# personal repo, and GitHub's plan for it rejects required-reviewer rules (HTTP 422). Only
+# accounts with write access can run workflow_dispatch, which here is the owner.
+#
+# Rolling back: run it again with the previous tag. That stops offering the bad version to
+# installs that haven't taken it; it cannot downgrade ones that already have (the updater only
+# offers newer versions), so a bad release is fixed forward with a new tag.
+name: Go live
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release to make live, e.g. v0.1.7"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# Two runs racing would leave whichever finished last as the live version.
+concurrency:
+  group: go-live
+  cancel-in-progress: false
+
+jobs:
+  go-live:
+    name: Go live
+    runs-on: ubuntu-latest
+    env:
+      # Through env, never interpolated into the script: an input is untrusted text.
+      TAG: ${{ inputs.tag }}
+      DOWNLOAD_BASE: ${{ vars.DOWNLOAD_BASE || 'https://downloads.hopshot.xyz' }}
+    steps:
+      - name: Check the staged manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' is not a release tag like v0.1.7"
+            exit 1
+          fi
+
+          if ! curl -fsS "$DOWNLOAD_BASE/$TAG/latest.json" -o latest.json; then
+            echo "::error::No staged manifest at $DOWNLOAD_BASE/$TAG/latest.json. Has release.yml finished for $TAG?"
+            exit 1
+          fi
+
+          version=$(jq -r .version latest.json)
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::The staged manifest says $version, not ${TAG#v}"
+            exit 1
+          fi
+
+          # Never point an install at a file that isn't there.
+          missing=0
+          for url in $(jq -r '.platforms[].url' latest.json | sort -u); do
+            if curl -fsSI -o /dev/null "$url"; then
+              echo "ok      $url"
+            else
+              echo "::error::missing $url"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Make it the live update
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 r2 object put "hopshot-downloads/latest.json" \
+            --file=latest.json --content-type=application/json \
+            --cache-control="public, max-age=300" --remote
+
+      # A tag that was re-cut may have no draft left to publish; the update is live either way.
+      - name: Publish the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft | grep -q true; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          else
+            echo "No draft release for $TAG to publish; leaving GitHub Releases as it is."
+          fi

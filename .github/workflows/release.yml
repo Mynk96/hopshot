@@ -269,8 +269,7 @@ jobs:
           immutable="public, max-age=31536000, immutable"
 
           # Version-qualified, so a URL handed out in a manifest never changes underneath an
-          # install that is mid-download. Every file goes up before latest.json, so no install
-          # is ever pointed at a file that is not there yet.
+          # install that is mid-download.
           for file in windows/*-setup.exe macos/*.dmg macos/*.app.tar.gz; do
             name=$(basename "$file")
             put "$TAG/$name" "$file" "application/octet-stream" "$immutable"
@@ -279,14 +278,16 @@ jobs:
             put "$TAG/$(basename "$file")" "$file" "text/plain" "$immutable"
           done
 
-          # The one mutable key: every install polls exactly this URL forever. Short cache so
-          # a release is noticed within minutes rather than hours.
-          put "latest.json" "latest.json" "application/json" "public, max-age=300"
+          # Staged, not live. Every install polls the root latest.json, and only the manual
+          # "Go live" workflow (go-live.yml) copies this file there — that run is the approval
+          # step between a tag and every installed copy's update prompt (LAUNCH §2a). Short
+          # cache because a re-run of this job may replace it before it goes live.
+          put "$TAG/latest.json" "latest.json" "application/json" "public, max-age=300"
 
-      # Published as a **draft**, so a build is installed once from the release itself before
-      # it is public. The Windows installer is unsigned and SmartScreen will warn; the Mac app
-      # is notarised and opens normally. `gh` ships on the runner, so no third-party action
-      # gets `contents: write` and the release binaries.
+      # A draft until "Go live" publishes it together with the live latest.json, so the public
+      # release notes and the update prompt appear at the same moment. The Windows installer is
+      # unsigned and SmartScreen will warn; the Mac app is notarised. `gh` ships on the runner,
+      # so no third-party action gets `contents: write` and the release binaries.
       - name: Draft the release
         if: startsWith(github.ref, 'refs/tags/v')
         working-directory: dist
@@ -306,8 +307,8 @@ jobs:
 
           Verify any download against its `.sha256` if you would rather check it yourself.
 
-          Free to download. Capture is locked until you buy - $19 once, everything included.
-          14-day refund, no questions asked.
+          Free to download, and the shelf is free forever: capture, drag and copy. Sending to
+          your phone is $19 once, no subscription. 14-day refund, no questions asked.
           NOTES
 
           gh release create "${{ github.ref_name }}" \

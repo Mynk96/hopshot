@@ -76,11 +76,27 @@ To release:
      stapled → `Hopshot_<version>_universal.dmg` (one file for Apple Silicon and Intel), plus
      `Hopshot.app.tar.gz` for the updater
 
-   A publish job then writes one `latest.json` covering both, uploads everything to R2
-   (`downloads.hopshot.xyz/v<version>/…`), and **drafts** a GitHub release.
+   A publish job then writes one `latest.json` covering both, uploads every file to R2
+   (`downloads.hopshot.xyz/v<version>/…`), **stages** the manifest at
+   `downloads.hopshot.xyz/v<version>/latest.json`, and drafts a GitHub release. Nothing is
+   offered to existing users yet: every installed copy polls the root
+   `downloads.hopshot.xyz/latest.json`, which a tag never touches.
 
-4. **Install both once** — the Windows one through the SmartScreen warning, the Mac one from
-   the .dmg through the Screen Recording prompt, exactly as a buyer will — then press Publish.
+4. **Install both once** from the staged files — the Windows one through the SmartScreen
+   warning, the Mac one from the .dmg through the Screen Recording prompt, exactly as a buyer
+   will. The links are `downloads.hopshot.xyz/v<version>/…` (also attached to the draft).
+5. **Go live:** Actions → **Go live** → Run workflow, with the tag (e.g. `v0.1.7`). It checks
+   the staged manifest names that version and that every file it points at answers 200, copies
+   it to the root `latest.json`, and publishes the draft release. Installed copies are offered
+   the update within minutes (they check 30 s after launch, then daily; the manifest is cached
+   for 5 minutes) and still need a click to install. **This run is the release.**
+6. **Deploy `apps/web` after Go live**, never before: `/download` builds its installer URLs
+   from `tauri.conf.json`, so a page ahead of R2 points at files that don't exist yet
+   (DEPLOY.md, "Web").
+
+   **Rolling back:** run Go live with the previous tag. That stops offering the bad version to
+   installs that haven't taken it; it can't downgrade ones that have (the updater only offers
+   newer versions), so fix forward with a new tag.
 
 ### macOS signing secrets (do once)
 
@@ -107,12 +123,10 @@ rehearses the whole build and uploads nothing.
   and the release notes both say so plainly, which PRD §9 asks for on the direct channel. An
   OV certificate (~$200/yr) removes the warning only after it builds reputation; an EV one
   removes it immediately. Worth revisiting once there is revenue to point at.
-- **The updater.** `tauri.conf.json` has no updater plugin and the `store` Cargo feature that
-  disables it is still a stub, so there is no in-app update path — v0.1.x users will have to
-  download the next version by hand. Enabling it needs a signing keypair generated with
-  `tauri signer generate`; the private key goes in GitHub Actions secrets as
-  `TAURI_SIGNING_PRIVATE_KEY` and must never be committed. Until then, keep the release notes
-  honest about how to update.
+- **A reviewer-enforced gate.** Go live is a manual workflow, so the gate is "only someone with
+  write access can run it". GitHub's environment required-reviewer rules would add an explicit
+  approval, but this private personal repo's plan rejects them (HTTP 422). Revisit if the repo
+  moves to a paid plan or an organisation.
 
 ---
 
