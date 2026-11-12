@@ -50,6 +50,6 @@ crons = ["*/15 * * * *", "0 9 * * *"]
 # Checkout charges exactly this Stripe price id (lib/stripe.ts `priceId`), so a price change
 # is a new Stripe Price + this id + an API deploy. config/limits.json pricing.display is what
 # the app and website *show*; keep the two in step.
-STRIPE_PRICE_BUNDLE = "price_1UM4rpSAaYIq0lX8oRSba6nK"
+STRIPE_PRICE_BUNDLE = "price_1UayEBSAaYIq0lX8liKgaiHA"   # $10 one-time (2026-11-12); was price_1UM4rpSAaYIq0lX8oRSba6nK ($19)
 EMAIL_FROM = "Hopshot <founder@hopshot.xyz>"
 WEB_ORIGIN = "https://app.hopshot.xyz"
