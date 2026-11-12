@@ -14,6 +14,7 @@ pub mod crypto;
 pub mod hotkeys;
 pub mod license;
 pub mod limits;
+pub mod onboarding;
 pub mod platform;
 pub mod secrets;
 pub mod settings;
@@ -118,6 +119,7 @@ pub fn run() {
             commands::get_plan,
             commands::open_plans,
             commands::open_settings,
+            commands::finish_onboarding,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -150,6 +152,10 @@ pub fn run() {
             handle.plugin(tauri_plugin_updater::Builder::new().build())?;
 
             update::watch(handle);
+
+            // DESIGN S8: a menu-bar app shows nothing on launch, so a fresh install would
+            // read as broken. Last, so the shelf and hotkeys it teaches are already live.
+            onboarding::show_if_needed(handle, &settings);
 
             Ok(())
         })

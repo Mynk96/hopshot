@@ -403,12 +403,13 @@ function IconButton({
  * The app mark from DESIGN §6, at 14 px: an orange shelf line with a tilted card resting on
  * it. A plain orange square read as a loading placeholder rather than a logo.
  */
-function BrandMark() {
+/** The Hopshot mark; 15 px in the shelf header, larger in the onboarding. */
+export function BrandMark({ size = 15 }: { size?: number }) {
   return (
     <svg
       aria-hidden
-      width="15"
-      height="15"
+      width={size}
+      height={size}
       viewBox="0 0 16 16"
       className="shrink-0"
       style={{ overflow: "visible" }}

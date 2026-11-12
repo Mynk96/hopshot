@@ -36,6 +36,12 @@ pub fn set_settings(app: AppHandle, patch: Map<String, Value>) -> Result<Setting
     })
 }
 
+/// The onboarding's Finish button (DESIGN S8): never show it again, and close it.
+#[tauri::command]
+pub fn finish_onboarding(app: AppHandle) -> Result<(), String> {
+    crate::onboarding::finish(&app).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 pub fn start_capture(app: AppHandle, mode: capture::Mode) {
     capture::start(&app, mode);

@@ -211,7 +211,9 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 1. **Welcome:** display text "Screenshots that clean up after themselves." + 3 bullets (Drag anywhere · Open on your phone · Gone in 24h) → `Get started`.
 2. **Permission (macOS only):** "Hopshot needs Screen Recording permission to capture your screen." → `Open System Settings`. A live status row goes from ◌ Waiting… to ✓ Granted. Small print: "macOS may ask you to confirm this again from time to time."
 3. **Try it:** keycaps animation `⌘ ⇧ 2` → "Select anything on your screen." Completes automatically when the first capture lands, then shows "Now drag it from the shelf into any browser tab."
-4. **Done:** "Buy Hopshot to start capturing — $19 once, everything included. 14-day refund, no questions." → `See plans` / `Finish`, plus a stats opt-in checkbox (unchecked).
+4. **Done:** "You're all set" / "The shelf is free, forever: capture, drag and copy as much as you like. Sending a screenshot to your phone is $19 once, from the phone button on any item. 14-day refund, no questions." / "Hopshot lives in your menu bar. Show the shelf any time with {shelf keys}." → `Finish`.
+
+Shown on first launch while `settings.onboarded` is false (fresh installs and upgrades from before 0.1.7 see it once). `Finish` **or** the window's close button sets it. The permission step is skipped when access is already granted, so after macOS's "Quit & Reopen" the user lands on **Try it**. Keycaps show the configured shortcuts, not hard-coded ones. Not built yet: the stats opt-in checkbox (no setting backs it).
 
 ### S9 — Plans sheet
 
