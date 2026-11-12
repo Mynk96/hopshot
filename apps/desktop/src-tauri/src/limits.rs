@@ -78,6 +78,14 @@ pub struct SyncLimits {
     pub vault_live_bytes: u64,
 }
 
+/// The one price as shown to people (docs/designs/pay-first-10.md); Stripe's `bundle`
+/// lookup key is what is actually charged.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PricingLimits {
+    pub display: String,
+}
+
 /// Usage counts and the feedback ask (ARCHITECTURE §7.10). The server-only caps are read
 /// by the API; the app needs the ping window and when to ask.
 #[derive(Debug, Clone, Deserialize)]
@@ -107,6 +115,7 @@ pub struct Limits {
     pub sync: SyncLimits,
     pub server: ServerLimits,
     pub insights: InsightsLimits,
+    pub pricing: PricingLimits,
 }
 
 /// Parsed once on first use. Panics only if the bundled JSON is malformed, which the unit

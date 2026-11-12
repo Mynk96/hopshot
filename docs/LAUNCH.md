@@ -42,9 +42,9 @@
 | Icon | 1024 px master + all sizes (DESIGN §6) |
 | Tagline (≤ 60 chars) | "Screenshots that drag anywhere and clean up after themselves" |
 | Short description | "Hopshot puts every screenshot on a floating shelf. Drag it into any website, send it to your phone, and it's gone in 24 hours. Mac & Windows." |
-| Landing page | Live, with Download (free, locked until bought) and one $19 plan; FAQ covers privacy, SmartScreen, macOS permission and the 14-day refund |
+| Landing page | Live, with Download (free, locked until bought) and one $10 plan; FAQ covers privacy, SmartScreen, macOS permission and the 14-day refund |
 | Support | founder@hopshot.xyz + a short FAQ; canned replies for the top 5 questions |
-| Launch pricing | One price, $19, not time-limited (PRD §7). Change it by moving its Stripe lookup key (no deploy). Site buttons go to `https://api.hopshot.xyz/v1/buy/{lifetime|bundle}?ref=…` |
+| Launch pricing | One price, $10, not time-limited (PRD §7). **Changing it:** create a new Stripe Price, put its id in `services/api/wrangler.toml` `STRIPE_PRICE_BUNDLE` and deploy the API (checkout charges that exact id), and set `config/limits.json` `pricing.display` so the app, site and release notes show the same amount. Site buttons go to `https://api.hopshot.xyz/v1/buy/{lifetime|bundle}?ref=…` |
 | Founders | Launch day: run `scripts/export-founders.mjs`, import each row with `POST /admin/licenses` (syncStartsAt = launch date); keys go out by email automatically. Then switch the site's pre-order buttons to the `/buy` links |
 
 ---
@@ -139,12 +139,12 @@ only thing that mints a licence. Everything below has to exist before the buy bu
 
 | Env var | What | Mode |
 |---|---|---|
-| `STRIPE_PRICE_BUNDLE` | $19 launch ($43 after) — Lifetime **and** the first year of Sync | one-time |
+| `STRIPE_PRICE_BUNDLE` | $10 — everything included, Sync permanently | one-time |
 
 Price ids are not secrets; they live in `services/api/wrangler.toml` under `[vars]`. Give each
-one a **lookup key** so a price change is a dashboard edit rather than a deploy.
+one a **lookup key** for reference; checkout uses the id itself, so a price change is a new id plus an API deploy.
 
-The bundle is deliberately a one-time price, not a subscription: the $19 is
+The bundle is deliberately a one-time price, not a subscription: the $10 is
 charged at checkout, and the card is saved (`setup_future_usage: off_session`) so that the
 Hopshot takes one payment and never charges again, so no card is stored.
 
@@ -204,7 +204,7 @@ pnpm -F desktop tauri build
 ```
 
 Install from `apps/desktop/src-tauri/target/release/bundle/nsis/`, then in the app:
-Settings → License → **Buy Hopshot · $19**. Pay with `4242 4242 4242 4242`, any
+Settings → License → **Buy Hopshot · $10**. Pay with `4242 4242 4242 4242`, any
 future expiry, any CVC.
 
 Expect: the app unlocks **by itself** within a few seconds of payment — no key, no restart —
@@ -280,7 +280,7 @@ everyone, which is the state to be in when you are not testing.
 >
 > Hopshot fixes that: press a hotkey, grab part of the screen, and it lands on a small floating shelf. Drag it straight into Gmail/Slack/ChatGPT, or scan a QR code to open it on your phone. Everything disappears after 24 hours, and anything that goes online is end-to-end encrypted (the key never reaches our server).
 >
-> $19 once, for Windows. Every capture lands on your phone automatically, and you can send photos back to your laptop. No subscription — phone sync is included, permanently.
+> $10 once, for Windows and Mac. Every capture lands on your phone automatically, and you can send photos back to your laptop. No subscription — phone sync is included, permanently.
 >
 > I'd love to hear where drag-and-drop *doesn't* work for you. That's the thing I'm testing hardest.
 
@@ -293,7 +293,7 @@ everyone, which is the state to be in when you are not testing.
 >
 > What it does: … · What it doesn't do (on purpose): annotation, video, permanent hosting.
 >
-> $19 once, with a 14-day refund if it isn't for you. There's an optional Sync subscription for phone and multi-computer sync. Happy to answer anything about how it works under the hood.
+> $10 once, with a 14-day refund if it isn't for you. Phone and multi-computer sync are included; there is no subscription. Happy to answer anything about how it works under the hood.
 
 ---
 

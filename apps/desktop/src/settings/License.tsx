@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { limits } from "shared";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import { OverLimit, type LicenseStatus } from "./OverLimit";
@@ -6,7 +7,7 @@ import { OverLimit, type LicenseStatus } from "./OverLimit";
 /**
  * Settings → License (DESIGN S7, S9).
  *
- * The over-limit case is the substance here: PRD F8.3 gives the $19 licence three computers
+ * The over-limit case is the substance here: PRD F8.3 gives the current licence three computers
  * and an older `lifetime` one just one, so a licence can hold more slots than it is allowed.
  * `OverLimit` renders S9's chooser for that.
  *
@@ -92,7 +93,7 @@ export function License() {
                 className="btn btn-primary self-start"
                 onClick={() => void buy("bundle")}
               >
-                Buy Hopshot · $19
+                Buy Hopshot · {limits.pricing.display}
               </button>
               <span className="text-caption text-text-3">
                 Up to 3 computers and 3 phones, phone sync included permanently.

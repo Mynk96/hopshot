@@ -1,5 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+import { limits } from "shared";
+
+// The one price (config/limits.json), shared with the app and the release notes.
+const price = limits.pricing.display;
 import EmailSignup from "../components/EmailSignup.astro";
 // The version comes from the file that names the installer, so the two can never disagree.
 // Keeping a second copy here is what made this button 404 in the first place; CI now runs
@@ -34,14 +38,14 @@ const macInstaller = `${base}/Hopshot_${version}_universal.dmg`;
 
 <Base
   title="Download Hopshot for Windows and Mac"
-  description="Hopshot for Windows and macOS. $19 once, everything included, 14-day refund."
+  description={`Hopshot for Windows and macOS. ${price} once, everything included, 14-day refund.`}
 >
   <main class="mx-auto flex max-w-2xl flex-col gap-10 px-6 py-16">
     <header class="flex flex-col gap-3">
       <h1 class="text-display">Download Hopshot</h1>
       <p class="text-body text-text-2">
-        Install it and start capturing: the shelf, drag-out and copy are free. Sending to your
-        phone is $19 once, bought from inside the app, and it unlocks itself the moment you pay.
+        Install it, then unlock it from inside the app for {price} once, everything included.
+        It unlocks itself the moment you pay.
         No account, no licence key, and a 14-day refund if it isn't for you.
       </p>
     </header>

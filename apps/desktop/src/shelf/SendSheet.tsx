@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { limits } from "shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
 
@@ -165,7 +166,7 @@ export function SendSheet({
           {mode.name === "sent"
             ? "Sent"
             : mode.name === "paywall"
-              ? "Phone · $19 once"
+              ? `Unlock Hopshot · ${limits.pricing.display} once`
               : "Send to phone"}
         </b>
         <button type="button" className="icon-btn size-6" aria-label="Close" onClick={onClose}>
@@ -179,8 +180,8 @@ export function SendSheet({
       {mode.name === "paywall" && (
         <>
           <p className="text-caption leading-4 text-text-2">
-            Send to phone, share links and a paired phone feed. Pay once, no subscription. 14-day
-            refund, no questions.
+            One payment, everything included: capture, the shelf and your phone. No subscription.
+            14-day refund, no questions.
           </p>
           {/* Stacked: the shelf is 208px and this sheet does not widen it (no QR to fit). */}
           <div className="flex flex-col items-start gap-1">
@@ -194,7 +195,7 @@ export function SendSheet({
                 )
               }
             >
-              Buy · $19 once
+              Buy · {limits.pricing.display} once
             </button>
             <button
               type="button"

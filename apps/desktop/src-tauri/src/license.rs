@@ -118,8 +118,8 @@ pub fn remove_computer(device_id: &str) -> Result<(), ClientError> {
 #[serde(rename_all = "camelCase")]
 pub struct PlanState {
     pub plan: Plan,
-    /// Always `false` since the shelf became free (docs/designs/free-shelf-phone-trial.md,
-    /// phase 1). Kept so the shelf UI's field still deserializes; remove once nothing reads it.
+    /// Pay-first (docs/designs/pay-first-10.md): nothing bought yet, so capture is paused.
+    /// The shelf stays readable and draggable.
     pub capture_paused: bool,
 }
 
@@ -129,10 +129,9 @@ pub struct PlanState {
 /// hotkey press and cannot wait on a request. The server is still the authority and refuses
 /// an unlicensed caller on every API call.
 ///
-/// **Free shelf, paid phone.** Capture, the shelf, drag-out and copy are local and free
-/// forever, so no licence never pauses capture — there is nothing local left to bypass. What
-/// costs money is everything that touches the server (send to phone, links, pairing), and the
-/// server refuses an `expired` caller for all of it; `includes_sync()` hides pairing too.
+/// **Pay-first, one price** (docs/designs/pay-first-10.md). No licence means no capture,
+/// the same whether the app has never been online or is simply unpaid — a local-only
+/// "allow" would be a bypass. The server refuses an unlicensed caller independently.
 pub fn plan_state<R: Runtime>(app: &AppHandle<R>) -> PlanState {
     let _ = app;
     state_for(token().is_some())
@@ -151,7 +150,7 @@ fn state_for(has_token: bool) -> PlanState {
 
     PlanState {
         plan,
-        capture_paused: false,
+        capture_paused: !has_token,
     }
 }
 
@@ -282,11 +281,11 @@ pub fn open_checkout<R: Runtime>(app: &AppHandle<R>) {
 mod tests {
     use super::*;
 
-    /// The free shelf: no licence still captures, but grants no server plan.
+    /// Pay-first: no licence pauses capture and grants no server plan.
     #[test]
-    fn no_licence_never_pauses_capture_and_stays_unlicensed() {
+    fn no_licence_pauses_capture_and_stays_unlicensed() {
         let state = state_for(false);
-        assert!(!state.capture_paused);
+        assert!(state.capture_paused);
         assert_eq!(state.plan, Plan::Expired);
         assert!(!state.plan.includes_sync(), "pairing must stay paid");
     }

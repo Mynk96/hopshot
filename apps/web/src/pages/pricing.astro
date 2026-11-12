@@ -1,10 +1,15 @@
 ---
 import Base from "../layouts/Base.astro";
+import { limits } from "shared";
+
+// The one price (config/limits.json), shared with the app and the release notes.
+const price = limits.pricing.display;
 
 /*
  * Pricing (PRD §7, DESIGN S9).
  *
- * One price, $19, everything included (PRD §7). The Lifetime-only tier is gone: it could not
+ * One price, everything included (PRD §7, docs/designs/pay-first-10.md); the amount is
+ * config/limits.json → pricing.display. The Lifetime-only tier is gone: it could not
  * do the thing Hopshot is actually for — capture here, appears on your phone — so it sold a
  * worse product at a lower margin and split the funnel to do it.
  *
@@ -24,13 +29,13 @@ const included: string[] = [
 
 <Base
   title="Pricing — Hopshot"
-  description="Hopshot's shelf is free. The phone features are $19 once, 14-day refund."
+  description={`Hopshot is ${price} once, everything included. 14-day refund.`}
 >
   <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
     <header class="flex flex-col gap-3">
       <h1 class="text-display">Pay once.</h1>
       <p class="text-body text-text-2">
-        The shelf is free forever. Getting screenshots to and from your phone is $19, paid
+        One price, everything included: capture, the shelf, drag anywhere and your phone. Paid
         once. No subscription.
       </p>
     </header>
@@ -40,7 +45,7 @@ const included: string[] = [
       style="background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-panel)"
     >
       <div class="flex items-baseline gap-2">
-        <span class="text-display">$19</span>
+        <span class="text-display">{price}</span>
         <span class="text-body text-text-2">once</span>
       </div>
       <p class="text-body text-text-2">
@@ -59,7 +64,7 @@ const included: string[] = [
       </p>
       <a class="btn btn-primary self-start" href="/download">Download for Windows</a>
       <span class="text-caption text-text-3">
-        Free to download · shelf free forever · 14-day refund, no questions asked
+        Free to download · 14-day refund, no questions asked
       </span>
     </section>
 
@@ -71,7 +76,7 @@ const included: string[] = [
       <p class="text-body text-text-2">
         Download Hopshot, then buy from inside the app: Settings → License. Checkout opens
         in your browser and the app unlocks itself when you're done — usually within a few
-        seconds. Capture works before you buy; only the phone features wait for it.
+        seconds. Capture stays paused until then.
       </p>
       <p class="text-body text-text-2">
         <strong>There is no licence key.</strong> Your purchase belongs to the email you buy

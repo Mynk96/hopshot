@@ -346,7 +346,7 @@ fn build_menu<R: Runtime>(
             let buy = MenuItem::with_id(
                 app,
                 menu_id::BUY,
-                "Buy Hopshot — $19",
+                format!("Buy Hopshot — {}", limits::limits().pricing.display),
                 true,
                 None::<&str>,
             )?;

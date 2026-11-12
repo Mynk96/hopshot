@@ -5,7 +5,7 @@ import { Icon } from "../shelf/icons";
 /**
  * Over the computer limit (DESIGN S9, PRD F8.3).
  *
- * Three computers on the $19 licence, one on an older `lifetime` licence. A
+ * Three computers on the current licence, one on an older `lifetime` licence. A
  * licence can hold more slots than it is allowed — usually an old licence that was used on
  * several machines — so the server keeps the most recently seen devices valid and tells the
  * rest `over_limit`. This is what those machines see.
@@ -48,7 +48,7 @@ export function OverLimit({
   const limit = status.limit ?? 1;
 
   /*
-   * A limit above one is the current $19 licence, so this is the "remove one" case. At one
+   * A limit above one is the current licence, so this is the "remove one" case. At one
    * it is an older `lifetime` licence, and the only option is moving the licence rather
    * than freeing a slot — there is no longer an add-on to sell that would raise the cap.
    */
