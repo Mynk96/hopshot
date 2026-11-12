@@ -170,6 +170,32 @@ jobs:
           cp dmg/*.dmg macos/*.app.tar.gz macos/*.app.tar.gz.sig "$RUNNER_TEMP/macos/"
           ls -l "$RUNNER_TEMP/macos"
 
+      # Tauri notarises and staples the .app, but not the .dmg that wraps it — and the .dmg is
+      # what /download offers. Without its own ticket, Gatekeeper has to reach Apple on first
+      # open, and `stapler validate` below fails. `--wait` blocks until Apple answers; the
+      # status is checked explicitly because notarytool exits 0 even for a rejected upload.
+      - name: Notarise and staple the .dmg
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          dmg=$(ls "$RUNNER_TEMP"/macos/*.dmg)
+          auth=(--apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID")
+          result=$(xcrun notarytool submit "$dmg" "${auth[@]}" --wait --timeout 30m --output-format json)
+          echo "$result"
+          status=$(echo "$result" | jq -r .status)
+          if [ "$status" != "Accepted" ]; then
+            id=$(echo "$result" | jq -r .id)
+            echo "::error::Notarisation of the .dmg returned '$status'"
+            xcrun notarytool log "$id" "${auth[@]}" || true
+            exit 1
+          fi
+          xcrun stapler staple "$dmg"
+
       # On a tag, prove the notarisation ticket is really stapled to what users download.
       - name: Verify the notarisation
         if: startsWith(github.ref, 'refs/tags/v')
