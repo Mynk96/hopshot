@@ -47,10 +47,25 @@ export interface ServerLimits {
   readonly perIpDropsPerDay: number;
 }
 
+/** Usage counts, the mailing list and in-app feedback (ARCHITECTURE §7.10). */
+export interface InsightsLimits {
+  readonly pingsPerIpPerDay: number;
+  /** How many recent UTC days one ping may carry. */
+  readonly pingMaxDays: number;
+  readonly subscribesPerIpPerDay: number;
+  readonly feedbackPerIpPerDay: number;
+  readonly feedbackCommentMaxChars: number;
+  /** The app asks "Is Hopshot useful?" once, this many days after its first ping… */
+  readonly feedbackAfterDays: number;
+  /** …and only after at least this many captures. */
+  readonly feedbackMinCaptures: number;
+}
+
 export interface Limits {
   readonly lifetime: LifetimeLimits;
   readonly sync: SyncLimits;
   readonly server: ServerLimits;
+  readonly insights: InsightsLimits;
 }
 
 /**

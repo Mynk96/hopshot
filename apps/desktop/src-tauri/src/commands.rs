@@ -36,6 +36,36 @@ pub fn set_settings(app: AppHandle, patch: Map<String, Value>) -> Result<Setting
     })
 }
 
+/// Whether the shelf should ask "Is Hopshot useful to you?" (ARCHITECTURE §7.10).
+#[tauri::command]
+pub fn feedback_due(app: AppHandle) -> bool {
+    crate::stats::is_feedback_due(&app)
+}
+
+/// Answer the usefulness question. The comment is optional and trimmed to the limit.
+#[tauri::command]
+pub async fn send_feedback(app: AppHandle, useful: bool, comment: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || crate::stats::send_feedback(&app, useful, comment))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())
+}
+
+/// "Not now" on the usefulness question: it is asked once, so this also retires it.
+#[tauri::command]
+pub fn dismiss_feedback(app: AppHandle) {
+    crate::stats::mark_feedback_asked(&app);
+}
+
+/// Join the mailing list from the onboarding. The API emails a confirmation link.
+#[tauri::command]
+pub async fn subscribe(email: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || crate::stats::subscribe(&email))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())
+}
+
 /// The onboarding's Finish button (DESIGN S8): never show it again, and close it.
 #[tauri::command]
 pub fn finish_onboarding(app: AppHandle) -> Result<(), String> {

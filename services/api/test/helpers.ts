@@ -1,9 +1,11 @@
 import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import { vi } from "vitest";
 // Vite inlines this at build time. workerd has no filesystem, and its fetch() cannot read
 // file:// URLs, so the schema has to arrive as a string.
 import schema from "../migrations/0001_init.sql?raw";
 import pairingSchema from "../migrations/0002_pairing.sql?raw";
 import renewalSchema from "../migrations/0003_renewals.sql?raw";
+import insightsSchema from "../migrations/0004_insights.sql?raw";
 import { claimDeviceSlot, recordPurchase } from "../src/lib/license.ts";
 import worker from "../src/index.ts";
 
@@ -50,7 +52,7 @@ export async function applyMigrations(): Promise<void> {
   //
   // Applied in order, like `wrangler d1 migrations apply`, because 0002 references
   // vaults(id) and 0003 references licenses(id).
-  const statements = [schema, pairingSchema, renewalSchema].flatMap((sql) =>
+  const statements = [schema, pairingSchema, renewalSchema, insightsSchema].flatMap((sql) =>
     sql
       .replace(/--[^\n]*/g, "")
       .split(";")
@@ -235,4 +237,35 @@ export async function postItem(
     },
     body,
   });
+}
+
+/**
+ * Switch email on and capture what would have been sent, instead of calling Resend.
+ *
+ * Email is off in tests unless a test asks for it: with no key configured `send` logs and
+ * returns false, which is what keeps every other test from needing a fetch stub.
+ */
+export function captureEmail(): Array<{ to: string; subject: string; text: string; html?: string }> {
+  const vars = env as unknown as Record<string, string | undefined>;
+  vars.RESEND_API_KEY = "re_test_not_a_real_key";
+  vars.EMAIL_FROM = "Hopshot <founder@hopshot.xyz>";
+
+  const sent: Array<{ to: string; subject: string; text: string; html?: string }> = [];
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith("https://api.resend.com")) {
+      throw new Error(`unexpected outbound request to ${url}`);
+    }
+    sent.push(JSON.parse(String(init?.body)));
+    return Response.json({ id: "re_1" });
+  });
+  return sent;
+}
+
+/** Undo `captureEmail`; call from afterEach. */
+export function resetEmail(): void {
+  vi.unstubAllGlobals();
+  const vars = env as unknown as Record<string, string | undefined>;
+  delete vars.RESEND_API_KEY;
+  delete vars.EMAIL_FROM;
 }

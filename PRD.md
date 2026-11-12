@@ -171,7 +171,7 @@ Priority key: **P0** = must ship at launch · **P1** = ship in the first 2–4 w
 
 ### F6 — Settings (P0)
 
-Sections: **General** (launch at login, hotkeys, after-capture actions, theme) · **Shelf** (side, auto-hide delay, item expiry, capacity info, remove after drag, catch other screenshots [P1]) · **Devices** (pair phone, list/revoke, auto-sync toggle) · **License** (plan, activate/deactivate key, buy) · **Privacy** (anonymous stats opt-in, crash reports opt-in, "delete all my cloud data") · **About** (version, check for updates, links).
+Sections: **General** (launch at login, hotkeys, after-capture actions, theme) · **Shelf** (side, auto-hide delay, item expiry, capacity info, remove after drag, catch other screenshots [P1]) · **Devices** (pair phone, list/revoke, auto-sync toggle) · **License** (plan, activate/deactivate key, buy) · **Privacy** (crash reports opt-in, "delete all my cloud data"; the daily usage counts are always on and explained here, ARCHITECTURE §7.10) · **About** (version, check for updates, links).
 
 ### F7 — Onboarding (P0)
 
@@ -179,7 +179,7 @@ Sections: **General** (launch at login, hotkeys, after-capture actions, theme) �
 2. **Permissions (macOS only):** explain the Screen Recording permission → "Open System Settings" button → a live check that turns green when granted. Also note that macOS may ask again monthly (this is a macOS behaviour, not a bug).
 3. **Try it:** "Press ⌘⇧2 and select anything." The step completes when the first capture lands, and the shelf is shown with a hint: "Now drag this into any browser tab."
 4. **Optional:** pair your phone (needs Lifetime + Sync) or try Send to phone.
-5. **Stats opt-in** checkbox (unchecked by default).
+5. Optional **email sign-up** for the maker's mailing list (double opt-in). Usage counts are always on and disclosed (ARCHITECTURE §7.10).
 
 ### F8 — Licensing and purchase (P0)
 
@@ -261,7 +261,7 @@ On computer A: Settings → Devices → "Link another computer" shows a 12-chara
 | **Reliability** | If the network fails, the local shelf keeps working; uploads retry 3 times with backoff and then show a clear error. |
 | **Accessibility** | Full keyboard control of the shelf and settings, visible focus rings, contrast ≥ 4.5:1, respects reduced-motion. |
 | **Localisation** | English only in v1. Keep strings in one file so translation is easy later. |
-| **Telemetry** | Opt-in only. Anonymous events (no images, no filenames, no IPs stored). Opt-in crash reports. |
+| **Telemetry** | Daily usage counts, always on and disclosed on /privacy: install id, version, OS, screenshots per day. No images, file names or IPs stored. Crash reports opt-in. (Changed 2026-11-12 from opt-in; ARCHITECTURE §7.10.) |
 | **Compliance** | Privacy policy, terms (including acceptable use), an abuse report link on every viewer page, and a takedown process (a drop can be deleted by ID). |
 
 ---

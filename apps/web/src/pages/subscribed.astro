@@ -1,0 +1,32 @@
+---
+import Base from "../layouts/Base.astro";
+
+/*
+ * Where the mailing list's confirm and unsubscribe links land (ARCHITECTURE §7.10). The API
+ * has already acted by the time the browser gets here; this page only says what happened.
+ * `?status=` is confirmed | unsubscribed | invalid. The static build picks the copy in the
+ * browser, so the bundled script below does it.
+ */
+---
+
+<Base title="Mailing list — Hopshot" description="Your mailing list preferences." noindex>
+  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
+    <h1 class="text-heading" data-title>Done</h1>
+    <p class="text-body text-text-2" data-body>Your preferences are saved.</p>
+    <a class="text-body" style="color: var(--accent-text)" href="/download">Back to Hopshot →</a>
+  </main>
+</Base>
+
+<script>
+  const COPY: Record<string, [string, string]> = {
+    confirmed: ["You're on the list", "Thanks. You'll hear about new tools from the maker of Hopshot, a few times a year at most."],
+    unsubscribed: ["You're unsubscribed", "You won't get any more emails from us. Hopshot itself keeps working exactly as before."],
+    invalid: ["That link didn't work", "It may be from an older email. Sign up again from the download page, or just ignore it."],
+  };
+  const status = new URLSearchParams(location.search).get("status") ?? "";
+  const copy = COPY[status];
+  if (copy) {
+    document.querySelector("[data-title]")!.textContent = copy[0];
+    document.querySelector("[data-body]")!.textContent = copy[1];
+  }
+</script>

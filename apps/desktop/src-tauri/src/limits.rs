@@ -78,6 +78,17 @@ pub struct SyncLimits {
     pub vault_live_bytes: u64,
 }
 
+/// Usage counts and the feedback ask (ARCHITECTURE §7.10). The server-only caps are read
+/// by the API; the app needs the ping window and when to ask.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InsightsLimits {
+    pub ping_max_days: usize,
+    pub feedback_comment_max_chars: usize,
+    pub feedback_after_days: u32,
+    pub feedback_min_captures: u32,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerLimits {
@@ -95,6 +106,7 @@ pub struct Limits {
     pub lifetime: LifetimeLimits,
     pub sync: SyncLimits,
     pub server: ServerLimits,
+    pub insights: InsightsLimits,
 }
 
 /// Parsed once on first use. Panics only if the bundled JSON is malformed, which the unit

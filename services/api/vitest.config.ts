@@ -15,6 +15,7 @@ export default defineConfig({
           STRIPE_SECRET_KEY: "sk_test_not_used",
           STRIPE_PRICE_BUNDLE: "price_bundle_test",
           WEB_ORIGIN: "https://hopshot.xyz",
+          ADMIN_TOKEN: "admin_test_token",
         },
       },
     }),

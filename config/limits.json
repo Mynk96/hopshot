@@ -1,8 +1,14 @@
 {
   "lifetime": {
     "shelfCapacity": 100,
-    "itemTtlOptions": ["1h", "24h", "7d"],
-    "dropTtlOptions": ["24h"],
+    "itemTtlOptions": [
+      "1h",
+      "24h",
+      "7d"
+    ],
+    "dropTtlOptions": [
+      "24h"
+    ],
     "dropsPerDay": 10,
     "maxImageBytes": 10485760,
     "maxComputers": 1,
@@ -10,7 +16,11 @@
   },
   "sync": {
     "requires": "lifetime",
-    "dropTtlOptions": ["1h", "24h", "7d"],
+    "dropTtlOptions": [
+      "1h",
+      "24h",
+      "7d"
+    ],
     "dropsPerDay": 200,
     "vault": true,
     "maxPhones": 3,
@@ -25,5 +35,14 @@
     "licenseRecheckDays": 7,
     "licenseOfflineGraceDays": 30,
     "perIpDropsPerDay": 100
+  },
+  "insights": {
+    "pingsPerIpPerDay": 60,
+    "pingMaxDays": 14,
+    "subscribesPerIpPerDay": 10,
+    "feedbackPerIpPerDay": 20,
+    "feedbackCommentMaxChars": 1000,
+    "feedbackAfterDays": 7,
+    "feedbackMinCaptures": 5
   }
 }

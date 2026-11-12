@@ -19,6 +19,7 @@ pub mod platform;
 pub mod secrets;
 pub mod settings;
 pub mod shelf;
+pub mod stats;
 pub mod update;
 
 use std::borrow::Cow;
@@ -120,6 +121,10 @@ pub fn run() {
             commands::open_plans,
             commands::open_settings,
             commands::finish_onboarding,
+            commands::feedback_due,
+            commands::send_feedback,
+            commands::dismiss_feedback,
+            commands::subscribe,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -152,6 +157,7 @@ pub fn run() {
             handle.plugin(tauri_plugin_updater::Builder::new().build())?;
 
             update::watch(handle);
+            stats::watch(handle);
 
             // DESIGN S8: a menu-bar app shows nothing on launch, so a fresh install would
             // read as broken. Last, so the shelf and hotkeys it teaches are already live.
