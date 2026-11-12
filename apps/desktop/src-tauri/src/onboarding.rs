@@ -20,12 +20,17 @@ const WIDTH: f64 = 560.0;
 const HEIGHT: f64 = 600.0;
 
 /// Show the onboarding if this install has not finished it yet. Called once at startup.
-pub fn show_if_needed<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
+/// Returns whether the onboarding window is now open.
+pub fn show_if_needed<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> bool {
     if settings.onboarded {
-        return;
+        return false;
     }
-    if let Err(error) = show(app) {
-        log::error!("could not open the onboarding window: {error}");
+    match show(app) {
+        Ok(()) => true,
+        Err(error) => {
+            log::error!("could not open the onboarding window: {error}");
+            false
+        }
     }
 }
 

@@ -146,6 +146,7 @@ pub fn run() {
             capture::prewarm_overlays(handle);
             cloud::client::log_endpoints();
             setup_shelf(handle);
+            keep_settings_alive(handle);
 
             // PRD F4.3/F4.5: reconnect to the vault so items from a paired phone arrive
             // without the user doing anything. A no-op until a phone has been paired.
@@ -161,12 +162,30 @@ pub fn run() {
 
             // DESIGN S8: a menu-bar app shows nothing on launch, so a fresh install would
             // read as broken. Last, so the shelf and hotkeys it teaches are already live.
-            onboarding::show_if_needed(handle, &settings);
+            let onboarding_shown = onboarding::show_if_needed(handle, &settings);
+
+            // Nothing bought yet: capture is paused, so a silent launch looks broken. Show
+            // the shelf with its Buy banner instead (unless the onboarding is up already).
+            if !onboarding_shown && license::plan_state(handle).capture_paused {
+                shelf::show(handle);
+            }
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Hopshot");
+        .build(tauri::generate_context!())
+        .expect("error while building Hopshot")
+        .run(|app, event| {
+            // macOS never starts a second process when Hopshot is opened again from Finder,
+            // Launchpad or Spotlight: it sends the running app a "reopen" instead, which the
+            // single-instance plugin never sees. Treat it the same way: show the shelf.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = event {
+                log::info!("Hopshot was opened again; showing the shelf");
+                shelf::show(app);
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app, event);
+        });
 }
 
 /// Prepare the shelf window before it is ever shown.
@@ -388,6 +407,25 @@ fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
         }
         other => log::warn!("unhandled tray menu id: {other}"),
     }
+}
+
+/// Settings is declared once in tauri.conf.json, so its red close button must hide it rather
+/// than destroy it; otherwise the tray's Settings… and the Restore button do nothing until
+/// the app is restarted.
+fn keep_settings_alive<R: Runtime>(app: &AppHandle<R>) {
+    let Some(window) = app.get_webview_window(SETTINGS_WINDOW) else {
+        log::error!("the {SETTINGS_WINDOW} window is missing from tauri.conf.json");
+        return;
+    };
+    let handle = window.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            if let Err(error) = handle.hide() {
+                log::warn!("could not hide Settings: {error}");
+            }
+        }
+    });
 }
 
 /// Show and focus the Settings window (ARCHITECTURE §5.1: the one normal window).
