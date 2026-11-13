@@ -1,0 +1,71 @@
+name: Release cache
+
+# Release builds run on a tag, and GitHub only lets a tag read caches made on its own ref or
+# on the default branch. So the compiled release dependencies are built here, on master, and
+# every tag starts warm instead of cold (Windows went from ~14 to ~4 minutes with a warm cache).
+#
+# Windows runs on every merge that touches the app. macOS only runs when started by hand,
+# because Mac runner minutes cost 10x; start it after a dependency bump.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "apps/desktop/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/release-cache.yml"
+  workflow_dispatch:
+    inputs:
+      macos:
+        description: "Also warm the macOS cache"
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-cache
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Warm Windows release cache
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          shared-key: release-windows
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Same compile as release.yml, minus the installer and signing.
+      - run: pnpm -F desktop tauri build --no-bundle
+
+  macos:
+    name: Warm macOS release cache
+    if: github.event_name == 'workflow_dispatch' && inputs.macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          shared-key: release-macos
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -F desktop tauri build --target universal-apple-darwin --no-bundle

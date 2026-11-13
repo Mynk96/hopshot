@@ -20,8 +20,38 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # The tests and clippy already ran on this exact commit in CI (ci.yml) before the tag was
+  # pushed; repeating them here cost ~15 minutes on Windows. This only checks they passed.
+  ci-passed:
+    name: CI passed for this commit
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # A tag usually goes up right after the merge, so wait (cheaply, here) for CI to finish.
+          for attempt in $(seq 1 60); do
+            runs=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/check-runs?per_page=100" \
+              --jq '[.check_runs[] | select(.name | startswith("Rust (") or startswith("TypeScript"))]')
+            total=$(echo "$runs" | jq length)
+            pending=$(echo "$runs" | jq '[.[] | select(.status != "completed")] | length')
+            [ "$total" -ge 3 ] && [ "$pending" = 0 ] && break
+            echo "waiting for CI ($total found, $pending running)…"; sleep 30
+          done
+          echo "$runs" | jq -r '.[] | "\(.name): \(.status) \(.conclusion)"'
+          [ "$total" -ge 3 ] || { echo "::error::CI never ran on ${{ github.sha }}; merge through a PR so CI runs on master"; exit 1; }
+          bad=$(echo "$runs" | jq '[.[] | select(.conclusion != "success")] | length')
+          [ "$bad" = 0 ] || { echo "::error::CI is not green on ${{ github.sha }}"; exit 1; }
+
   windows:
     name: Windows installer
+    needs: ci-passed
+    if: ${{ !failure() && !cancelled() }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -32,7 +62,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri
-          key: release-x86_64-pc-windows-msvc
+          # Caches saved by a tag run are invisible to the next tag (GitHub scopes caches to
+          # their ref), so release-cache.yml warms this one on master and tags only read it.
+          shared-key: release-windows
+          save-if: false
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
@@ -51,12 +84,6 @@ jobs:
         if: "!startsWith(github.ref, 'refs/tags/v')"
         run: node scripts/check-version.mjs
 
-      # The gate. A release build is slow, and shipping a binary whose tests were never run is
-      # how a broken installer reaches the one page that has to work.
-      - run: cargo test
-        working-directory: apps/desktop/src-tauri
-      - run: cargo clippy --all-targets -- -D warnings
-        working-directory: apps/desktop/src-tauri
 
       # `--bundles nsis` rather than tauri.conf.json's "all": the MSI is not what the download
       # page offers, and the Store build is packaged separately as MSIX (ARCHITECTURE §9).
@@ -80,6 +107,8 @@ jobs:
 
   macos:
     name: macOS app
+    needs: ci-passed
+    if: ${{ !failure() && !cancelled() }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
@@ -92,7 +121,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri
-          key: release-universal-apple-darwin
+          # Same as Windows, but warmed on master only by a manual run (Mac minutes are 10x).
+          shared-key: release-macos
+          save-if: false
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
@@ -104,11 +135,6 @@ jobs:
       - name: Check the tag matches the app version
         if: startsWith(github.ref, 'refs/tags/v')
         run: node scripts/check-version.mjs "${{ github.ref_name }}"
-
-      - run: cargo test
-        working-directory: apps/desktop/src-tauri
-      - run: cargo clippy --all-targets -- -D warnings
-        working-directory: apps/desktop/src-tauri
 
       # A tagged release must be signed and notarised. Without notarisation macOS refuses to
       # open the app from a double-click, and without a stable signature the Screen Recording
