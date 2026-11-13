@@ -1,6 +1,6 @@
 [package]
 name = "hopshot"
-version = "0.1.10"
+version = "0.1.11"
 description = "Screenshots that clean up after themselves"
 authors = ["Hopshot"]
 edition = "2021"
