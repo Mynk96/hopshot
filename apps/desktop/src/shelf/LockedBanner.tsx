@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { limits } from "shared";
 
 /**
@@ -9,6 +9,7 @@ import { limits } from "shared";
  */
 export function LockedBanner({ onHeight }: { onHeight: (px: number) => void }) {
   const box = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // The shelf sizes its window to its content, and this banner's copy wraps.
   useEffect(() => {
@@ -38,10 +39,20 @@ export function LockedBanner({ onHeight }: { onHeight: (px: number) => void }) {
       <button
         type="button"
         className="btn btn-primary btn-compact mt-0.5 self-start text-caption"
-        onClick={() => void invoke("license_buy", { plan: "bundle" }).catch(() => undefined)}
+        onClick={() => {
+          setError(null);
+          void invoke("license_buy", { plan: "bundle" }).catch((reason) =>
+            setError(String(reason) || "Couldn't open checkout. Try again in a moment."),
+          );
+        }}
       >
         Buy · {limits.pricing.display} once
       </button>
+      {error && (
+        <span className="text-caption leading-4" role="alert" style={{ color: "var(--danger)" }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }

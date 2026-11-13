@@ -302,6 +302,7 @@ function TryIt({ keys, captured }: { keys: string[]; captured: boolean }) {
 
 function Pay({ licensed }: { licensed: boolean }) {
   const [started, setStarted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const price = limits.pricing.display;
   return (
     <>
@@ -317,7 +318,12 @@ function Pay({ licensed }: { licensed: boolean }) {
           disabled={licensed}
           onClick={() => {
             setStarted(true);
-            void invoke("license_buy", { plan: "bundle" }).catch(() => setStarted(false));
+            setError(null);
+            // Never fail silently: a click that does nothing reads as a broken app.
+            void invoke("license_buy", { plan: "bundle" }).catch((reason) => {
+              setStarted(false);
+              setError(String(reason) || "Couldn't open checkout. Try again in a moment.");
+            });
           }}
         >
           Buy · {price} once
@@ -331,6 +337,11 @@ function Pay({ licensed }: { licensed: boolean }) {
           Already bought? Restore
         </button>
       </div>
+      {error && !licensed && (
+        <p className="mt-5 text-body" role="alert" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
       {(started || licensed) && (
         <p
           className="mt-5 flex items-center gap-2 text-body-strong"
