@@ -7,13 +7,13 @@ beforeEach(applyMigrations);
 
 /**
  * The Stripe account is Indian: an India-issued card can only be charged in INR, so a buyer
- * in India gets the price's INR option and everyone else the default (USD).
+ * in India gets the INR price and everyone else the USD one.
  */
 describe("POST /v1/license/buy/bundle — checkout currency", () => {
   const vars = env as unknown as Record<string, string | undefined>;
   let bodies: URLSearchParams[] = [];
 
-  function stubStripe(refuseInr = false) {
+  function stubStripe() {
     vars.STRIPE_SECRET_KEY = "sk_test_not_a_real_key";
     bodies = [];
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -23,9 +23,6 @@ describe("POST /v1/license/buy/bundle — checkout currency", () => {
       }
       const body = new URLSearchParams(String(init?.body));
       bodies.push(body);
-      if (refuseInr && body.get("currency") === "inr") {
-        return Response.json({ error: { message: "currency not available" } }, { status: 400 });
-      }
       return Response.json({ id: "cs_test_1", url: "https://checkout.stripe.com/c/pay/cs_test_1" });
     });
   }
@@ -44,24 +41,23 @@ describe("POST /v1/license/buy/bundle — checkout currency", () => {
     } as RequestInit);
   }
 
-  it("asks for INR when the buyer is in India", async () => {
+  it("charges the INR price when the buyer is in India", async () => {
     stubStripe();
     const response = await buy("IN");
     expect(response.status).toBe(201);
     expect(bodies).toHaveLength(1);
-    expect(bodies[0]!.get("currency")).toBe("inr");
+    expect(bodies[0]!.get("line_items[0][price]")).toBe(vars.STRIPE_PRICE_BUNDLE_INR);
   });
 
-  it("leaves the price's default currency for everyone else", async () => {
+  it("charges the USD price everywhere else", async () => {
     stubStripe();
     expect((await buy("US")).status).toBe(201);
-    expect(bodies[0]!.get("currency")).toBeNull();
+    expect(bodies[0]!.get("line_items[0][price]")).toBe(vars.STRIPE_PRICE_BUNDLE);
   });
 
-  it("still opens a checkout when Stripe refuses INR", async () => {
-    stubStripe(true);
-    const response = await buy("IN");
-    expect(response.status).toBe(201);
-    expect(bodies.map((b) => b.get("currency"))).toEqual(["inr", null]);
+  it("charges the USD price when the country is unknown", async () => {
+    stubStripe();
+    expect((await buy()).status).toBe(201);
+    expect(bodies[0]!.get("line_items[0][price]")).toBe(vars.STRIPE_PRICE_BUNDLE);
   });
 });
