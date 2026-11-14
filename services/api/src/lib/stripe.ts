@@ -114,8 +114,16 @@ export type CheckoutSession = {
  */
 export type Purchasable = "bundle";
 
-function priceId(env: Env, _plan: Purchasable): string {
-  const id = (env as { STRIPE_PRICE_BUNDLE?: string }).STRIPE_PRICE_BUNDLE;
+/**
+ * The price to charge. The Stripe account is Indian, and RBI rules let it charge an
+ * India-issued card only in INR ("Non-INR transactions in India require a card issued outside
+ * India"), so a buyer in India gets the INR price and everyone else the USD one.
+ */
+function priceId(env: Env, _plan: Purchasable, country?: string | null): string {
+  const vars = env as { STRIPE_PRICE_BUNDLE?: string; STRIPE_PRICE_BUNDLE_INR?: string };
+  const inr = vars.STRIPE_PRICE_BUNDLE_INR;
+  if (country?.toUpperCase() === "IN" && inr) return inr;
+  const id = vars.STRIPE_PRICE_BUNDLE;
   if (!id) throw new StripeError(500, "That plan is not configured yet.");
   return id;
 }
@@ -130,10 +138,7 @@ function priceId(env: Env, _plan: Purchasable): string {
  * Billing address is `required`: these are export payments from India, and the address is
  * needed on the invoice.
  *
- * `country` is where the buyer is (Cloudflare's view of their IP). The Stripe account is
- * Indian, and RBI rules let it charge an India-issued card only in INR ("Non-INR
- * transactions in India require a card issued outside India"), so a buyer in India is asked
- * for the price's INR currency option. Everyone else pays the price's default (USD).
+ * `country` is where the buyer is (Cloudflare's view of their IP); see `priceId`.
  */
 export async function createCheckout(
   env: Env,
@@ -142,23 +147,13 @@ export async function createCheckout(
   origin: string,
   country?: string | null,
 ): Promise<CheckoutSession> {
-  const params = checkoutParams(env, plan, claim, origin);
-  if (country?.toUpperCase() === "IN") {
-    try {
-      return await post<CheckoutSession>(
-        env,
-        "/checkout/sessions",
-        { ...params, currency: "inr" },
-        `checkout:${claim}:inr`,
-      );
-    } catch (error) {
-      // The price has no INR option (or Stripe refused it): still open a checkout, which
-      // works for a foreign card used from India, rather than failing everyone here.
-      console.warn("INR checkout refused; falling back to the default currency", error);
-    }
-  }
   // One claim is one intent to buy: a double-submit cannot become two charges.
-  return post<CheckoutSession>(env, "/checkout/sessions", params, `checkout:${claim}`);
+  return post<CheckoutSession>(
+    env,
+    "/checkout/sessions",
+    checkoutParams(env, plan, claim, origin, country),
+    `checkout:${claim}`,
+  );
 }
 
 function checkoutParams(
@@ -166,10 +161,11 @@ function checkoutParams(
   plan: Purchasable,
   claim: string,
   origin: string,
+  country?: string | null,
 ): Record<string, string> {
   return {
     mode: "payment",
-    "line_items[0][price]": priceId(env, plan),
+    "line_items[0][price]": priceId(env, plan, country),
     "line_items[0][quantity]": "1",
     // The app polls the claim, so the browser page is only a receipt.
     success_url: `${origin}/thanks?claim=${claim}`,
