@@ -105,13 +105,13 @@ export type CheckoutSession = {
 };
 
 /**
-  * Which thing is being bought. One plan now (PRD §7): `bundle` is the whole product —
-  * Lifetime plus the first year of Sync.
-  *
-  * `lifetime` is deliberately absent. It still exists as a *licence state* — it is what a
-  * bundle becomes when its Sync year lapses, and what pre-launch Lifetime buyers hold — but
-  * it is no longer something anyone can buy.
-  */
+ * Which thing is being bought. One plan now (PRD §7): `bundle` is the whole product —
+ * Lifetime plus the first year of Sync.
+ *
+ * `lifetime` is deliberately absent. It still exists as a *licence state* — it is what a
+ * bundle becomes when its Sync year lapses, and what pre-launch Lifetime buyers hold — but
+ * it is no longer something anyone can buy.
+ */
 export type Purchasable = "bundle";
 
 function priceId(env: Env, _plan: Purchasable): string {
@@ -129,41 +129,63 @@ function priceId(env: Env, _plan: Purchasable): string {
  *
  * Billing address is `required`: these are export payments from India, and the address is
  * needed on the invoice.
+ *
+ * `country` is where the buyer is (Cloudflare's view of their IP). The Stripe account is
+ * Indian, and RBI rules let it charge an India-issued card only in INR ("Non-INR
+ * transactions in India require a card issued outside India"), so a buyer in India is asked
+ * for the price's INR currency option. Everyone else pays the price's default (USD).
  */
 export async function createCheckout(
   env: Env,
   plan: Purchasable,
   claim: string,
   origin: string,
+  country?: string | null,
 ): Promise<CheckoutSession> {
-  return post<CheckoutSession>(
-    env,
-    "/checkout/sessions",
-    {
-      mode: "payment",
-      "line_items[0][price]": priceId(env, plan),
-      "line_items[0][quantity]": "1",
-      // The app polls the claim, so the browser page is only a receipt.
-      success_url: `${origin}/thanks?claim=${claim}`,
-      cancel_url: `${origin}/pricing`,
-      billing_address_collection: "required",
-      "metadata[claim]": claim,
-      "metadata[plan]": plan,
-      // So a repeat purchase by the same person reuses one customer record.
-      customer_creation: "always",
-      allow_promotion_codes: "true",
+  const params = checkoutParams(env, plan, claim, origin);
+  if (country?.toUpperCase() === "IN") {
+    try {
+      return await post<CheckoutSession>(
+        env,
+        "/checkout/sessions",
+        { ...params, currency: "inr" },
+        `checkout:${claim}:inr`,
+      );
+    } catch (error) {
+      // The price has no INR option (or Stripe refused it): still open a checkout, which
+      // works for a foreign card used from India, rather than failing everyone here.
+      console.warn("INR checkout refused; falling back to the default currency", error);
+    }
+  }
+  // One claim is one intent to buy: a double-submit cannot become two charges.
+  return post<CheckoutSession>(env, "/checkout/sessions", params, `checkout:${claim}`);
+}
 
-    },
-    // One claim is one intent to buy: a double-submit cannot become two charges.
-    `checkout:${claim}`,
-  );
+function checkoutParams(
+  env: Env,
+  plan: Purchasable,
+  claim: string,
+  origin: string,
+): Record<string, string> {
+  return {
+    mode: "payment",
+    "line_items[0][price]": priceId(env, plan),
+    "line_items[0][quantity]": "1",
+    // The app polls the claim, so the browser page is only a receipt.
+    success_url: `${origin}/thanks?claim=${claim}`,
+    cancel_url: `${origin}/pricing`,
+    billing_address_collection: "required",
+    "metadata[claim]": claim,
+    "metadata[plan]": plan,
+    // So a repeat purchase by the same person reuses one customer record.
+    customer_creation: "always",
+    allow_promotion_codes: "true",
+  };
 }
 
 export async function readCheckout(env: Env, sessionId: string): Promise<CheckoutSession> {
   return get<CheckoutSession>(env, `/checkout/sessions/${encodeURIComponent(sessionId)}`);
 }
-
-
 
 /* ── Webhook verification ─────────────────────────────────────────────────── */
 
