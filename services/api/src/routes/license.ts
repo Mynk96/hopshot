@@ -54,7 +54,9 @@ license.post("/buy/:plan", async (c) => {
 
   try {
     const claim = await createClaim(c.env, installId, plan);
-    const session = await createCheckout(c.env, plan, claim, webOrigin(c.env));
+    // Where the buyer is, from Cloudflare (the app calls this from the buyer's own machine).
+    const country = (c.req.raw as { cf?: { country?: string } }).cf?.country ?? null;
+    const session = await createCheckout(c.env, plan, claim, webOrigin(c.env), country);
 
     return c.json({ claim, url: session.url }, 201);
   } catch (error) {
@@ -291,12 +293,7 @@ license.post("/restore/verify", async (c) => {
   const licenseId = await licenseForEmail(c.env, email);
   if (!licenseId) return fail(c, "not_found", "There's no purchase on that email.");
 
-  const slot = await claimDeviceSlot(
-    c.env,
-    licenseId,
-    installId,
-    body?.label ?? "This computer",
-  );
+  const slot = await claimDeviceSlot(c.env, licenseId, installId, body?.label ?? "This computer");
 
   if (!slot.ok) {
     const license = await licenseById(c.env, licenseId);
