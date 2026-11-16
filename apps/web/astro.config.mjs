@@ -47,7 +47,10 @@ export default defineConfig({
         // Nothing here posts a form anywhere; the Android share target is a manifest
         // entry handled by the service worker, not an HTML form.
         "form-action 'none'",
-        "worker-src 'self'",
+        // `blob:` is the in-app QR scanner's decoder: qr-scanner builds its worker from a
+        // blob URL, and Safari has no BarcodeDetector to fall back on. Without it, scanning
+        // on an iPhone shows the camera and never reads a code (PRD F4.8).
+        "worker-src 'self' blob:",
         "manifest-src 'self'",
       ],
     },
