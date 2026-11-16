@@ -51,8 +51,9 @@ crons = ["*/15 * * * *", "0 9 * * *"]
 # is a new Stripe Price + this id + an API deploy. config/limits.json pricing.display is what
 # the app and website *show*; keep the two in step.
 STRIPE_PRICE_BUNDLE = "price_1UayEBSAaYIq0lX8liKgaiHA"   # $10 one-time, USD (2026-11-12); was price_1UM4rpSAaYIq0lX8oRSba6nK ($19)
-# The same product's INR price, charged to buyers in India: the Stripe account is Indian and
-# may charge India-issued cards only in INR (2026-11-14).
-STRIPE_PRICE_BUNDLE_INR = "price_1UbiUtSAaYIq0lX8eWdSmWdt"   # ₹899 one-time
+# Buyers in India are charged the USD price converted to INR at today's ECB rate (the Stripe
+# account is Indian and may charge India-issued cards only in INR). This fixed INR price is
+# only the fallback for when that conversion fails (2026-11-16).
+STRIPE_PRICE_BUNDLE_INR = "price_1UbiUtSAaYIq0lX8eWdSmWdt"   # ₹899 one-time, fallback only
 EMAIL_FROM = "Hopshot <founder@hopshot.xyz>"
 WEB_ORIGIN = "https://app.hopshot.xyz"
