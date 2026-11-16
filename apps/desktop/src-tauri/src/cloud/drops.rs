@@ -131,6 +131,35 @@ pub fn delete<R: Runtime>(app: &AppHandle<R>, item_id: &str) -> Result<(), DropE
     Ok(())
 }
 
+/// Every shelf item that still has a link online, with what deleting it needs.
+fn live_drops(items: &[crate::shelf::store::Item]) -> Vec<(&str, &str, &str)> {
+    items
+        .iter()
+        .filter_map(|item| {
+            Some((item.id.as_str(), item.drop_id.as_deref()?, item.drop_delete_token.as_deref()?))
+        })
+        .collect()
+}
+
+/// Delete every link this computer has online ("Delete all my cloud data", DESIGN S7).
+///
+/// Already-expired links answer 404, which `client::delete` treats as done. A network or
+/// server failure stops here with the error, so the user can retry rather than be told it
+/// worked; links deleted before the failure stay deleted. Returns how many were removed.
+pub fn delete_all<R: Runtime>(app: &AppHandle<R>) -> Result<usize, DropError> {
+    let store = crate::shelf::store(app)?;
+    let items = store.list()?;
+    let targets = live_drops(&items);
+
+    for (item_id, drop_id, token) in &targets {
+        client::delete(&format!("/drops/{drop_id}"), token)?;
+        store.clear_drop(item_id)?;
+    }
+
+    log::info!("deleted {} drop(s) online", targets.len());
+    Ok(targets.len())
+}
+
 /// The still-valid drop already on an item, if any.
 fn existing_drop(item: &crate::shelf::store::Item) -> Option<Drop> {
     let (id, key, expires_at) = (
@@ -207,6 +236,38 @@ pub fn install_id<R: Runtime>(app: &AppHandle<R>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn item(id: &str, drop: Option<(&str, &str)>) -> crate::shelf::store::Item {
+        crate::shelf::store::Item {
+            id: id.to_string(),
+            created_at: 0,
+            expires_at: None,
+            source: crate::shelf::store::Source::Capture,
+            origin_device: None,
+            file_name: format!("{id}.png"),
+            path: String::new(),
+            thumb_path: String::new(),
+            width: 1,
+            height: 1,
+            bytes: 1,
+            drop_id: drop.map(|(d, _)| d.to_string()),
+            drop_key: drop.map(|_| "key".to_string()),
+            drop_delete_token: drop.map(|(_, t)| t.to_string()),
+            drop_expires_at: drop.map(|_| 1),
+        }
+    }
+
+    /// "Delete all my cloud data" must reach every link online, and only those.
+    #[test]
+    fn delete_all_targets_every_item_with_a_link_and_nothing_else() {
+        let items = vec![
+            item("a", Some(("drop-a", "tok-a"))),
+            item("b", None),
+            item("c", Some(("drop-c", "tok-c"))),
+        ];
+        assert_eq!(live_drops(&items), vec![("a", "drop-a", "tok-a"), ("c", "drop-c", "tok-c")]);
+        assert!(live_drops(&[item("d", None)]).is_empty());
+    }
 
     /// Regression: the default was the apex, which the marketing Worker serves. Every
     /// pairing QR and share link 404'd because neither /pair nor /d/ exists there.

@@ -201,7 +201,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **Shelf:** Position Left/Right · Auto-hide 4s/8s/15s/Never · Keep items 1h / **24h** / 7d · Remove after drag · Catch other screenshots (P1).
 - **Devices:** paired list (icon, name, last seen, Revoke) · `Pair a phone` · `Link another computer` (P1) · Auto-sync captures to my devices.
 - **License:** plan card (Lifetime / Lifetime + Sync with the date Sync runs until, plus **Manage Sync**; or the plans block with both prices and the 14-day refund when nothing is bought) and the purchase email; **Computers (n of 3)** with Remove on each; `Buy Hopshot`, `Add Sync` or `Manage subscription`; when nothing is bought, **Already bought? Restore** (PRD F8.3c — the path for a reinstall or a second computer). No key field anywhere.
-- **Privacy:** Anonymous usage stats (off) · Crash reports (off) · `Delete all my cloud data` (danger, with a confirm step).
+- **Privacy:** Usage counts, explained and marked `Always on` (no switch: ARCHITECTURE §7.10) · Crash reports: `Hopshot doesn't send crash reports.` (none exist to switch on) · `Delete all my cloud data` (danger, with a confirm step): takes every share link offline and deletes the phone vault, then says what it removed.
 - **About:** the running version (read from the binary, never hard-coded), then the update
   block: `Check for updates` → `You're up to date` or `Hopshot 0.1.3 is available` with
   `Install and restart` and the line "Installing closes Hopshot and reopens it. Your shelf is

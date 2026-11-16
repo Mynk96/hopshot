@@ -196,11 +196,11 @@ pub fn revoke_device(app: AppHandle, device_id: String) -> Result<(), String> {
     cloud::vault::revoke(&device_id).map_err(|error| error.to_string())
 }
 
-/// "Delete all my cloud data" (DESIGN S7 → Privacy). The local shelf is untouched.
+/// "Delete all my cloud data" (DESIGN S7 → Privacy): every send link and the phone vault.
+/// The local shelf is untouched.
 #[tauri::command]
-pub fn delete_cloud_data(app: AppHandle) -> Result<(), String> {
-    cloud::live::stop(&app);
-    cloud::vault::delete_everything().map_err(|error| error.to_string())
+pub fn delete_cloud_data(app: AppHandle) -> Result<cloud::CloudDeletion, String> {
+    cloud::delete_all(&app).map_err(|error| error.to_string())
 }
 
 /* ── Licence and the computer limit (PRD F8.3, DESIGN S9) ─────────────────── */
