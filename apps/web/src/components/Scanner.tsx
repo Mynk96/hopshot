@@ -59,7 +59,11 @@ export default function Scanner({
         // than a second format being invented here.
         const hash = result.data.includes("#") ? result.data.slice(result.data.indexOf("#")) : "";
         const parsed = parsePairFragment(hash);
-        if (!parsed) return; // Not one of ours — keep scanning.
+        if (!parsed) {
+          // Not one of ours: say so instead of looking stuck, and keep scanning.
+          setMessage("That's not a Hopshot code. Scan the one on your computer.");
+          return;
+        }
 
         done = true;
         scanner?.stop();
@@ -81,11 +85,36 @@ export default function Scanner({
 
       try {
         scanner = new QrScanner(element, (result) => void onResult(result), {
+          returnDetailedScanResult: true,
           // The rear camera is the one pointed at the screen.
           preferredCamera: "environment",
           highlightScanRegion: true,
           highlightCodeOutline: true,
-          maxScansPerSecond: 5,
+          // The library's top rate: a code held up to the camera is read almost at once.
+          maxScansPerSecond: 25,
+          // A larger square than the default two-thirds, decoded at a higher resolution,
+          // so a code on a laptop screen at arm's length is still read.
+          calculateScanRegion: (v) => {
+            const size = Math.round(Math.min(v.videoWidth, v.videoHeight) * 0.85);
+            return {
+              x: Math.round((v.videoWidth - size) / 2),
+              y: Math.round((v.videoHeight - size) / 2),
+              width: size,
+              height: size,
+              downScaledWidth: Math.min(size, 640),
+              downScaledHeight: Math.min(size, 640),
+            };
+          },
+          // "No QR code found" fires on every empty frame; anything else means the decoder
+          // itself is broken, which must not look like a camera that is simply waiting.
+          onDecodeError: (error) => {
+            if (done || error === QrScanner.NO_QR_CODE_FOUND) return;
+            console.warn("the QR decoder failed", error);
+            done = true;
+            scanner?.stop();
+            setPhase("failed");
+            setMessage("The scanner stopped working. Close it and try again.");
+          },
         });
         await scanner.start();
         if (!done) setPhase("scanning");
@@ -194,7 +223,7 @@ export default function Scanner({
           paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
         }}
       >
-        Point this at the QR code on your computer.
+        {phase === "scanning" && message ? message : "Point this at the QR code on your computer."}
       </p>
     </div>
   );
