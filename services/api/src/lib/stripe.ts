@@ -115,17 +115,70 @@ export type CheckoutSession = {
 export type Purchasable = "bundle";
 
 /**
- * The price to charge. The Stripe account is Indian, and RBI rules let it charge an
- * India-issued card only in INR ("Non-INR transactions in India require a card issued outside
- * India"), so a buyer in India gets the INR price and everyone else the USD one.
+ * The one price: $10 USD (`STRIPE_PRICE_BUNDLE`). Its amount in Stripe is the only number;
+ * every other currency is converted from it.
  */
-function priceId(env: Env, _plan: Purchasable, country?: string | null): string {
-  const vars = env as { STRIPE_PRICE_BUNDLE?: string; STRIPE_PRICE_BUNDLE_INR?: string };
-  const inr = vars.STRIPE_PRICE_BUNDLE_INR;
-  if (country?.toUpperCase() === "IN" && inr) return inr;
-  const id = vars.STRIPE_PRICE_BUNDLE;
+function priceId(env: Env, _plan: Purchasable): string {
+  const id = (env as { STRIPE_PRICE_BUNDLE?: string }).STRIPE_PRICE_BUNDLE;
   if (!id) throw new StripeError(500, "That plan is not configured yet.");
   return id;
+}
+
+type Price = { unit_amount: number | null; currency: string; product: string };
+
+/** ECB reference rates: free, no key, updated once a working day. */
+const FX_URL = "https://api.frankfurter.dev/v1/latest?base=USD&symbols=INR";
+/** Cached at Cloudflare's edge, so checkouts don't each call the rate service. */
+const FX_CACHE_SECONDS = 6 * 60 * 60;
+
+async function usdToInr(): Promise<number> {
+  const response = await fetch(FX_URL, {
+    cf: { cacheTtl: FX_CACHE_SECONDS, cacheEverything: true },
+  });
+  if (!response.ok) throw new Error(`exchange rate service -> ${response.status}`);
+  const rate = ((await response.json()) as { rates?: { INR?: number } }).rates?.INR;
+  if (!rate || !Number.isFinite(rate) || rate <= 0) throw new Error("no USD→INR rate");
+  return rate;
+}
+
+/** USD cents to INR paise at `rate`, rounded to whole rupees (₹942.50 → ₹943). */
+export function inrPaise(usdCents: number, rate: number): number {
+  return Math.round((usdCents * rate) / 100) * 100;
+}
+
+/**
+ * The line item. The Stripe account is Indian, and RBI rules let it charge an India-issued
+ * card only in INR ("Non-INR transactions in India require a card issued outside India"),
+ * so a buyer in India is charged the $10 price converted to rupees at today's rate. Everyone
+ * else is charged the USD price itself. If the conversion fails, India falls back to a fixed
+ * INR price when one is configured, and to the USD price otherwise.
+ */
+async function lineItem(
+  env: Env,
+  plan: Purchasable,
+  country?: string | null,
+): Promise<Record<string, string>> {
+  const usd = priceId(env, plan);
+  if (country?.toUpperCase() !== "IN") return { "line_items[0][price]": usd };
+
+  try {
+    const [price, rate] = await Promise.all([
+      get<Price>(env, `/prices/${encodeURIComponent(usd)}`),
+      usdToInr(),
+    ]);
+    if (price.currency !== "usd" || !price.unit_amount)
+      throw new Error("the price is not a USD amount");
+    return {
+      "line_items[0][price_data][currency]": "inr",
+      "line_items[0][price_data][unit_amount]": String(inrPaise(price.unit_amount, rate)),
+      // Same product, so the dashboard and receipts still say Hopshot.
+      "line_items[0][price_data][product]": price.product,
+    };
+  } catch (error) {
+    console.warn("could not convert the price to INR; using the fallback", error);
+    const fixed = (env as { STRIPE_PRICE_BUNDLE_INR?: string }).STRIPE_PRICE_BUNDLE_INR;
+    return { "line_items[0][price]": fixed || usd };
+  }
 }
 
 /**
@@ -138,7 +191,7 @@ function priceId(env: Env, _plan: Purchasable, country?: string | null): string 
  * Billing address is `required`: these are export payments from India, and the address is
  * needed on the invoice.
  *
- * `country` is where the buyer is (Cloudflare's view of their IP); see `priceId`.
+ * `country` is where the buyer is (Cloudflare's view of their IP); see `lineItem`.
  */
 export async function createCheckout(
   env: Env,
@@ -151,21 +204,14 @@ export async function createCheckout(
   return post<CheckoutSession>(
     env,
     "/checkout/sessions",
-    checkoutParams(env, plan, claim, origin, country),
+    { ...checkoutParams(plan, claim, origin), ...(await lineItem(env, plan, country)) },
     `checkout:${claim}`,
   );
 }
 
-function checkoutParams(
-  env: Env,
-  plan: Purchasable,
-  claim: string,
-  origin: string,
-  country?: string | null,
-): Record<string, string> {
+function checkoutParams(plan: Purchasable, claim: string, origin: string): Record<string, string> {
   return {
     mode: "payment",
-    "line_items[0][price]": priceId(env, plan, country),
     "line_items[0][quantity]": "1",
     // The app polls the claim, so the browser page is only a receipt.
     success_url: `${origin}/thanks?claim=${claim}`,
