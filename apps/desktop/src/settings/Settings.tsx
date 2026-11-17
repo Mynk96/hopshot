@@ -6,14 +6,14 @@ import { Icon } from "../shelf/icons";
 import { Devices } from "./Devices";
 import { License } from "./License";
 import { HotkeyRecorder } from "./HotkeyRecorder";
-import { Row, Segmented, Switch } from "./controls";
+import { Group, Row, Segmented, Switch } from "./controls";
+import { Privacy } from "./Privacy";
 import type { AppSettings, HotkeyConflict, PlanStatus, Tab } from "./types";
 
 /**
  * Settings (DESIGN S7, 720x520, sidebar + content), matching `design/mockups.html`.
  *
- * General, Shelf, Devices, License and About are live. Privacy is a placeholder, shown so
- * the sidebar is honest about what exists rather than hiding a section that is coming.
+ * General, Shelf, Devices, License, Privacy and About are all live.
  *
  * Every write goes through `set_settings`, which validates, persists and re-binds the
  * global shortcuts in one call — so the UI never has to keep its own copy in sync.
@@ -153,7 +153,7 @@ export default function Settings() {
         {tab === "shelf" && <Shelf settings={settings} plan={plan} onUpdate={update} />}
         {tab === "devices" && <Devices settings={settings} onUpdate={update} />}
         {tab === "license" && <License />}
-        {tab === "privacy" && <Placeholder title="Privacy" phase="Phase 7" />}
+        {tab === "privacy" && <Privacy />}
         {tab === "about" && <About />}
       </main>
     </div>
@@ -307,35 +307,6 @@ function Shelf({
           <Switch checked={false} label="Catch other screenshots" disabled onChange={() => {}} />
         </Row>
       </Group>
-    </section>
-  );
-}
-
-function Group({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="mb-5 px-3"
-      style={{
-        background: "var(--surface-2)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-panel)",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Placeholder({ title, phase }: { title: string; phase: string }) {
-  return (
-    <section>
-      <h3 className="mb-3 text-title">{title}</h3>
-      <div
-        className="rounded-xl p-5 text-body text-text-2"
-        style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-      >
-        {title} settings arrive in {phase}.
-      </div>
     </section>
   );
 }

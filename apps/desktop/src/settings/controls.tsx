@@ -120,3 +120,19 @@ export function Segmented({
     </div>
   );
 }
+
+/** A rounded group of settings rows (`.group` in the mockups). */
+export function Group({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="mb-5 px-3"
+      style={{
+        background: "var(--surface-2)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-panel)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
