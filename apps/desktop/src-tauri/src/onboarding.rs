@@ -51,6 +51,8 @@ pub fn show<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             .minimizable(false)
             .center()
             .focused(true)
+            // macOS: the first click on its buttons must act, not just activate the window.
+            .accept_first_mouse(true)
             .build()?;
 
     // The red close button is a valid way to say "I've got it"; record it like Finish.

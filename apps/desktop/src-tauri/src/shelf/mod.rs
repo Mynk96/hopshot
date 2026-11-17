@@ -306,6 +306,20 @@ pub fn hide<R: Runtime>(app: &AppHandle<R>) {
     let _ = app.emit("shelf:hidden", ());
 }
 
+/// A setting was saved (DESIGN S7). Re-park an open shelf, so a new side takes effect at
+/// once instead of on the next appearance, and tell every window the new values: the
+/// shelf reads its auto-hide delay and expiry label from them.
+pub fn settings_changed<R: Runtime>(app: &AppHandle<R>, settings: &crate::settings::Settings) {
+    if let Some(window) = app.get_webview_window(SHELF_WINDOW) {
+        if window.is_visible().unwrap_or(false) {
+            if let Err(error) = position(app, &window) {
+                log::warn!("the shelf could not be re-parked: {error}");
+            }
+        }
+    }
+    let _ = app.emit("settings:changed", settings);
+}
+
 /// PRD F2.2 — the toggle hotkey shows the shelf, or hides it if it is already up.
 pub fn toggle<R: Runtime>(app: &AppHandle<R>) {
     let visible = app
