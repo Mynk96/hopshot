@@ -77,11 +77,11 @@ nav.top .links a:hover{color:var(--ink)}
 nav.top .sp{flex:1}
 
 /* hero */
-.hero{padding:40px 0 104px;text-align:center;background:radial-gradient(900px 420px at 50% 0%,var(--accent-soft),transparent 70%)}
+.hero{padding:28px 0 104px;text-align:center;background:radial-gradient(900px 420px at 50% 0%,var(--accent-soft),transparent 70%)}
 .hero .intro{max-width:820px;margin:0 auto}
-.hero h1{font-weight:800;font-size:clamp(40px,5.4vw,64px);line-height:1.04;letter-spacing:-.04em;margin:0 0 18px;text-wrap:balance}
+.hero h1{font-weight:800;font-size:clamp(40px,5.4vw,64px);line-height:1.04;letter-spacing:-.04em;margin:0 0 14px;text-wrap:balance}
 .hero .sub{font-size:20px;line-height:1.55;color:var(--ink-2);margin:0 auto 22px;max-width:640px}
-.checks{list-style:none;padding:0;margin:0 0 28px;display:flex;justify-content:center;flex-wrap:wrap;gap:10px 26px;font-size:16.5px;font-weight:500}
+.checks{list-style:none;padding:0;margin:22px 0 0;display:flex;justify-content:center;flex-wrap:wrap;gap:10px 26px;font-size:16.5px;font-weight:500}
 .checks li{display:flex;gap:10px;align-items:center}
 .checks li::before{content:"";width:20px;height:20px;flex:none;border-radius:50%;background:var(--good) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/12px no-repeat}
 .cta-row{display:flex;flex-direction:column;align-items:center;gap:12px}
@@ -101,6 +101,23 @@ nav.top .sp{flex:1}
 .media .pp{position:absolute;right:20px;bottom:20px;width:42px;height:42px;border-radius:50%;border:0;cursor:pointer;background:#fff;color:var(--ink);display:grid;place-items:center;box-shadow:0 0 0 1px var(--line),0 8px 20px -10px rgba(28,25,23,.4);opacity:.85;transition:opacity .15s,transform .15s}
 .media .pp:hover{opacity:1;transform:scale(1.05)}
 .media .pp svg{width:16px;height:16px;fill:currentColor}
+/* before / after */
+.ba{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;max-width:680px;margin:4px auto 30px}
+.ba figure{margin:0}
+.ba .desk{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,#FCE3D2 0%,#F7D6C6 48%,#EBD3E0 100%);box-shadow:0 0 0 1px var(--line),0 16px 36px -20px rgba(28,25,23,.5)}
+.ba .desk::before{content:"";position:absolute;left:0;right:0;top:0;height:7%;background:rgba(255,255,255,.6)}
+.ba figcaption{margin-top:10px;font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+.ba .before figcaption{color:var(--bad)}
+.ba .after figcaption{color:var(--good)}
+.ba .to{width:30px;height:30px;color:var(--accent);flex:none}
+.ba .f{position:absolute;width:17%;display:flex;flex-direction:column;align-items:center;gap:2px;transform:rotate(var(--r,0deg))}
+.ba .f i{display:block;width:60%;aspect-ratio:4/3;border-radius:3px;background:#fff;box-shadow:0 1px 3px rgba(28,25,23,.28);position:relative;overflow:hidden}
+.ba .f i::after{content:"";position:absolute;inset:22% 14% 20%;border-radius:2px;background:var(--c,#CBD5E1)}
+.ba .f b{font:500 7px/1.15 var(--font);color:var(--ink);background:rgba(255,255,255,.75);padding:1px 3px;border-radius:3px;white-space:nowrap}
+.ba .shelf{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);width:46%;display:flex;gap:6%;padding:4% 5%;border-radius:10px;background:rgba(28,25,23,.88);box-shadow:0 10px 24px -10px rgba(28,25,23,.6)}
+.ba .shelf i{flex:1;aspect-ratio:4/3;border-radius:4px;background:#fff;position:relative;overflow:hidden}
+.ba .shelf svg{position:absolute;inset:0;width:100%;height:100%}
+.ba .gone{position:absolute;right:6%;top:14%;font:700 10px/1 var(--font);background:#fff;color:var(--good);padding:5px 8px;border-radius:999px;box-shadow:0 4px 10px -4px rgba(28,25,23,.35);white-space:nowrap}
 @keyframes rec{0%,100%{opacity:1}50%{opacity:.35}}
 
 /* sections */
@@ -230,6 +247,11 @@ footer .cp{color:var(--ink-3);font-size:14px}
   nav.top .links{display:none}
 }
 @media (max-width:640px){
+  .ba{gap:8px;margin-bottom:24px}
+  .ba .to{width:20px;height:20px}
+  .ba .f b{display:none}
+  .ba .gone{font-size:8px;padding:3px 5px}
+  .ba figcaption{font-size:13px}
   .wrap,.narrow{padding:0 18px}
   section,.final{padding:80px 0}
   .hero{padding:24px 0 72px}
@@ -270,16 +292,21 @@ footer .cp{color:var(--ink-3);font-size:14px}
   <div class="wrap">
     <div class="intro">
       <h1>Screenshots that <span class="hl">clean up</span> after themselves</h1>
-      <p class="sub">Press a hotkey, grab anything, drag it straight into any app. It's on your phone in a second, and gone tomorrow. No more Desktop full of <span class="mono" style="font-family:var(--mono);font-size:.88em">Screenshot (47).png</span>.</p>
+      <p class="sub">Press a hotkey, grab anything, drag it straight into any app. It's on your phone in a second, and gone tomorrow.</p>
+      <div class="ba" role="img" aria-label="Before: a desktop covered in screenshot files. After: a clean desktop with captures waiting on a small shelf, deleted after 24 hours.">
+        <figure class="before"><div class="desk"><span class="f" style="left:2%;top:11%;--r:-9deg;--c:#CBD5E1"><i></i><b>Screenshot (47).png</b></span><span class="f" style="left:17%;top:15%;--r:6deg;--c:#FDBA74"><i></i><b>Screenshot 2026-11-03.png</b></span><span class="f" style="left:33%;top:9%;--r:-4deg;--c:#A5B4FC"><i></i><b>image (3).png</b></span><span class="f" style="left:50%;top:17%;--r:11deg;--c:#86EFAC"><i></i><b>Screenshot (12).png</b></span><span class="f" style="left:68%;top:10%;--r:-7deg;--c:#FCA5A5"><i></i><b>Capture.PNG</b></span><span class="f" style="left:83%;top:18%;--r:8deg;--c:#CBD5E1"><i></i><b>Screenshot (48).png</b></span><span class="f" style="left:6%;top:35%;--r:7deg;--c:#93C5FD"><i></i><b>Screen Shot 09.41.png</b></span><span class="f" style="left:24%;top:40%;--r:-12deg;--c:#FDE68A"><i></i><b>Screenshot (31).png</b></span><span class="f" style="left:41%;top:31%;--r:5deg;--c:#C4B5FD"><i></i><b>image (7).png</b></span><span class="f" style="left:58%;top:42%;--r:-6deg;--c:#CBD5E1"><i></i><b>Screenshot (5).png</b></span><span class="f" style="left:74%;top:33%;--r:10deg;--c:#F9A8D4"><i></i><b>Untitled-2.png</b></span><span class="f" style="left:1%;top:60%;--r:-5deg;--c:#A7F3D0"><i></i><b>Screenshot (49).png</b></span><span class="f" style="left:18%;top:66%;--r:9deg;--c:#FDBA74"><i></i><b>Screenshot (2).png</b></span><span class="f" style="left:35%;top:57%;--r:-10deg;--c:#BFDBFE"><i></i><b>Capture (4).PNG</b></span><span class="f" style="left:51%;top:68%;--r:4deg;--c:#FCA5A5"><i></i><b>Screenshot (50).png</b></span><span class="f" style="left:66%;top:58%;--r:-8deg;--c:#86EFAC"><i></i><b>image (8).png</b></span><span class="f" style="left:82%;top:64%;--r:6deg;--c:#C4B5FD"><i></i><b>Screenshot (3).png</b></span><span class="f" style="left:28%;top:22%;--r:14deg;--c:#FDE68A"><i></i><b>Screenshot (51).png</b></span><span class="f" style="left:62%;top:26%;--r:-13deg;--c:#93C5FD"><i></i><b>Capture (5).PNG</b></span><span class="f" style="left:44%;top:50%;--r:8deg;--c:#CBD5E1"><i></i><b>Screenshot (9).png</b></span></div><figcaption>Your Desktop now</figcaption></figure>
+        <svg class="to" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+        <figure class="after"><div class="desk"><span class="gone">🧹 Gone in 24h</span><div class="shelf"><i><svg viewBox="0 0 40 30" preserveAspectRatio="none"><path d="M4 24 L12 19 L19 21 L26 12 L36 6" fill="none" stroke="#FF6B2C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></i><i><svg viewBox="0 0 40 30"><rect x="5" y="7" width="24" height="3" rx="1.5" fill="#D6D3D1"/><rect x="5" y="13" width="30" height="3" rx="1.5" fill="#E7E5E4"/><rect x="5" y="19" width="18" height="3" rx="1.5" fill="#E7E5E4"/></svg></i></div></div><figcaption>With Hopshot</figcaption></figure>
+      </div>
+      <div class="cta-row">
+        <a class="btn js-buy-sync" href="#pricing">Get Hopshot <span class="arr">→</span></a>
+        <span class="cta-note"><b>$10 once</b> · 14-day refund · Windows &amp; Mac</span>
+      </div>
       <ul class="checks">
         <li>Pay once, use forever</li>
         <li>Windows &amp; Mac, one license</li>
         <li>End-to-end encrypted, auto-deleted</li>
       </ul>
-      <div class="cta-row">
-        <a class="btn js-buy-sync" href="#pricing">Get Hopshot <span class="arr">→</span></a>
-        <span class="cta-note"><b>$10 once</b> · 14-day refund · Windows &amp; Mac</span>
-      </div>
       <div class="trust"><span>🔒 Secure checkout</span><span>💸 14-day refund</span><span>🖥️ Windows 10/11 · macOS 13+</span></div>
     </div>
     <div class="media">
