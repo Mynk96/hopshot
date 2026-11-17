@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to Paste Screenshots into Claude Code on Windows (Ctrl+V Fix)</title>
+<meta name="description" content="Ctrl+V does nothing when you paste a screenshot into Claude Code on Windows? Here&#x27;s why, three free fixes, and the one-step way that skips the clipboard.">
+<link rel="canonical" href="https://hopshot.xyz/blog/paste-screenshot-claude-code-windows/">
+<meta name="theme-color" content="#FF6B2C">
+<meta property="og:title" content="How to Paste Screenshots into Claude Code on Windows (Ctrl+V Fix)">
+<meta property="og:description" content="Ctrl+V does nothing when you paste a screenshot into Claude Code on Windows? Here&#x27;s why, three free fixes, and the one-step way that skips the clipboard.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://hopshot.xyz/blog/paste-screenshot-claude-code-windows/">
+<meta property="og:image" content="https://hopshot.xyz/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:creator" content="@mayankharsani">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%231B1B20'/%3E%3Crect x='14' y='42' width='36' height='5' rx='2.5' fill='%23FF6B2C'/%3E%3Crect x='20' y='22' width='22' height='17' rx='3' fill='%23fff' transform='rotate(-8 31 30)'/%3E%3C/svg%3E">
+<link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/blog/blog.css">
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "BlogPosting", "headline": "How to paste screenshots into Claude Code on Windows (when Ctrl+V does nothing)", "description": "Ctrl+V does nothing when you paste a screenshot into Claude Code on Windows? Here's why, three free fixes, and the one-step way that skips the clipboard.", "datePublished": "2026-11-17", "dateModified": "2026-11-17", "author": {"@type": "Person", "name": "Mayank Harsani"}, "publisher": {"@type": "Organization", "name": "Hopshot", "url": "https://hopshot.xyz/"}, "mainEntityOfPage": "https://hopshot.xyz/blog/paste-screenshot-claude-code-windows/", "image": "https://hopshot.xyz/og.png"}
+</script>
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Does this work in the VS Code terminal?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Alt+V and drag-and-drop work there too. If Ctrl+V pastes text instead of an image, use Alt+V."}}, {"@type": "Question", "name": "Does it work in WSL?", "acceptedAnswer": {"@type": "Answer", "text": "WSL often can't read images from the Windows clipboard. Dragging a file into the WSL tab in Windows Terminal is the dependable route."}}, {"@type": "Question", "name": "Can I add several screenshots to one prompt?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Drag them in one after another; each stays on the shelf until it expires."}}, {"@type": "Question", "name": "Can I change Hopshot's capture shortcut?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Ctrl+Shift+2 is the default and you can pick another in Settings."}}]}
+</script>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="logo" href="/"><span class="mark"></span>Hopshot</a>
+  <span class="sp"></span>
+  <a class="nl" href="/blog/">Blog</a>
+  <a class="nl" href="/#pricing">Pricing</a>
+  <a class="btn" href="https://app.hopshot.xyz/download">Get Hopshot</a>
+</div></header>
+<main><article class="narrow">
+<p class="crumb"><a href="/blog/">Blog</a></p>
+<h1>How to paste screenshots into Claude Code on Windows (when Ctrl+V does nothing)</h1>
+<p class="meta">By Mayank Harsani, maker of Hopshot · 17 November 2026</p>
+
+<p class="lead">On Windows, press <kbd>Alt</kbd>+<kbd>V</kbd> instead of <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste a screenshot into Claude Code. If that fails too, drag the image file into the terminal. Here's why it happens and how to make it reliable.</p>
+
+<h2>Why Ctrl+V doesn't work</h2>
+<p>Windows Terminal uses <kbd>Ctrl</kbd>+<kbd>V</kbd> for its own paste command. It catches the keystroke before Claude Code sees it, so the image never arrives. Text still pastes, which makes it look like an image bug.</p>
+<p>There's a nastier version. Sometimes Claude Code shows an <code>[Image #1]</code> chip, but the screenshot never reached the model. The model then says it can't see the image, and you blame the model.</p>
+
+<h2>Fix 1: Use Alt+V</h2>
+<p>Alt+V is Claude Code's documented image-paste key for terminals that intercept Ctrl+V.</p>
+<ol>
+<li>Press <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> and select an area.</li>
+<li>Click into the Claude Code prompt.</li>
+<li>Press <kbd>Alt</kbd>+<kbd>V</kbd>.</li>
+</ol>
+<p>If the first Alt+V right after a snip does nothing, wait a second and press it again. Several users report the first press failing on a fresh snip.</p>
+
+<h2>Fix 2: Check your Windows Terminal key bindings</h2>
+<p>Open Windows Terminal settings, choose <strong>Open JSON file</strong>, and look for a binding like <code>"keys": "ctrl+v"</code>. Removing a custom Ctrl+V binding can restore image paste. Back up the file first.</p>
+
+<h2>Fix 3: Drag the file in</h2>
+<p>Dragging an image file into the terminal is the most reliable route. Windows Terminal inserts the file's path and Claude Code attaches the image.</p>
+<p>The catch: Win+Shift+S only puts the image on the clipboard. You have to save it, find it in File Explorer and drag it over. After a few rounds your Pictures folder fills with <code>Screenshot 2026-…png</code> files.</p>
+
+<section class="cta">
+<h2>The faster way: a screenshot shelf</h2>
+<p>Hopshot turns Fix 3 into one step. Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>2</kbd>, select an area, and the screenshot lands on a small floating shelf. Drag it from the shelf straight into Claude Code, Cursor, ChatGPT or any browser upload box.</p>
+<video poster="/demo-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Hopshot demo: capture an area, then drag it from the shelf into a chat"><source src="/demo.webm" type="video/webm"><source src="/demo.mp4" type="video/mp4"></video>
+<ul><li>No saving and no hunting in File Explorer.</li><li>Every capture is also copied to the clipboard, so <kbd>Alt</kbd>+<kbd>V</kbd> still works.</li><li>Screenshots stay on the shelf after you drag them, so you can drop the same one into another chat.</li><li>Captures delete themselves after 1 hour, 24 hours or 7 days, so nothing piles up.</li></ul>
+<a class="btn btn-lg" href="https://app.hopshot.xyz/download">Get Hopshot for Windows or Mac <span aria-hidden="true">→</span></a>
+<p class="note">$10 once · no subscription · 14-day refund · Windows 10/11 and macOS 13+</p>
+</section>
+
+<section class="faq"><h2>FAQ</h2><details><summary>Does this work in the VS Code terminal?</summary><p>Yes. Alt+V and drag-and-drop work there too. If Ctrl+V pastes text instead of an image, use Alt+V.</p></details><details><summary>Does it work in WSL?</summary><p>WSL often can't read images from the Windows clipboard. Dragging a file into the WSL tab in Windows Terminal is the dependable route.</p></details><details><summary>Can I add several screenshots to one prompt?</summary><p>Yes. Drag them in one after another; each stays on the shelf until it expires.</p></details><details><summary>Can I change Hopshot's capture shortcut?</summary><p>Yes. Ctrl+Shift+2 is the default and you can pick another in Settings.</p></details></section>
+<section class="related"><h2>Related</h2><ul class="posts"><li><a class="t" href="/blog/screenshots-into-cursor-chatgpt/">The fastest way to get screenshots into Cursor, Claude and ChatGPT</a><p>Free clipboard shortcuts for Mac and Windows, where they break, and a cleaner way to feed screenshots to AI.</p></li><li><a class="t" href="/blog/mac-screenshot-thumbnail-drag-not-working/">Mac screenshot thumbnail won&#x27;t drag, or your screenshot vanished? Here&#x27;s why</a><p>Why dragging the floating thumbnail can lose your screenshot, and fixes for macOS Tahoe and Dropbox.</p></li></ul></section>
+</article></main>
+<footer><div class="wrap">
+  <a class="logo" href="/"><span class="mark"></span>Hopshot</a>
+  <span>Screenshots that clean up after themselves. For Windows and Mac.</span>
+  <span class="sp"></span>
+  <a href="/blog/">Blog</a><a href="/#faq">FAQ</a><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a>
+</div></footer>
+</body>
+</html>
