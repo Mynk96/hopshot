@@ -1,0 +1,78 @@
+/* Blog styles. Tokens and fonts mirror the landing page (index.html :root) so the two read as one site. */
+@font-face{font-family:"Inter";font-weight:400;font-display:swap;src:url(/fonts/inter-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:600;font-display:swap;src:url(/fonts/inter-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:700;font-display:swap;src:url(/fonts/inter-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:800;font-display:swap;src:url(/fonts/inter-latin-800-normal.woff2) format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-weight:500;font-display:swap;src:url(/fonts/jetbrains-mono-latin-500-normal.woff2) format("woff2")}
+:root{
+  --bg:#FFFFFF; --bg-2:#FBF8F4; --bg-3:#F4EFE8; --ink:#1C1917; --ink-2:#57534E; --ink-3:#6B645D; --line:#ECE6DF;
+  --accent:#FF6B2C; --accent-d:#E85A1C; --accent-text:#C2410C; --on-accent:#1B0F08; --accent-soft:#FFEDE3;
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 18px/1.7 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+a{color:var(--accent-text);text-underline-offset:3px}
+img,video{max-width:100%;display:block}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+.narrow{max-width:720px;margin:0 auto;padding:0 24px}
+
+/* header */
+header.top .wrap{display:flex;align-items:center;gap:24px;height:72px}
+.logo{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.02em;text-decoration:none;color:var(--ink)}
+.mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(160deg,#2C2C33,#141418);position:relative;flex:none}
+.mark::before{content:"";position:absolute;left:7px;right:7px;bottom:7px;height:3px;border-radius:2px;background:var(--accent)}
+.mark::after{content:"";position:absolute;left:9px;bottom:11px;width:11px;height:9px;border-radius:2px;background:#fff;transform:rotate(-8deg)}
+header.top .sp{flex:1}
+header.top .nl{font-size:15.5px;font-weight:500;color:var(--ink-2);text-decoration:none}
+header.top .nl:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:42px;padding:0 18px;border-radius:10px;background:var(--accent);color:var(--on-accent);font:700 15px/1 var(--font);text-decoration:none;box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 8px 24px -8px rgba(255,107,44,.65)}
+.btn:hover{background:var(--accent-d)}
+.btn-lg{height:52px;padding:0 26px;font-size:17px;border-radius:12px}
+
+/* article */
+article{padding:40px 0 72px}
+.crumb{font-size:14.5px;color:var(--ink-3);margin:0 0 18px}
+.crumb a{color:var(--ink-3)}
+h1{font-size:clamp(32px,4.6vw,46px);line-height:1.12;letter-spacing:-.025em;font-weight:800;margin:0 0 18px}
+.meta{font-size:15px;color:var(--ink-3);margin:0 0 32px}
+h2{font-size:26px;line-height:1.25;letter-spacing:-.015em;font-weight:800;margin:44px 0 12px}
+h3{font-size:20px;line-height:1.3;font-weight:700;margin:28px 0 8px}
+p,ul,ol{margin:0 0 18px}
+li{margin:0 0 8px}
+.lead{font-size:20px;line-height:1.6;color:var(--ink);background:var(--bg-2);border-left:4px solid var(--accent);padding:18px 22px;border-radius:0 12px 12px 0}
+code{font:500 .86em/1 var(--mono);background:var(--bg-3);border-radius:6px;padding:.15em .4em}
+pre{background:#1C1917;color:#F4EFE8;border-radius:12px;padding:18px 20px;overflow-x:auto;font:500 15px/1.6 var(--mono);margin:0 0 20px}
+pre code{background:none;padding:0;color:inherit}
+kbd{font:500 .82em/1 var(--mono);background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:.2em .45em;color:var(--ink);white-space:nowrap}
+
+/* the Hopshot section */
+.cta{background:var(--bg-2);border:1px solid var(--line);border-radius:18px;padding:28px 28px 30px;margin:40px 0}
+.cta h2{margin-top:0}
+.cta video{border-radius:12px;border:1px solid var(--line);margin:18px 0 22px;width:100%;height:auto;background:var(--bg-3)}
+.cta .note{font-size:15px;color:var(--ink-3);margin:12px 0 0}
+
+/* faq */
+.faq details{border-top:1px solid var(--line);padding:14px 0}
+.faq details:last-child{border-bottom:1px solid var(--line)}
+.faq summary{font-weight:700;cursor:pointer}
+.faq details p{margin:10px 0 0}
+
+/* related + index */
+.related{border-top:1px solid var(--line);margin-top:48px;padding-top:28px}
+.related h2{font-size:20px;margin:0 0 12px}
+.posts{list-style:none;padding:0;margin:0}
+.posts li{border-top:1px solid var(--line);padding:22px 0;margin:0}
+.posts li:last-child{border-bottom:1px solid var(--line)}
+.posts a.t{font-size:21px;font-weight:700;color:var(--ink);text-decoration:none;line-height:1.3}
+.posts a.t:hover{color:var(--accent-text)}
+.posts p{margin:6px 0 0;color:var(--ink-2);font-size:16.5px}
+
+footer{background:var(--bg-2);padding:40px 0;font-size:15px;color:var(--ink-2)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center}
+footer a{color:var(--ink-2);text-decoration:none}
+footer a:hover{text-decoration:underline}
+footer .sp{flex:1}
+@media (max-width:640px){body{font-size:17px}.lead{font-size:18px}.cta{padding:22px 18px}header.top .nl{display:none}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
