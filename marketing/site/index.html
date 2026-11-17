@@ -205,19 +205,6 @@ h2{font-weight:800;font-size:clamp(32px,4.2vw,50px);line-height:1.08;letter-spac
 .final h2{color:#fff;max-width:760px;margin:0 auto 16px}
 .final .lead{color:#C9C2BA;margin:0 auto 36px}
 .final .cta-note{color:#A8A099;margin-top:14px}
-.notify{max-width:460px;margin:56px auto 0;padding-top:36px;border-top:1px solid rgba(255,255,255,.12)}
-.notify p{margin:0 0 14px;font-size:15.5px;color:#C9C2BA}
-.notify .row{display:flex;gap:8px}
-.notify input[type=email]{flex:1;min-width:0;height:48px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;padding:0 14px;font:400 16px var(--font)}
-.notify input::placeholder{color:#A8A099}
-.notify button{height:48px;border-radius:10px;border:0;background:#fff;color:var(--ink);font:700 15px var(--font);padding:0 18px;cursor:pointer}
-.notify .opts{display:flex;gap:16px;justify-content:center;margin-top:12px;font-size:14px;color:#A8A099;flex-wrap:wrap}
-.notify label{display:flex;gap:6px;align-items:center;cursor:pointer}
-.notify input[type=checkbox]{accent-color:var(--accent)}
-.notify select{font:inherit;color:#fff;background:#2A2522;border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:2px 4px}
-.notify .ok{display:none;color:#86EFAC;font-weight:600}
-.notify.done form{display:none}
-.notify.done .ok{display:block}
 
 footer{background:var(--bg-2);padding:64px 0 56px;font-size:15px;color:var(--ink-2)}
 footer .cols{display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px}
@@ -255,7 +242,6 @@ footer .cp{color:var(--ink-3);font-size:14px}
   .media .pp{width:32px;height:32px;right:10px;bottom:10px}
   .media .pp svg{width:12px;height:12px}
   .founder{flex-direction:column}
-  .notify .row{flex-direction:column}
   footer .cols{grid-template-columns:1fr 1fr}
   footer .cols > div:first-child{grid-column:1/-1}
   .topbar{font-size:13.5px}
@@ -263,8 +249,8 @@ footer .cp{color:var(--ink-3);font-size:14px}
 </style>
 </head>
 <body>
-<div class="paid" id="paidBanner" role="status">🎉 You're in! Your receipt is in your inbox, and your license arrives by email on launch day.</div>
-<div class="topbar">⚡ <b>Hopshot is out.</b> $10 once, everything included, 14-day refund. <a href="#pricing">See pricing</a></div>
+<div class="paid" id="paidBanner" role="status">🎉 You're in! Your receipt is in your inbox, and Hopshot unlocks itself within seconds.</div>
+<div class="topbar">⚡ <b>Hopshot is live on Windows &amp; Mac.</b> $10 once, everything included, 14-day refund. <a href="#pricing">See pricing</a></div>
 
 <nav class="top">
   <div class="wrap">
@@ -400,7 +386,7 @@ footer .cp{color:var(--ink-3);font-size:14px}
           <li class="plus"><b>Phone sync included, forever</b></li>
           <li>All 1.x updates</li>
         </ul>
-        <a class="btn btn-block js-buy-sync" href="#notify">Get Hopshot <span class="arr">→</span></a>
+        <a class="btn btn-block js-buy-sync" href="https://app.hopshot.xyz/download">Get Hopshot <span class="arr">→</span></a>
         <p class="fine">One payment. No subscription, no renewal, no card kept on file.
           Phone sync is included for good.</p>
       </div>
@@ -430,36 +416,20 @@ footer .cp{color:var(--ink-3);font-size:14px}
       <div class="av" id="founderAv">M</div>
       <div>
         <p>Hey 👋 I'm <span class="js-founder">Mayank</span>.</p>
-        <p>I build software for a living and take dozens of screenshots a day. I got tired of the Desktop clutter, the file pickers, and WhatsApp-ing screenshots to myself, so I'm building the tool I wanted.</p>
-        <p>Founders get early access and a direct line to me. Tell me what you'd want it to do.</p>
+        <p>I build software for a living and take dozens of screenshots a day. I got tired of the Desktop clutter, the file pickers, and WhatsApp-ing screenshots to myself, so I built the tool I wanted.</p>
+        <p>Every email to <a class="js-email" href="mailto:founder@hopshot.xyz">founder@hopshot.xyz</a> comes straight to me. Tell me what you'd want it to do next.</p>
         <p class="sig">— <span class="js-founder">Mayank</span>, maker of Hopshot</p>
       </div>
     </div>
   </div>
 </section>
 
-<div class="final" id="notify">
+<div class="final" id="get">
   <div class="wrap">
     <h2>Stop saving screenshots. Start dragging them.</h2>
     <p class="lead">One price. Everything included. Yours forever.</p>
     <a class="btn js-buy-sync" href="#pricing">Get Hopshot <span class="arr">→</span></a>
     <p class="cta-note">$10 once · 14-day refund · Windows &amp; Mac</p>
-    <div class="notify" id="notifyBox">
-      <form id="wlForm" method="post" target="wlFrame">
-        <p>Not ready yet? Get one email on launch day.</p>
-        <div class="row">
-          <input type="email" name="email" required placeholder="you@company.com" aria-label="Email address">
-          <button type="submit">Notify me</button>
-        </div>
-        <div class="opts">
-          <label><input type="checkbox" name="metadata__wants_sync" value="yes"> I'd want Sync</label>
-          <label>I use <select name="metadata__os" aria-label="Your computer"><option value="windows">Windows</option><option value="mac">Mac</option><option value="both">Both</option></select></label>
-        </div>
-        <input type="hidden" name="metadata__source" id="wlSource" value="direct">
-      </form>
-      <p class="ok" role="status">You're on the list ✓ Check your inbox to confirm.</p>
-      <iframe name="wlFrame" title="signup" style="display:none"></iframe>
-    </div>
   </div>
 </div>
 
@@ -468,7 +438,7 @@ footer .cp{color:var(--ink-3);font-size:14px}
     <div class="cols">
       <div><a class="logo" href="#"><span class="mark"></span>Hopshot</a><p class="tag">Screenshots that clean up after themselves. For Windows and Mac.</p><p class="cp">© 2026 Hopshot. All rights reserved.</p></div>
       <div><h4>Links</h4><ul><li><a href="#pricing">Pricing</a></li><li><a href="#faq">FAQ</a></li><li><a class="js-email" href="#">Support</a></li></ul></div>
-      <div><h4>Legal</h4><ul><li><a href="terms.html">Pre-order terms</a></li><li><a href="privacy.html">Privacy policy</a></li></ul></div>
+      <div><h4>Legal</h4><ul><li><a href="terms.html">Terms</a></li><li><a href="privacy.html">Privacy policy</a></li></ul></div>
     </div>
   </div>
 </footer>
@@ -480,7 +450,7 @@ const CONFIG = {
   // until bought, and the purchase happens *inside the app* so it can be tied to the install
   // that started it (F8.3) — that binding is what removes the licence key.
   //
-  // These used to be the pre-order Payment Links. A Payment Link checkout carries no `claim`
+  // These used to be the old Payment Links. A Payment Link checkout carries no `claim`
   // metadata, so the webhook could not issue a licence for it: the money arrived and the
   // buyer got nothing. Archived in Stripe as well, so the old links cannot be reached.
   //
@@ -488,7 +458,6 @@ const CONFIG = {
   // this apex host is assets-only and /download 404s here.
   checkoutSync: "https://app.hopshot.xyz/download",
   provider: "download",                                       // "stripe" | "razorpay" | "download"
-  waitlistAction: "https://buttondown.com/api/emails/embed-subscribe/mynkharsani",
   contactEmail: "founder@hopshot.xyz",
   founderName: "Mayank",          // set to "" to hide the founder note
   founderPhoto: ""                // optional: e.g. "me.jpg" placed in this folder
@@ -514,16 +483,8 @@ const CONFIG = {
   const sync = link(CONFIG.checkoutSync);
   // One plan, so one selector. js-buy-life is gone from the markup; the old two-tier
   // split is in git history if it ever needs reviving.
-  $$(".js-buy-sync").forEach(a => { if (sync) a.href = sync; else if (a.closest(".card")) a.href = "#notify"; });
+  $$(".js-buy-sync").forEach(a => { if (sync) a.href = sync; });
 
-  // Waitlist
-  const form = $("#wlForm");
-  form.action = CONFIG.waitlistAction;
-  $("#wlSource").value = ref;
-  form.addEventListener("submit", e => {
-    if (CONFIG.waitlistAction.includes("REPLACE_ME")) { e.preventDefault(); $(".notify .ok").textContent = "Signups open shortly."; $("#notifyBox").classList.add("done"); return; }
-    setTimeout(() => $("#notifyBox").classList.add("done"), 400);
-  });
 
   // Contact, founder, banner
   $$(".js-email").forEach(a => a.href = "mailto:" + CONFIG.contactEmail);
