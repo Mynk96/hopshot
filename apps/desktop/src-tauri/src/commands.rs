@@ -30,6 +30,7 @@ pub fn set_settings(app: AppHandle, patch: Map<String, Value>) -> Result<Setting
     hotkeys::validate_patch(&patch).map_err(|error| error.to_string())?;
     let settings = settings::patch(&app, patch).map_err(|error| error.to_string())?;
     let hotkey_conflicts = hotkeys::apply(&app, &settings);
+    shelf::settings_changed(&app, &settings);
     Ok(SettingsResponse {
         settings,
         hotkey_conflicts,

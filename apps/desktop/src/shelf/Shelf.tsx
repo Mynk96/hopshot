@@ -520,6 +520,20 @@ function Footer({ count }: { count: number }) {
   // authoritative one per request (DESIGN S3 "Offline — sending paused").
   const [online, setOnline] = useState(navigator.onLine);
   const [update, setUpdate] = useState<string | null>(null);
+  // "Keep items for" from Settings: the footer's promise has to match what the shelf does.
+  const [ttl, setTtl] = useState("24h");
+
+  useEffect(() => {
+    void invoke<{ settings: { itemTtl: string } }>("get_settings")
+      .then((response) => setTtl(response.settings.itemTtl))
+      .catch((error) => console.error("could not read the expiry setting", error));
+    const subscription = listen<{ itemTtl: string }>("settings:changed", (event) =>
+      setTtl(event.payload.itemTtl),
+    );
+    return () => {
+      void subscription.then((off) => off());
+    };
+  }, []);
 
   useEffect(() => {
     const onNetwork = () => setOnline(navigator.onLine);
@@ -549,7 +563,7 @@ function Footer({ count }: { count: number }) {
           </span>
           <span aria-hidden>·</span>
           {/* DESIGN S3 footer: the privacy line, which is the point of the product. */}
-          <span className="truncate">Gone in 24h</span>
+          <span className="truncate">Gone in {ttl}</span>
 
           {update && (
             <>

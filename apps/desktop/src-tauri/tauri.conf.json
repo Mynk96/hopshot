@@ -34,7 +34,8 @@
         "height": 520,
         "resizable": false,
         "center": true,
-        "visible": false
+        "visible": false,
+        "acceptFirstMouse": true
       }
     ],
     "security": {

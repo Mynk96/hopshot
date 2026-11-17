@@ -70,6 +70,11 @@ export function useAutoHide({ enabled, onHide }: { enabled: boolean; onHide: () 
         visible.current = false;
         clear();
       }),
+      // A new delay from Settings applies at once, not only after the next launch.
+      listen<{ autoHideSeconds: number | null }>("settings:changed", (event) => {
+        seconds.current = event.payload.autoHideSeconds;
+        restart();
+      }),
     ];
 
     // The shelf can already be up by the time these listeners are registered — Rust shows
