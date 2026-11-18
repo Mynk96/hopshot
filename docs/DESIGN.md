@@ -249,9 +249,15 @@ Voice: short, plain, friendly. Never "Oops!" or exclamation marks in errors. Use
 
 ---
 
-## 6. App icon (brief for designer / generation)
+## 6. App icon and logo ("The Hop")
 
-A rounded square (macOS squircle / Windows 11 style) with a deep charcoal gradient background (#24242A → #121216). In the center is a short horizontal orange (#FF6B2C) "shelf" line with a slightly tilted white photo card resting on it, and a tiny dog-ear corner on the card. No text. It must read well at 16 px: the shelf line + card silhouette.
+A rounded square with a deep charcoal gradient background (#24242A → #121216). On it, two white crop-frame corners (top-left and bottom-right) and a small orange (#FF6B2C) rounded square tilted ~14° that has hopped out past the top-right corner, with a dotted orange trail behind it. No text.
+
+- Masters live in `marketing/assets/brand/` (SVG + 1024 px PNG). Edit those, then regenerate the exports.
+- Below 64 px use `hopshot-icon-small.svg`: no trail, heavier strokes, bigger shot. It must read at 16 px.
+- macOS uses `hopshot-icon-macos.svg` (Apple icon grid, padded). Windows, web and avatars use the full-bleed `hopshot-icon.svg`.
+- The macOS menu bar uses `hopshot-mark-mono.svg` as a template image (alpha only).
+- Wordmark: "Hopshot" in Inter 800 next to the mark, as on the site.
 
 ---
 
