@@ -121,6 +121,7 @@ pub fn run() {
             commands::open_plans,
             commands::open_settings,
             commands::finish_onboarding,
+            commands::catch_status,
             commands::feedback_due,
             commands::send_feedback,
             commands::dismiss_feedback,
@@ -159,6 +160,8 @@ pub fn run() {
 
             update::watch(handle);
             stats::watch(handle);
+            // PRD F1.7: catch ⌘⇧4 / Win+Shift+S screenshots if the user turned it on.
+            capture::watch::sync(handle);
 
             // DESIGN S8: a menu-bar app shows nothing on launch, so a fresh install would
             // read as broken. Last, so the shelf and hotkeys it teaches are already live.

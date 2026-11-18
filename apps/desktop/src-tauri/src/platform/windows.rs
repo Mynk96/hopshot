@@ -138,3 +138,59 @@ pub fn screen_access() -> ScreenAccess {
 
 /// Nothing to open: see [`screen_access`].
 pub fn open_screen_settings() {}
+
+/* ── Catch other screenshots (PRD F1.7, docs/designs/catch-screenshots.md) ── */
+
+/// Where Win+Shift+S (Snipping Tool auto-save) and Win+PrtScn save: the Screenshots known
+/// folder, which follows a moved or OneDrive-redirected folder. `KF_FLAG_DONT_VERIFY`
+/// returns the path even before Windows has created the folder, and nothing here creates
+/// it. Falls back to Pictures\Screenshots.
+pub fn screenshot_folder() -> (std::path::PathBuf, Option<String>) {
+    use windows_sys::Win32::UI::Shell::{FOLDERID_Pictures, FOLDERID_Screenshots};
+
+    if let Some(path) = known_folder(&FOLDERID_Screenshots) {
+        return (path, None);
+    }
+    if let Some(pictures) = known_folder(&FOLDERID_Pictures) {
+        return (pictures.join("Screenshots"), None);
+    }
+    let fallback = std::env::var_os("USERPROFILE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_default()
+        .join("Pictures")
+        .join("Screenshots");
+    (fallback, Some("Can't find your Screenshots folder.".to_string()))
+}
+
+fn known_folder(id: &windows_sys::core::GUID) -> Option<std::path::PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::System::Com::CoTaskMemFree;
+    use windows_sys::Win32::UI::Shell::{SHGetKnownFolderPath, KF_FLAG_DONT_VERIFY};
+
+    let mut raw: windows_sys::core::PWSTR = std::ptr::null_mut();
+    // SAFETY: `id` is a valid GUID, a null token means the current user, and `raw` receives
+    // a CoTaskMemAlloc'd, NUL-terminated string that is freed below on every path.
+    let hr = unsafe {
+        SHGetKnownFolderPath(id, KF_FLAG_DONT_VERIFY as u32, std::ptr::null_mut(), &mut raw)
+    };
+    let path = if hr >= 0 && !raw.is_null() {
+        // SAFETY: on success `raw` points at a NUL-terminated UTF-16 string.
+        let len = unsafe { (0..).take_while(|&i| *raw.add(i) != 0).count() };
+        // SAFETY: `len` code units were just read from the same allocation.
+        let units = unsafe { std::slice::from_raw_parts(raw, len) };
+        Some(std::path::PathBuf::from(std::ffi::OsString::from_wide(units)))
+    } else {
+        None
+    };
+    // SAFETY: freeing null is allowed; otherwise this is the allocation the call returned.
+    unsafe { CoTaskMemFree(raw as *const core::ffi::c_void) };
+    path
+}
+
+/// Everything saved into the Screenshots folder is a screenshot; Windows has no flag.
+pub fn is_os_screenshot(_path: &std::path::Path) -> bool {
+    true
+}
+
+/// Nothing to wait for on Windows.
+pub const SCREENSHOT_FLAG_MAY_LAG: bool = false;

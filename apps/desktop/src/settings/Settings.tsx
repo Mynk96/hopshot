@@ -8,7 +8,7 @@ import { License } from "./License";
 import { HotkeyRecorder } from "./HotkeyRecorder";
 import { Group, Row, Segmented, Switch } from "./controls";
 import { Privacy } from "./Privacy";
-import type { AppSettings, HotkeyConflict, PlanStatus, Tab } from "./types";
+import type { AppSettings, CatchStatus, HotkeyConflict, PlanStatus, Tab } from "./types";
 
 /**
  * Settings (DESIGN S7, 720x520, sidebar + content), matching `design/mockups.html`.
@@ -250,6 +250,19 @@ function Shelf({
   onUpdate: (patch: Partial<AppSettings>) => void;
 }) {
   const isMac = navigator.userAgent.includes("Mac");
+  const [catchStatus, setCatchStatus] = useState<CatchStatus | null>(null);
+
+  // PRD F1.7: the watcher restarts when the setting is saved, so read its state after.
+  useEffect(() => {
+    void invoke<CatchStatus>("catch_status")
+      .then(setCatchStatus)
+      .catch(() => setCatchStatus(null));
+  }, [settings.catchOtherScreenshots]);
+
+  const folder = catchStatus?.folder ?? (isMac ? "your Desktop" : "Pictures\\Screenshots");
+  const catchHint = isMac
+    ? `Adds ⌘⇧4 screenshots from ${folder}. They appear once macOS saves them; turn off Show Floating Thumbnail in ⌘⇧5 → Options to make that instant.`
+    : `Adds Win+Shift+S screenshots saved to ${folder}. Turn on auto-save in Snipping Tool if they don't appear.`;
 
   return (
     <section>
@@ -301,10 +314,15 @@ function Shelf({
 
         <Row
           label="Catch other screenshots"
-          hint={`Add images from the clipboard and ${isMac ? "⌘⇧4" : "Win+Shift+S"} to the shelf`}
+          hint={catchHint}
+          problem={settings.catchOtherScreenshots ? (catchStatus?.problem ?? undefined) : undefined}
         >
-          {/* PRD F1.7 is P1: shown so the setting is discoverable, disabled until built. */}
-          <Switch checked={false} label="Catch other screenshots" disabled onChange={() => {}} />
+          {/* PRD F1.7: copies OS screenshots onto the shelf; the original file is untouched. */}
+          <Switch
+            checked={settings.catchOtherScreenshots}
+            label="Catch other screenshots"
+            onChange={(catchOtherScreenshots) => onUpdate({ catchOtherScreenshots })}
+          />
         </Row>
       </Group>
     </section>
