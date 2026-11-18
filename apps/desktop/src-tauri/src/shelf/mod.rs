@@ -98,6 +98,7 @@ pub fn add_capture<R: Runtime>(
     app: &AppHandle<R>,
     path: &Path,
     image: &image::RgbaImage,
+    source: Source,
 ) -> Result<Item, ShelfError> {
     let dir = app_data(app)?;
     let settings = crate::settings::load(app).unwrap_or_default();
@@ -113,7 +114,7 @@ pub fn add_capture<R: Runtime>(
 
     let item = store(app)?.insert(
         NewItem {
-            source: Source::Capture,
+            source,
             origin_device: None,
             file_name: files::friendly_name(store::now_ms()),
             path: path.to_path_buf(),
@@ -258,6 +259,8 @@ pub fn set_pinned<R: Runtime>(app: &AppHandle<R>, id: &str, pinned: bool) -> Res
 /// Write a copy wherever the user chose (PRD F2.9).
 pub fn save_as<R: Runtime>(app: &AppHandle<R>, id: &str, destination: &Path) -> Result<(), ShelfError> {
     let item = store(app)?.get(id)?;
+    // Saving into the watched screenshot folder must not be caught as a new screenshot.
+    crate::capture::watch::note_own_write(destination);
     std::fs::copy(&item.path, destination).map_err(|e| ShelfError::Save(e.to_string()))?;
     Ok(())
 }
@@ -317,6 +320,8 @@ pub fn settings_changed<R: Runtime>(app: &AppHandle<R>, settings: &crate::settin
             }
         }
     }
+    // PRD F1.7: start, stop or re-point the screenshot-folder watcher.
+    crate::capture::watch::sync(app);
     let _ = app.emit("settings:changed", settings);
 }
 

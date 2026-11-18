@@ -12,6 +12,7 @@ pub mod crop;
 pub mod frames;
 pub mod overlay;
 pub mod permissions;
+pub mod watch;
 
 use std::fs;
 use std::path::PathBuf;
@@ -74,16 +75,7 @@ fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureEr
      * licence left behind) remains usable until it expires. Decided locally so a hotkey never
      * waits on the network; the server refuses an unlicensed caller independently.
      */
-    if crate::license::plan_state(app).capture_paused {
-        log::info!("capture is paused: no licence on this computer");
-        let price = &crate::limits::limits().pricing.display;
-        toast(
-            app,
-            "error",
-            &format!("Unlock Hopshot for {price} to start capturing. It unlocks itself the moment you pay."),
-        );
-        let _ = tauri::Emitter::emit(app, "plan:changed", ());
-        crate::shelf::show(app);
+    if paused(app) {
         return Ok(());
     }
 
@@ -116,7 +108,7 @@ fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureEr
                 started.elapsed().as_secs_f64() * 1000.0,
                 path.display()
             );
-            deliver(app, &path, &image);
+            deliver(app, &path, &image, crate::shelf::store::Source::Capture, true);
         }
         Mode::Region => {
             let monitors = overlay::monitors_of(&frames);
@@ -196,7 +188,7 @@ pub fn commit<R: Runtime>(
         path.display()
     );
 
-    deliver(app, &path, &image);
+    deliver(app, &path, &image, crate::shelf::store::Source::Capture, true);
     Ok(path)
 }
 
@@ -224,12 +216,18 @@ pub fn commit_full<R: Runtime>(app: &AppHandle<R>, monitor_id: u32) -> Result<Pa
 ///
 /// Deliberately infallible — the capture already succeeded, so a clipboard or window
 /// failure is worth a log line but must not turn into "the capture failed".
-fn deliver<R: Runtime>(app: &AppHandle<R>, path: &std::path::Path, image: &image::RgbaImage) {
+fn deliver<R: Runtime>(
+    app: &AppHandle<R>,
+    path: &std::path::Path,
+    image: &image::RgbaImage,
+    source: crate::shelf::store::Source,
+    copy_allowed: bool,
+) {
     let settings = crate::settings::load(app).unwrap_or_default();
 
     // The row has to exist before the shelf reloads, or the new item is missing from the
     // very list the highlight refers to.
-    let item = match crate::shelf::add_capture(app, path, image) {
+    let item = match crate::shelf::add_capture(app, path, image, source) {
         Ok(item) => Some(item),
         Err(error) => {
             log::error!("the capture was saved but not added to the shelf: {error}");
@@ -238,7 +236,7 @@ fn deliver<R: Runtime>(app: &AppHandle<R>, path: &std::path::Path, image: &image
         }
     };
 
-    if settings.copy_on_capture {
+    if copy_allowed && settings.copy_on_capture {
         match crate::clipboard::copy_image(path) {
             Ok(()) => toast(app, "info", "Copied to clipboard"),
             Err(error) => log::warn!("could not copy the capture to the clipboard: {error}"),
@@ -262,6 +260,39 @@ fn deliver<R: Runtime>(app: &AppHandle<R>, path: &std::path::Path, image: &image
         if settings.auto_sync {
             crate::cloud::vault::sync_capture_in_background(app, &item);
         }
+    }
+}
+
+/// Pay-first (docs/designs/pay-first-10.md): capture is paused until a purchase. Shows the
+/// locked shelf and says why. Shared by the hotkey and by caught OS screenshots.
+fn paused<R: Runtime>(app: &AppHandle<R>) -> bool {
+    if !crate::license::plan_state(app).capture_paused {
+        return false;
+    }
+    log::info!("capture is paused: no licence on this computer");
+    let price = &crate::limits::limits().pricing.display;
+    toast(
+        app,
+        "error",
+        &format!("Unlock Hopshot for {price} to start capturing. It unlocks itself the moment you pay."),
+    );
+    let _ = tauri::Emitter::emit(app, "plan:changed", ());
+    crate::shelf::show(app);
+    true
+}
+
+/// A screenshot taken with the OS shortcut, caught by [`watch`] (PRD F1.7).
+///
+/// Re-encoded to PNG into `captures/`, which also drops macOS's screenshot flag so a copy
+/// dragged or saved back out is never caught again. Delivered like a capture, except that
+/// the clipboard is left alone: the OS already put the screenshot there.
+pub fn import_external<R: Runtime>(app: &AppHandle<R>, image: &image::RgbaImage) {
+    if paused(app) {
+        return;
+    }
+    match save_png(app, image) {
+        Ok(path) => deliver(app, &path, image, crate::shelf::store::Source::Folder, false),
+        Err(error) => log::error!("could not save a caught screenshot: {error}"),
     }
 }
 

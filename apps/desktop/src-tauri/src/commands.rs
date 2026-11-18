@@ -37,6 +37,12 @@ pub fn set_settings(app: AppHandle, patch: Map<String, Value>) -> Result<Setting
     })
 }
 
+/// "Catch other screenshots" state for Settings → Shelf: folder and any problem (PRD F1.7).
+#[tauri::command]
+pub fn catch_status() -> crate::capture::watch::WatchStatus {
+    crate::capture::watch::status()
+}
+
 /// Whether the shelf should ask "Is Hopshot useful to you?" (ARCHITECTURE §7.10).
 #[tauri::command]
 pub fn feedback_due(app: AppHandle) -> bool {

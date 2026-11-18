@@ -240,3 +240,83 @@ pub fn open_screen_settings() {
         log::warn!("could not open the Screen Recording settings pane: {error}");
     }
 }
+
+/* ── Catch other screenshots (PRD F1.7, docs/designs/catch-screenshots.md) ── */
+
+/// Where ⌘⇧4 saves: `com.apple.screencapture location`, else `~/Desktop`.
+///
+/// The second value is a problem line for Settings when a custom location no longer exists
+/// and the Desktop is watched instead.
+pub fn screenshot_folder() -> (std::path::PathBuf, Option<String>) {
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from).unwrap_or_default();
+    let desktop = home.join("Desktop");
+
+    let configured = std::process::Command::new("/usr/bin/defaults")
+        .args(["read", "com.apple.screencapture", "location"])
+        .output()
+        .ok()
+        .filter(|out| out.status.success())
+        .and_then(|out| String::from_utf8(out.stdout).ok())
+        .and_then(|text| expand_location(text.trim(), &home));
+
+    match configured {
+        Some(path) if path.is_dir() => (path, None),
+        Some(path) => (
+            desktop,
+            Some(format!("Can't find {}. Watching your Desktop instead.", path.display())),
+        ),
+        None => (desktop, None),
+    }
+}
+
+/// `~/Pictures/Shots` → `/Users/me/Pictures/Shots`; empty → none.
+fn expand_location(raw: &str, home: &std::path::Path) -> Option<std::path::PathBuf> {
+    if raw.is_empty() {
+        return None;
+    }
+    Some(match raw.strip_prefix("~/") {
+        Some(rest) => home.join(rest),
+        None if raw == "~" => home.to_path_buf(),
+        None => std::path::PathBuf::from(raw),
+    })
+}
+
+/// macOS marks its own screenshot files with this Spotlight attribute (10.8+), which is
+/// what tells a screenshot apart from any other image saved to the Desktop.
+pub fn is_os_screenshot(path: &std::path::Path) -> bool {
+    matches!(xattr::get(path, "com.apple.metadata:kMDItemIsScreenCapture"), Ok(Some(_)))
+}
+
+/// The xattr is set just after the file is written, so a missing flag may only be early.
+pub const SCREENSHOT_FLAG_MAY_LAG: bool = true;
+
+#[cfg(test)]
+mod screenshot_tests {
+    use super::expand_location;
+    use std::path::Path;
+
+    #[test]
+    fn expands_the_screencapture_location() {
+        let home = Path::new("/Users/me");
+        assert_eq!(expand_location("~/Pictures/Shots", home).unwrap(), Path::new("/Users/me/Pictures/Shots"));
+        assert_eq!(expand_location("/Volumes/Work/Shots", home).unwrap(), Path::new("/Volumes/Work/Shots"));
+        assert_eq!(expand_location("~", home).unwrap(), home);
+        assert!(expand_location("", home).is_none());
+    }
+
+    /// Only files carrying macOS's screenshot attribute count; a plain image does not.
+    #[test]
+    fn the_screenshot_flag_decides() {
+        let dir = std::env::temp_dir().join(format!("hopshot-flag-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let plain = dir.join("photo.png");
+        let shot = dir.join("Screenshot.png");
+        std::fs::write(&plain, b"png").expect("write");
+        std::fs::write(&shot, b"png").expect("write");
+        xattr::set(&shot, "com.apple.metadata:kMDItemIsScreenCapture", b"bplist00\x09").expect("set flag");
+
+        assert!(!super::is_os_screenshot(&plain));
+        assert!(super::is_os_screenshot(&shot));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

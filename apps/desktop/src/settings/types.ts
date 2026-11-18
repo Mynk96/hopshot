@@ -33,3 +33,10 @@ export type PlanStatus = {
   shelfCapacity: number;
   itemTtlOptions: string[];
 };
+
+/** Mirrors `capture::watch::WatchStatus` (PRD F1.7). */
+export type CatchStatus = {
+  on: boolean;
+  folder: string | null;
+  problem: string | null;
+};

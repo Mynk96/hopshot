@@ -30,6 +30,7 @@ tauri-plugin-log = "2.9.2"     # official logger listed in ARCHITECTURE §2
 log = "0.4.34"                 # the logging facade tauri-plugin-log implements
 xcap = "0.9.8"
 image = "0.25.6"
+notify = "8.2.0"   # PRD F1.7 catch other screenshots: OS file events (FSEvents / ReadDirectoryChangesW), as tauri-plugin-fs uses
 window-vibrancy = "0.8.1"     # shelf blur: macOS HudWindow, Windows 11 acrylic (DESIGN S3)
 arboard = "3.6.1"             # PRD F2.5 click-to-copy an image to the clipboard
 tauri-plugin-drag = "2.1.1"   # PRD F2.4 native file drag-out (named in ARCHITECTURE §2)
@@ -97,6 +98,8 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = [
 # rejects NSWindowStyleMaskNonactivatingPanel on a plain NSWindow, and there is no other way
 # to stop a click on the shelf from activating Hopshot.
 tauri-nspanel = "2.1.1"
+# PRD F1.7: read the kMDItemIsScreenCapture flag macOS puts on its screenshot files.
+xattr = "1.6.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "0.61.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+windows-sys = { version = "0.61.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_UI_Shell", "Win32_System_Com"] }
