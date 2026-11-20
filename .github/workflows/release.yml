@@ -333,8 +333,9 @@ jobs:
 
           Verify any download against its `.sha256` if you would rather check it yourself.
 
-          Free to download, then __PRICE__ once to unlock everything: capture, the shelf and your
-          phone. No subscription. 14-day refund, no questions asked.
+          Free to download and free to use: 10 screenshots and 3 sends to your phone a day.
+          __PRICE__ once unlocks unlimited, a paired phone and 3 computers. No subscription.
+          14-day refund, no questions asked.
           NOTES
 
           # The price lives in config/limits.json (pricing.display), shared with the app and
