@@ -39,9 +39,13 @@ export function timeLeft(item: ShelfItem, now = Date.now()): { label: string; wa
   return { label: `${Math.floor(hours / 24)}d`, warn: false };
 }
 
-/** Mirrors `license::PlanState` — PRD F8.1/F8.1a. */
+/** Mirrors `license::PlanState` (docs/designs/free-plan.md). `expired` is the Free plan. */
 export type PlanState = {
   plan: "expired" | "lifetime" | "sync";
-  /** Always false since the shelf became free; `expired` gates only the phone (PRD F8.1). */
+  /** The Free plan has used today's captures; the shelf stays readable and draggable. */
   capturePaused: boolean;
+  /** Free captures left today; null once paid. */
+  capturesLeft: number | null;
+  /** The Free plan's daily allowance; null once paid. */
+  capturesPerDay: number | null;
 };

@@ -14,9 +14,9 @@ import { BrandMark } from "../shelf/Shelf";
  * install shows. Rust opens it while `settings.onboarded` is false; Finish or the close
  * button sets it.
  *
- * Pay-first (docs/designs/pay-first-10.md): a Pay step sits before Try it, because capture
- * is locked until a purchase. There is no stats checkbox; usage counts are always on and
- * disclosed (ARCHITECTURE §7.10).
+ * Free plan (docs/designs/free-plan.md): the Plan step offers Start free or Unlock, and
+ * either way Try it comes next, because the Free plan captures. There is no stats checkbox;
+ * usage counts are always on and disclosed (ARCHITECTURE §7.10).
  */
 
 type Step = "welcome" | "permission" | "pay" | "try" | "done";
@@ -24,8 +24,8 @@ type Access = "granted" | "denied" | "unknown";
 
 const isMac = navigator.userAgent.includes("Mac");
 /**
- * The macOS permission step only exists on macOS (Windows has no such gate). Pay comes before
- * Try it because capture is locked until a purchase (docs/designs/pay-first-10.md).
+ * The macOS permission step only exists on macOS (Windows has no such gate). The plan choice
+ * comes before Try it so the user knows what Free includes before the first capture.
  */
 const STEPS: Step[] = isMac
   ? ["welcome", "permission", "pay", "try", "done"]
@@ -81,8 +81,9 @@ export default function Onboarding() {
   // checkout claim and emits license:changed when it is done).
   useEffect(() => {
     const read = () =>
-      void invoke<{ capturePaused: boolean }>("plan_state")
-        .then((state) => setLicensed(!state.capturePaused))
+      void invoke<{ plan: string }>("plan_state")
+        // `expired` is the Free plan (docs/designs/free-plan.md); anything else is paid.
+        .then((state) => setLicensed(state.plan !== "expired"))
         .catch(() => undefined);
     read();
     const subscriptions = [listen("license:changed", read), listen("plan:changed", read)];
@@ -153,16 +154,6 @@ export default function Onboarding() {
               Skip for now
             </button>
           )}
-          {step === "pay" && licensed !== true && (
-            // Capture is locked without a licence, so there is nothing to try: go to the end.
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setStep((current) => (current === "pay" ? "done" : current))}
-            >
-              Not now
-            </button>
-          )}
           {step === "try" && !captured && (
             <button type="button" className="btn btn-ghost" onClick={next}>
               Skip
@@ -177,13 +168,15 @@ export default function Onboarding() {
               type="button"
               className="btn btn-primary"
               disabled={
-                (step === "permission" && access !== "granted") ||
-                (step === "pay" && licensed !== true) ||
-                (step === "try" && !captured)
+                (step === "permission" && access !== "granted") || (step === "try" && !captured)
               }
               onClick={next}
             >
-              {step === "welcome" ? "Get started" : "Continue"}
+              {step === "welcome"
+                ? "Get started"
+                : step === "pay" && licensed !== true
+                  ? "Start free"
+                  : "Continue"}
             </button>
           )}
         </div>
@@ -306,10 +299,14 @@ function Pay({ licensed }: { licensed: boolean }) {
   const price = limits.pricing.display;
   return (
     <>
-      <h1 className="text-heading">Unlock Hopshot for {price}</h1>
+      <h1 className="text-heading">Start free, or unlock everything</h1>
       <p className="mt-3 text-body text-text-2">
-        One payment, everything included: capture, the shelf, drag anywhere, and your phone. No
-        subscription. 14-day refund, no questions.
+        <b className="text-body-strong">Free:</b> {limits.free.capturesPerDay} screenshots and{" "}
+        {limits.free.dropsPerDay} sends to your phone a day, {limits.free.maxPins} pinned.
+      </p>
+      <p className="mt-2 text-body text-text-2">
+        <b className="text-body-strong">{price} once:</b> unlimited screenshots, a paired phone, and
+        3 computers. No subscription. 14-day refund, no questions.
       </p>
       <div className="mt-6 flex flex-wrap gap-2">
         <button
@@ -326,7 +323,7 @@ function Pay({ licensed }: { licensed: boolean }) {
             });
           }}
         >
-          Buy · {price} once
+          Unlock · {price} once
         </button>
         <button
           type="button"
@@ -359,11 +356,11 @@ function Pay({ licensed }: { licensed: boolean }) {
 function Done({ shelfKeys, licensed }: { shelfKeys: string[]; licensed: boolean }) {
   return (
     <>
-      <h1 className="text-heading">{licensed ? "You're all set" : "Almost there"}</h1>
+      <h1 className="text-heading">You're all set</h1>
       <p className="mt-3 text-body text-text-2">
         {licensed
           ? "Every capture lands on the shelf. Drag it into any app, copy it, or send it to your phone."
-          : `Hopshot stays locked until you unlock it for ${limits.pricing.display}, from the shelf or Settings → License. One payment, everything included. 14-day refund, no questions.`}
+          : `Every capture lands on the shelf. Drag it into any app, copy it, or send it to your phone. You're on Free: ${limits.free.capturesPerDay} screenshots a day. Unlock unlimited for ${limits.pricing.display} once, from the shelf or Settings → License.`}
       </p>
       <p className="mt-3 text-body text-text-2">
         Hopshot lives in your menu bar. Show the shelf any time with {shelfKeys.join(" ")}.

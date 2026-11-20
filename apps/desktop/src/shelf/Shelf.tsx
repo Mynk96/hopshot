@@ -223,8 +223,7 @@ export default function Shelf() {
     async (id: string) => {
       try {
         const pending =
-          staged.current.get(id) ??
-          invoke<{ path: string; icon: string }>("prepare_drag", { id });
+          staged.current.get(id) ?? invoke<{ path: string; icon: string }>("prepare_drag", { id });
         const { path, icon } = await pending;
 
         setDragging(id);
@@ -314,7 +313,13 @@ export default function Shelf() {
         </IconButton>
       </header>
 
-      {plan?.capturePaused && <LockedBanner onHeight={setLockedPx} />}
+      {plan?.plan === "expired" && plan.capturesLeft !== null && plan.capturesPerDay !== null && (
+        <LockedBanner
+          onHeight={setLockedPx}
+          capturesLeft={plan.capturesLeft}
+          capturesPerDay={plan.capturesPerDay}
+        />
+      )}
 
       {askFeedback && (
         <FeedbackCard
@@ -355,7 +360,7 @@ export default function Shelf() {
       {qrFor && (
         <SendSheet
           itemId={qrFor}
-          paywall={plan?.plan === "expired"}
+          free={plan?.plan === "expired"}
           onClose={() => setQrFor(null)}
           onToast={flash}
         />
@@ -572,7 +577,9 @@ function Footer({ count }: { count: number }) {
                 type="button"
                 className="shrink-0 underline underline-offset-2"
                 style={{ color: "var(--accent-text)" }}
-                onClick={() => void invoke("open_settings", { tab: "about" }).catch(() => undefined)}
+                onClick={() =>
+                  void invoke("open_settings", { tab: "about" }).catch(() => undefined)
+                }
               >
                 Update to {update}
               </button>

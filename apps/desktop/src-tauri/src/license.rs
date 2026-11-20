@@ -111,46 +111,54 @@ pub fn remove_computer(device_id: &str) -> Result<(), ClientError> {
     client::delete(&format!("/license/devices/{device_id}"), &token)
 }
 
-/* ── Plan state: the shelf is free, the phone is paid ────────────────────── */
+/* ── Plan state: Free with daily caps, everything once paid ───────────────── */
 
 /// What the app is allowed to do right now, decided locally.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanState {
     pub plan: Plan,
-    /// Pay-first (docs/designs/pay-first-10.md): nothing bought yet, so capture is paused.
-    /// The shelf stays readable and draggable.
+    /// The Free plan has used today's captures (docs/designs/free-plan.md). Capture waits
+    /// for tomorrow or a purchase; the shelf stays readable and draggable.
     pub capture_paused: bool,
+    /// Captures left today on the Free plan; `None` once paid (no cap).
+    pub captures_left: Option<u32>,
+    /// The Free plan's daily allowance, for "7 of 10 free today"; `None` once paid.
+    pub captures_per_day: Option<u32>,
 }
 
 /// What plan this computer is on, and whether capture is paused.
 ///
-/// Decided locally from the keychain alone, because the capture path calls this on every
-/// hotkey press and cannot wait on a request. The server is still the authority and refuses
-/// an unlicensed caller on every API call.
-///
-/// **Pay-first, one price** (docs/designs/pay-first-10.md). No licence means no capture,
-/// the same whether the app has never been online or is simply unpaid — a local-only
-/// "allow" would be a bypass. The server refuses an unlicensed caller independently.
+/// Decided locally from the keychain and today's capture count, because the capture path
+/// calls this on every hotkey press and cannot wait on a request. The server stays the
+/// authority for everything it serves: it gives an install without a licence only the Free
+/// plan's few QR sends and no vault (docs/designs/free-plan.md).
 pub fn plan_state<R: Runtime>(app: &AppHandle<R>) -> PlanState {
-    let _ = app;
-    state_for(token().is_some())
+    let has_token = token().is_some();
+    // Only the Free plan counts; a paid computer never reads the store on a hotkey press.
+    let used = if has_token { 0 } else { crate::stats::captures_today(app) };
+    state_for(has_token, used)
 }
 
-/// [`plan_state`] without the keychain, so the rule itself is testable.
-fn state_for(has_token: bool) -> PlanState {
+/// [`plan_state`] without the keychain or the store, so the rule itself is testable.
+fn state_for(has_token: bool, captures_today: u32) -> PlanState {
     // A stored licence token means a purchase happened. Which plan it is comes from the
     // server's last word; absent that, Lifetime is the safe floor — it never grants Sync,
-    // and the server rejects anything beyond it.
+    // and the server rejects anything beyond it. No token is the Free plan.
     let plan = if has_token {
         Plan::Lifetime
     } else {
         Plan::Expired
     };
 
+    let per_day = plan.captures_per_day();
+    let left = per_day.map(|cap| cap.saturating_sub(captures_today));
+
     PlanState {
         plan,
-        capture_paused: !has_token,
+        capture_paused: left == Some(0),
+        captures_left: left,
+        captures_per_day: per_day,
     }
 }
 
@@ -281,20 +289,38 @@ pub fn open_checkout<R: Runtime>(app: &AppHandle<R>) {
 mod tests {
     use super::*;
 
-    /// Pay-first: no licence pauses capture and grants no server plan.
+    /// The Free plan (docs/designs/free-plan.md): no licence still captures, up to the cap.
     #[test]
-    fn no_licence_pauses_capture_and_stays_unlicensed() {
-        let state = state_for(false);
-        assert!(state.capture_paused);
+    fn no_licence_is_the_free_plan_and_captures() {
+        let cap = crate::limits::limits().free.captures_per_day;
+        let state = state_for(false, 0);
         assert_eq!(state.plan, Plan::Expired);
-        assert!(!state.plan.includes_sync(), "pairing must stay paid");
+        assert!(!state.capture_paused);
+        assert_eq!(state.captures_left, Some(cap));
+        assert_eq!(state.captures_per_day, Some(cap));
+        assert!(!state.plan.includes_sync(), "a paired phone stays paid");
     }
 
     #[test]
-    fn a_stored_licence_resolves_to_the_lifetime_floor() {
-        let state = state_for(true);
+    fn the_free_plan_pauses_capture_at_the_daily_cap() {
+        let cap = crate::limits::limits().free.captures_per_day;
+        assert!(!state_for(false, cap - 1).capture_paused);
+        assert_eq!(state_for(false, cap - 1).captures_left, Some(1));
+
+        let at_cap = state_for(false, cap);
+        assert!(at_cap.capture_paused);
+        assert_eq!(at_cap.captures_left, Some(0));
+
+        // A count past the cap (the cap was lowered, or two captures raced) never underflows.
+        assert_eq!(state_for(false, cap + 5).captures_left, Some(0));
+    }
+
+    #[test]
+    fn a_stored_licence_resolves_to_the_lifetime_floor_with_no_cap() {
+        let state = state_for(true, 999);
         assert!(!state.capture_paused);
         assert_eq!(state.plan, Plan::Lifetime);
+        assert_eq!(state.captures_left, None);
     }
 
     /// The over-limit payload is the one the S9 screens branch on, so its shape matters.

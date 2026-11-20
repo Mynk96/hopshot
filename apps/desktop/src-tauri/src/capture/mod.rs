@@ -253,6 +253,8 @@ fn deliver<R: Runtime>(
         let _ = app.emit("shelf:highlight", serde_json::json!({ "id": item.id }));
         // Counted locally; only the daily number leaves the device (ARCHITECTURE §7.10).
         crate::stats::record_capture(app);
+        // The Free plan's "N of 10 left today" counts down with every capture.
+        let _ = app.emit("plan:changed", ());
 
         // PRD F4.3: every new capture goes to the paired phones. On a thread, because the
         // seal-and-upload is a network round trip and this function is on the path between
@@ -263,18 +265,23 @@ fn deliver<R: Runtime>(
     }
 }
 
-/// Pay-first (docs/designs/pay-first-10.md): capture is paused until a purchase. Shows the
-/// locked shelf and says why. Shared by the hotkey and by caught OS screenshots.
+/// The Free plan's daily cap (docs/designs/free-plan.md): once today's captures are used,
+/// capture waits for tomorrow or a purchase. Shows the shelf with its upgrade banner and says
+/// why. Shared by the hotkey and by caught OS screenshots.
 fn paused<R: Runtime>(app: &AppHandle<R>) -> bool {
-    if !crate::license::plan_state(app).capture_paused {
+    let state = crate::license::plan_state(app);
+    if !state.capture_paused {
         return false;
     }
-    log::info!("capture is paused: no licence on this computer");
+    log::info!("capture is paused: the Free plan's captures for today are used");
     let price = &crate::limits::limits().pricing.display;
+    let per_day = state.captures_per_day.unwrap_or_default();
     toast(
         app,
         "error",
-        &format!("Unlock Hopshot for {price} to start capturing. It unlocks itself the moment you pay."),
+        &format!(
+            "That's today's {per_day} free screenshots. Unlock Hopshot for {price} once for unlimited, or keep going tomorrow."
+        ),
     );
     let _ = tauri::Emitter::emit(app, "plan:changed", ());
     crate::shelf::show(app);

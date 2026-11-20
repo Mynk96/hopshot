@@ -150,7 +150,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - **Size:** 208 px wide; height fits its content up to 80% of the screen, then scrolls. Margin 12 px from the screen edge, vertically centered.
 - **Header (36 px):** app mark + "Hopshot" (`title`), item count chip, pin-open toggle, settings, close.
 - **List:** newest first, 8 px gap.
-- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip: pay-first means there is nothing to count down (PRD F8.1). When an update is pending, `· Update to 0.1.3` is appended — a plain underlined word, no badge and no colour, that opens Settings → About rather than installing in place (ARCHITECTURE §9).
+- **Footer:** `12 items · Gone in 24h` — the privacy line, which is the point of the product. Offline → `Offline — sending paused`. There is no countdown chip. On the Free plan a banner above the list shows "N of 10 free screenshots left today" with **Unlock · $10 once** (PRD F8.1a). When an update is pending, `· Update to 0.1.3` is appended — a plain underlined word, no badge and no colour, that opens Settings → About rather than installing in place (ARCHITECTURE §9).
 
 **States**
 
@@ -177,7 +177,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 - Actions: `Delete now` (danger-ghost), `Done`.
 - **Sync + paired:** instead of the QR, show "Sent to Mayank's iPhone ✓" with a "Show QR instead" link.
 - Loading: QR placeholder with a shimmer and "Encrypting…" → "Uploading 62%".
-- **Unlicensed** (rare under pay-first: only items left from before a refund): the sheet makes no request. Title **"Unlock Hopshot · $10 once"**, body "One payment, everything included: capture, the shelf and your phone. No subscription. 14-day refund, no questions." Actions `Buy · $10 once` and `Already bought? Restore`.
+- **Free plan:** no paired phone, so the sheet goes straight to the QR and adds "Free sends 3 a day. A paired phone gets every capture without scanning: $10 once." When the server says today's sends are used, its message is shown with `Unlock · $10 once` and `Already bought? Restore`.
 
 ### S5 — Phone web app (`/app`)
 

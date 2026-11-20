@@ -14,7 +14,7 @@ use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::limits::{limits, Plan};
+use crate::limits::Plan;
 
 #[derive(Debug, Error)]
 pub enum StoreError {
@@ -363,6 +363,18 @@ impl Store {
         Ok(overflow)
     }
 
+    /// How many items are pinned right now; the Free plan caps this (docs/designs/free-plan.md).
+    pub fn count_pinned(&self) -> Result<usize, StoreError> {
+        self.with(|connection| {
+            let count: i64 = connection.query_row(
+                "SELECT COUNT(*) FROM items WHERE expires_at IS NULL",
+                [],
+                |row| row.get(0),
+            )?;
+            Ok(count as usize)
+        })
+    }
+
     pub fn count(&self) -> Result<usize, StoreError> {
         self.with(|connection| {
             let count: i64 = connection.query_row("SELECT COUNT(*) FROM items", [], |row| row.get(0))?;
@@ -419,17 +431,16 @@ impl Store {
     }
 }
 
-/// Shelf capacity for a plan, from `config/limits.json`.
-///
-/// Only the Lifetime block carries `shelfCapacity`; the trial includes everything, and Sync
-/// is an add-on to Lifetime, so they share the same shelf.
-pub fn capacity_for(_plan: Plan) -> usize {
-    limits().lifetime.shelf_capacity as usize
+/// Shelf capacity for a plan, from `config/limits.json`: the Free plan's smaller shelf, or
+/// the Lifetime one that Sync shares (docs/designs/free-plan.md).
+pub fn capacity_for(plan: Plan) -> usize {
+    plan.shelf_capacity() as usize
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::limits::limits;
 
     fn sample(name: &str) -> NewItem {
         NewItem {
@@ -541,9 +552,27 @@ mod tests {
     }
 
     #[test]
+    fn counts_pinned_items_only() {
+        let store = Store::in_memory().expect("store");
+        let a = store.insert(sample("a.png"), Some(DAY_MS)).expect("a");
+        let b = store.insert(sample("b.png"), Some(DAY_MS)).expect("b");
+        store.insert(sample("c.png"), Some(DAY_MS)).expect("c");
+        assert_eq!(store.count_pinned().expect("count"), 0);
+
+        store.set_pinned(&a.id, true, DAY_MS).expect("pin a");
+        store.set_pinned(&b.id, true, DAY_MS).expect("pin b");
+        assert_eq!(store.count_pinned().expect("count"), 2);
+
+        store.set_pinned(&a.id, false, DAY_MS).expect("unpin a");
+        assert_eq!(store.count_pinned().expect("count"), 1);
+    }
+
+    #[test]
     fn capacity_comes_from_the_limits_file() {
         // CLAUDE.md rule 2: no magic numbers for plan limits.
         assert_eq!(capacity_for(Plan::Lifetime), limits().lifetime.shelf_capacity as usize);
         assert_eq!(capacity_for(Plan::Lifetime), 100);
+        assert_eq!(capacity_for(Plan::Sync), 100);
+        assert_eq!(capacity_for(Plan::Expired), limits().free.shelf_capacity as usize);
     }
 }

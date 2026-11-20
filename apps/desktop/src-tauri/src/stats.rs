@@ -7,6 +7,8 @@
 //! State lives in its own `stats.json`, apart from the user's settings:
 //! `firstSeen` (ms), `days` ({"YYYY-MM-DD": count}, the last `pingMaxDays` days),
 //! `totalCaptures`, and `feedback` ("asked" once the question has been answered or dismissed).
+//! `freeDay` ({"day": local "YYYY-MM-DD", "count": n}) is the Free plan's daily capture count
+//! (docs/designs/free-plan.md). It never leaves the device, and it resets at local midnight.
 
 use std::collections::BTreeMap;
 use std::sync::Mutex;
@@ -44,6 +46,32 @@ fn bump(days: &mut BTreeMap<String, u32>, today: &str, keep: usize) {
 /// Whether to ask "Is Hopshot useful to you?" now.
 fn feedback_due(first_seen: i64, total: u64, asked: bool, now: i64, after_days: u32, min: u32) -> bool {
     !asked && now - first_seen >= i64::from(after_days) * DAY_MS && total >= u64::from(min)
+}
+
+/// Captures already taken today, given the stored `(day, count)`. A count from another day
+/// is yesterday's, so today starts at zero.
+fn count_for_today(stored: Option<(String, u32)>, today: &str) -> u32 {
+    match stored {
+        Some((day, count)) if day == today => count,
+        _ => 0,
+    }
+}
+
+/// The user's own calendar day: the Free cap resets at *their* midnight, not UTC's.
+fn local_day(now_ms: i64) -> String {
+    chrono::DateTime::from_timestamp_millis(now_ms)
+        .unwrap_or_default()
+        .with_timezone(&chrono::Local)
+        .format("%Y-%m-%d")
+        .to_string()
+}
+
+fn read_free_day<R: Runtime>(app: &AppHandle<R>) -> Option<(String, u32)> {
+    let store = app.store(STORE_FILE).ok()?;
+    let value = store.get("freeDay")?;
+    let day = value.get("day")?.as_str()?.to_string();
+    let count = u32::try_from(value.get("count")?.as_u64()?).ok()?;
+    Some((day, count))
 }
 
 fn utc_day(now_ms: i64) -> String {
@@ -113,6 +141,16 @@ pub fn record_capture<R: Runtime>(app: &AppHandle<R>) {
     bump(&mut snapshot.days, &utc_day(now_ms()), limits().insights.ping_max_days);
     write(app, "days", json!(snapshot.days));
     write(app, "totalCaptures", json!(snapshot.total + 1));
+
+    let today = local_day(now_ms());
+    let count = count_for_today(read_free_day(app), &today).saturating_add(1);
+    write(app, "freeDay", json!({ "day": today, "count": count }));
+}
+
+/// Captures taken today on this computer (local day), for the Free plan's daily cap.
+pub fn captures_today<R: Runtime>(app: &AppHandle<R>) -> u32 {
+    let _guard = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    count_for_today(read_free_day(app), &local_day(now_ms()))
 }
 
 /* ── Ping ──────────────────────────────────────────────────────────────────── */
@@ -221,6 +259,21 @@ mod tests {
         assert!(!feedback_due(first, 4, false, week, 7, 5), "too few captures");
         assert!(feedback_due(first, 5, false, week, 7, 5));
         assert!(!feedback_due(first, 50, true, week * 4, 7, 5), "never twice");
+    }
+
+    /// The Free plan's daily count (docs/designs/free-plan.md) starts over on a new day.
+    #[test]
+    fn the_daily_count_resets_on_a_new_day() {
+        assert_eq!(count_for_today(None, "2026-11-20"), 0);
+        assert_eq!(count_for_today(Some(("2026-11-20".into(), 7)), "2026-11-20"), 7);
+        assert_eq!(count_for_today(Some(("2026-11-19".into(), 10)), "2026-11-20"), 0);
+    }
+
+    #[test]
+    fn local_day_is_iso() {
+        let day = local_day(1_794_481_533_364);
+        assert_eq!(day.len(), 10);
+        assert!(day.starts_with("2026-11-1"), "{day}");
     }
 
     #[test]

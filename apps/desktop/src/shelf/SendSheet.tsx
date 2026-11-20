@@ -23,8 +23,6 @@ import { Icon } from "./icons";
 type Drop = { id: string; url: string; expiresAt: number; qrSvg: string };
 
 type Mode =
-  /** No licence on this computer: the phone is the paid part (free shelf, phase 1). */
-  | { name: "paywall" }
   | { name: "deciding" }
   | { name: "sending" }
   | { name: "sent"; phones: string[] }
@@ -39,17 +37,20 @@ const QUIET_ZONE_PX = 12;
 
 export function SendSheet({
   itemId,
-  paywall,
+  free,
   onClose,
   onToast,
 }: {
   itemId: string;
-  /** True when nothing has been bought: show the offer instead of calling the server. */
-  paywall: boolean;
+  /**
+   * The Free plan (docs/designs/free-plan.md): a few QR sends a day and no paired phone, so
+   * go straight to the QR, and offer the upgrade when the server says today's are used.
+   */
+  free: boolean;
   onClose: () => void;
   onToast: (text: string, kind?: "info" | "error") => void;
 }) {
-  const [mode, setMode] = useState<Mode>(paywall ? { name: "paywall" } : { name: "deciding" });
+  const [mode, setMode] = useState<Mode>({ name: "deciding" });
   const container = useRef<HTMLDivElement>(null);
   /** Tracks whether the shelf is currently widened, so it is always restored once. */
   const widened = useRef(false);
@@ -78,11 +79,15 @@ export function SendSheet({
   }, [itemId, widen]);
 
   useEffect(() => {
-    // The server would refuse every phone action anyway; the offer is the honest answer.
-    if (paywall) return;
     let cancelled = false;
 
     void (async () => {
+      // Free has no paired phone (the vault is paid), so there is nothing to ask about.
+      if (free) {
+        await showQr();
+        return;
+      }
+
       // Ask first, so a paired user never sees a QR they do not need.
       const phones = await invoke<string[]>("paired_phones").catch(() => [] as string[]);
       if (cancelled) return;
@@ -109,7 +114,7 @@ export function SendSheet({
     return () => {
       cancelled = true;
     };
-  }, [itemId, showQr, paywall]);
+  }, [itemId, showQr, free]);
 
   // Always hand the shelf back its width, however the sheet closes.
   useEffect(() => {
@@ -162,53 +167,13 @@ export function SendSheet({
       className="raised hop-in absolute inset-x-2 bottom-11 z-20 flex flex-col gap-2.5 p-3"
     >
       <header className="flex items-center gap-1.5">
-        <b className="flex-1 text-body-strong">
-          {mode.name === "sent"
-            ? "Sent"
-            : mode.name === "paywall"
-              ? `Unlock Hopshot · ${limits.pricing.display} once`
-              : "Send to phone"}
-        </b>
+        <b className="flex-1 text-body-strong">{mode.name === "sent" ? "Sent" : "Send to phone"}</b>
         <button type="button" className="icon-btn size-6" aria-label="Close" onClick={onClose}>
           <Icon name="x" size={14} />
         </button>
       </header>
 
       {mode.name === "deciding" && <p className="text-caption text-text-2">Checking…</p>}
-
-      {/* Free shelf, paid phone: the offer appears at the moment of intent, never as a nag. */}
-      {mode.name === "paywall" && (
-        <>
-          <p className="text-caption leading-4 text-text-2">
-            One payment, everything included: capture, the shelf and your phone. No subscription.
-            14-day refund, no questions.
-          </p>
-          {/* Stacked: the shelf is 208px and this sheet does not widen it (no QR to fit). */}
-          <div className="flex flex-col items-start gap-1">
-
-            <button
-              type="button"
-              className="btn btn-primary btn-compact text-caption"
-              onClick={() =>
-                void invoke("license_buy", { plan: "bundle" }).catch(() =>
-                  onToast("Couldn't open checkout. Try again in a moment.", "error"),
-                )
-              }
-            >
-              Buy · {limits.pricing.display} once
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-compact text-caption"
-              onClick={() =>
-                void invoke("open_settings", { tab: "license" }).catch(() => undefined)
-              }
-            >
-              Already bought? Restore
-            </button>
-          </div>
-        </>
-      )}
 
       {mode.name === "sending" && (
         <p className="flex items-center gap-1.5 text-caption text-text-2">
@@ -258,6 +223,30 @@ export function SendSheet({
         </p>
       )}
 
+      {/* Free: the offer appears at the moment of intent, never as a nag. */}
+      {free && mode.name === "failed" && (
+        <div className="flex flex-col items-start gap-1">
+          <button
+            type="button"
+            className="btn btn-primary btn-compact text-caption"
+            onClick={() =>
+              void invoke("license_buy", { plan: "bundle" }).catch(() =>
+                onToast("Couldn't open checkout. Try again in a moment.", "error"),
+              )
+            }
+          >
+            Unlock · {limits.pricing.display} once
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-compact text-caption"
+            onClick={() => void invoke("open_settings", { tab: "license" }).catch(() => undefined)}
+          >
+            Already bought? Restore
+          </button>
+        </div>
+      )}
+
       {mode.name === "ready" && (
         <>
           <QrTile svg={mode.drop.qrSvg} />
@@ -292,31 +281,36 @@ export function SendSheet({
             <span aria-hidden>·</span>
             <span>Encrypted</span>
           </p>
+
+          {free && (
+            <p className="text-caption leading-4 text-text-3">
+              Free sends {limits.free.dropsPerDay} a day. A paired phone gets every capture without
+              scanning: {limits.pricing.display} once.
+            </p>
+          )}
         </>
       )}
 
-      {mode.name !== "paywall" && (
-        <div
-          className="flex items-center justify-between gap-2"
-          style={{ borderTop: "1px solid var(--raised-border)", paddingTop: 8 }}
+      <div
+        className="flex items-center justify-between gap-2"
+        style={{ borderTop: "1px solid var(--raised-border)", paddingTop: 8 }}
+      >
+        <button
+          type="button"
+          disabled={mode.name !== "ready"}
+          onClick={() => mode.name === "ready" && void deleteNow(mode.drop)}
+          className="btn btn-danger-ghost btn-compact text-caption"
         >
-          <button
-            type="button"
-            disabled={mode.name !== "ready"}
-            onClick={() => mode.name === "ready" && void deleteNow(mode.drop)}
-            className="btn btn-danger-ghost btn-compact text-caption"
-          >
-            Delete now
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn btn-primary btn-compact text-caption"
-          >
-            Done
-          </button>
-        </div>
-      )}
+          Delete now
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="btn btn-primary btn-compact text-caption"
+        >
+          Done
+        </button>
+      </div>
     </div>
   );
 }

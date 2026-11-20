@@ -3,11 +3,22 @@ import { useEffect, useRef, useState } from "react";
 import { limits } from "shared";
 
 /**
- * The locked shelf (DESIGN S3, docs/designs/pay-first-10.md): nothing bought, or refunded.
- * Capture is paused; the shelf stays readable and draggable. The price comes from
- * config/limits.json so the app, the website and the release notes always agree.
+ * The Free plan's banner (docs/designs/free-plan.md), in the slot the locked shelf used.
+ *
+ * Quiet while there are captures left ("7 of 10 free today"); once today's are used it says
+ * so and offers the upgrade. The shelf stays readable and draggable either way. The numbers
+ * and the price come from config/limits.json so the app and the website always agree.
  */
-export function LockedBanner({ onHeight }: { onHeight: (px: number) => void }) {
+export function LockedBanner({
+  onHeight,
+  capturesLeft,
+  capturesPerDay,
+}: {
+  onHeight: (px: number) => void;
+  capturesLeft: number;
+  capturesPerDay: number;
+}) {
+  const used = capturesLeft <= 0;
   const box = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,13 +39,20 @@ export function LockedBanner({ onHeight }: { onHeight: (px: number) => void }) {
       ref={box}
       className="flex shrink-0 flex-col gap-1.5 px-3 py-2.5"
       style={{
-        background: "color-mix(in srgb, var(--accent) 12%, transparent)",
+        // Tinted only once today's captures are used; quiet while there are some left.
+        background: used ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "transparent",
         borderBottom: "1px solid var(--border)",
       }}
     >
-      <b className="text-caption">Unlock Hopshot for {limits.pricing.display}</b>
+      <b className="text-caption">
+        {used
+          ? `That's today's ${capturesPerDay} free screenshots`
+          : `${capturesLeft} of ${capturesPerDay} free screenshots left today`}
+      </b>
       <span className="text-caption leading-4 text-text-2">
-        One payment, everything included. 14-day refund, no questions.
+        {used
+          ? `Keep going tomorrow, or unlock unlimited + a paired phone for ${limits.pricing.display} once.`
+          : `Unlimited + a paired phone: ${limits.pricing.display} once. 14-day refund.`}
       </span>
       <button
         type="button"
@@ -46,7 +64,7 @@ export function LockedBanner({ onHeight }: { onHeight: (px: number) => void }) {
           );
         }}
       >
-        Buy · {limits.pricing.display} once
+        Unlock · {limits.pricing.display} once
       </button>
       {error && (
         <span className="text-caption leading-4" role="alert" style={{ color: "var(--danger)" }}>

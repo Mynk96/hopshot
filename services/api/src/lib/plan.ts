@@ -20,8 +20,9 @@ export type PlanLimits = {
  * Stripe outage cannot lock out paying users.
  *
  * `X-Hopshot-License` is the device token the app stored after buying or restoring. It is the
- * only thing that grants a plan: Hopshot is pay-first (PRD F8.1), so an install with no
- * licence is `expired`, which is also what makes a refund actually take the app away.
+ * only thing that grants a paid plan. An install with no licence — never bought, refunded or
+ * revoked — is `expired`, which is the Free plan (docs/designs/free-plan.md): `limitsFor`
+ * gives it the `free` caps and `vaultLimitsFor` gives it no vault.
  */
 export async function resolvePlan(request: Request, env: Env): Promise<PlanName> {
   const token = request.headers.get("X-Hopshot-License");
@@ -98,25 +99,54 @@ export type VaultLimits = {
 };
 
 export function vaultLimitsFor(plan: PlanName): VaultLimits {
-  if (plan === "sync") {
-    return {
-      vault: limits.sync.vault,
-      maxPhones: limits.sync.maxPhones,
-      maxComputers: limits.sync.maxComputers,
-      uploadsPerDay: limits.sync.vaultUploadsPerDay,
-      liveBytes: limits.sync.vaultLiveBytes,
-      // Vault items follow the Lifetime item options; Sync widens drops, not shelf items.
-      itemTtlOptions: limits.lifetime.itemTtlOptions,
-    };
+  switch (plan) {
+    case "sync":
+      return {
+        vault: limits.sync.vault,
+        maxPhones: limits.sync.maxPhones,
+        maxComputers: limits.sync.maxComputers,
+        uploadsPerDay: limits.sync.vaultUploadsPerDay,
+        liveBytes: limits.sync.vaultLiveBytes,
+        // Vault items follow the Lifetime item options; Sync widens drops, not shelf items.
+        itemTtlOptions: limits.lifetime.itemTtlOptions,
+      };
+    case "lifetime":
+      return {
+        vault: limits.lifetime.vault,
+        maxPhones: 0,
+        maxComputers: limits.lifetime.maxComputers,
+        uploadsPerDay: 0,
+        liveBytes: 0,
+        itemTtlOptions: limits.lifetime.itemTtlOptions,
+      };
+    case "expired":
+      // The Free plan: a paired phone is what the purchase buys (docs/designs/free-plan.md).
+      return {
+        vault: limits.free.vault,
+        maxPhones: 0,
+        maxComputers: limits.free.maxComputers,
+        uploadsPerDay: 0,
+        liveBytes: 0,
+        itemTtlOptions: limits.lifetime.itemTtlOptions,
+      };
+    default:
+      return denyVault(plan);
   }
+}
 
+/**
+ * Deny by default: a plan name this code does not know gets nothing. Typed `never`, so adding
+ * a plan to `PlanName` without a case above fails the typecheck instead of silently falling
+ * through to someone else's limits.
+ */
+function denyVault(_plan: never): VaultLimits {
   return {
-    vault: limits.lifetime.vault,
+    vault: false,
     maxPhones: 0,
-    maxComputers: limits.lifetime.maxComputers,
+    maxComputers: 0,
     uploadsPerDay: 0,
     liveBytes: 0,
-    itemTtlOptions: limits.lifetime.itemTtlOptions,
+    itemTtlOptions: [],
   };
 }
 
@@ -125,26 +155,41 @@ export function isItemTtlAllowed(ttl: string, plan: PlanName): boolean {
   return (vaultLimitsFor(plan).itemTtlOptions as readonly string[]).includes(ttl);
 }
 
-/** The limits that apply to a plan. */
+/** The limits that apply to a plan. Unknown plans get nothing (deny by default). */
 export function limitsFor(plan: PlanName): PlanLimits {
   const server = limits.server;
 
-  // Sync is an add-on to Lifetime, so it raises the caps rather than replacing them.
-  if (plan === "sync") {
-    return {
-      plan,
-      dropTtlOptions: limits.sync.dropTtlOptions,
-      dropsPerDay: limits.sync.dropsPerDay,
-      maxCiphertextBytes: server.maxCiphertextBytes,
-    };
+  switch (plan) {
+    // Sync is an add-on to Lifetime, so it raises the caps rather than replacing them.
+    case "sync":
+      return {
+        plan,
+        dropTtlOptions: limits.sync.dropTtlOptions,
+        dropsPerDay: limits.sync.dropsPerDay,
+        maxCiphertextBytes: server.maxCiphertextBytes,
+      };
+    case "lifetime":
+      return {
+        plan,
+        dropTtlOptions: limits.lifetime.dropTtlOptions,
+        dropsPerDay: limits.lifetime.dropsPerDay,
+        maxCiphertextBytes: server.maxCiphertextBytes,
+      };
+    // No licence: the Free plan's few QR sends a day (docs/designs/free-plan.md).
+    case "expired":
+      return {
+        plan,
+        dropTtlOptions: limits.free.dropTtlOptions,
+        dropsPerDay: limits.free.dropsPerDay,
+        maxCiphertextBytes: server.maxCiphertextBytes,
+      };
+    default:
+      return denyLimits(plan);
   }
+}
 
-  return {
-    plan,
-    dropTtlOptions: limits.lifetime.dropTtlOptions,
-    dropsPerDay: limits.lifetime.dropsPerDay,
-    maxCiphertextBytes: server.maxCiphertextBytes,
-  };
+function denyLimits(plan: never): PlanLimits {
+  return { plan, dropTtlOptions: [], dropsPerDay: 0, maxCiphertextBytes: 0 };
 }
 
 /** `"24h"` → milliseconds. Returns `null` for anything not in `limits.json`. */

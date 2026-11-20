@@ -167,8 +167,8 @@ pub fn run() {
             // read as broken. Last, so the shelf and hotkeys it teaches are already live.
             let onboarding_shown = onboarding::show_if_needed(handle, &settings);
 
-            // Nothing bought yet: capture is paused, so a silent launch looks broken. Show
-            // the shelf with its Buy banner instead (unless the onboarding is up already).
+            // The Free plan has used today's captures: a silent launch would look broken.
+            // Show the shelf with its upgrade banner instead (unless the onboarding is up).
             if !onboarding_shown && license::plan_state(handle).capture_paused {
                 shelf::show(handle);
             }
@@ -361,8 +361,8 @@ fn build_menu<R: Runtime>(
         &settings_item,
     ])?;
 
-    // One plan at one price (PRD §7), so there is exactly one thing to offer and only to
-    // someone who has not bought yet.
+    // One paid plan at one price (PRD §7), so there is exactly one thing to offer, and only
+    // to someone on the Free plan (docs/designs/free-plan.md).
     match plan {
         Plan::Expired => {
             let buy = MenuItem::with_id(
