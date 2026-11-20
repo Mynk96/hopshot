@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hopshot: Screenshot App for Windows and Mac That Cleans Up</title>
-<meta name="description" content="Take screenshots, skip the file management. Drag them into any app or onto your phone, and they clear themselves out on your schedule. Windows and Mac. Pay once, use forever.">
+<meta name="description" content="Take screenshots, skip the file management. Drag them into any app or onto your phone, and they clear themselves out on your schedule. Windows and Mac. Free to start, $10 once for unlimited.">
 <meta name="theme-color" content="#FF6B2C">
 <link rel="canonical" href="https://hopshot.xyz/">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Hopshot","applicationCategory":"UtilitiesApplication","operatingSystem":"Windows 10, Windows 11, macOS 13+","description":"Screenshot shelf for Windows and Mac: capture with a hotkey, drag into any app or website, open on your phone. Screenshots expire on their own.","url":"https://hopshot.xyz/","offers":{"@type":"Offer","price":"10","priceCurrency":"USD"}}
 </script>
 <meta property="og:title" content="Hopshot: Screenshot App for Windows and Mac That Cleans Up">
-<meta property="og:description" content="Take screenshots, skip the file management. Drag them into any app or onto your phone. Windows & Mac. Pay once.">
+<meta property="og:description" content="Take screenshots, skip the file management. Drag them into any app or onto your phone. Windows & Mac. Free to start.">
 <meta property="og:type" content="website">
 <!-- Replace with your real address after deploying (absolute URL) -->
 <meta property="og:image" content="https://hopshot.xyz/og.png">
@@ -52,6 +52,8 @@ kbd{font:500 .82em/1 var(--mono);background:#fff;border:1px solid var(--line);bo
 .btn:hover .arr{transform:translateX(3px)}
 .btn-sm{height:42px;padding:0 18px;font-size:15px;border-radius:10px}
 .btn-block{width:100%}
+.btn-ghost{background:#fff;color:var(--ink);box-shadow:0 0 0 1.5px var(--line) inset}
+.btn-ghost:hover{background:#fff;box-shadow:0 0 0 1.5px var(--ink) inset}
 .btn-quiet{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
 .btn-quiet:hover{background:var(--ink);color:#fff}
 
@@ -282,14 +284,14 @@ footer .featured:hover{text-decoration:none}
 </head>
 <body>
 <div class="paid" id="paidBanner" role="status">🎉 You're in! Your receipt is in your inbox, and Hopshot unlocks itself within seconds.</div>
-<div class="topbar">⚡ <b>Hopshot is live on Windows &amp; Mac.</b> $10 once, everything included, 14-day refund. <a href="#pricing">See pricing</a></div>
+<div class="topbar">⚡ <b>Hopshot is live on Windows &amp; Mac.</b> Free to start, $10 once for unlimited. <a href="#pricing">See pricing</a></div>
 
 <nav class="top">
   <div class="wrap">
     <a class="logo" href="#"><span class="mark"></span>Hopshot</a>
     <div class="links"><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></div>
     <span class="sp"></span>
-    <a class="btn btn-sm js-buy-sync" href="#pricing">Get Hopshot</a>
+    <a class="btn btn-sm js-buy-sync" href="#pricing">Download free</a>
   </div>
 </nav>
 
@@ -304,11 +306,11 @@ footer .featured:hover{text-decoration:none}
         <figure class="after"><div class="desk"><span class="gone">🧹 Rest auto-clears</span><div class="shelf"><i><span class="pinned">📌</span><svg viewBox="0 0 40 30" preserveAspectRatio="none"><path d="M4 24 L12 19 L19 21 L26 12 L36 6" fill="none" stroke="#FF6B2C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></i><i><svg viewBox="0 0 40 30"><rect x="5" y="7" width="24" height="3" rx="1.5" fill="#D6D3D1"/><rect x="5" y="13" width="30" height="3" rx="1.5" fill="#E7E5E4"/><rect x="5" y="19" width="18" height="3" rx="1.5" fill="#E7E5E4"/></svg></i></div></div><figcaption>With Hopshot</figcaption></figure>
       </div>
       <div class="cta-row">
-        <a class="btn js-buy-sync" href="#pricing">Get Hopshot <span class="arr">→</span></a>
-        <span class="cta-note"><b>$10 once</b> · 14-day refund · Windows &amp; Mac</span>
+        <a class="btn js-buy-sync" href="#pricing">Download free <span class="arr">→</span></a>
+        <span class="cta-note"><b>Free:</b> 10 screenshots + 3 phone sends a day · <b>Unlimited:</b> $10 once</span>
       </div>
       <ul class="checks">
-        <li>Pay once, use forever</li>
+        <li>Free to start, no card</li>
         <li>Windows &amp; Mac, one license</li>
         <li>End-to-end encrypted, auto-deleted</li>
       </ul>
@@ -407,25 +409,39 @@ footer .featured:hover{text-decoration:none}
 <section class="alt" id="pricing">
   <div class="wrap center">
     <span class="eyebrow">Pricing</span>
-    <h2>Pay once. Use forever.</h2>
-    <p class="lead">One price. Everything included. No subscription to use Hopshot.</p>
-    <div class="price-grid price-grid-single" style="text-align:left">
+    <h2>Start free. Pay once if you love it.</h2>
+    <p class="lead">Use Hopshot free every day. One payment lifts every limit and adds your phone. No subscription.</p>
+    <div class="price-grid" style="text-align:left">
+      <div class="card">
+        <p class="nm">Free</p>
+        <p class="desc">Everything you need to try it properly.</p>
+        <div class="pr"><b>$0</b><span>forever</span></div>
+        <ul>
+          <li>10 screenshots a day</li>
+          <li>Shelf, drag &amp; copy into any app</li>
+          <li>Send to your phone by QR, 3 a day</li>
+          <li>Pin up to 3, the rest clear on your schedule</li>
+          <li>One computer</li>
+        </ul>
+        <a class="btn btn-block btn-ghost js-buy-sync" href="https://app.hopshot.xyz/download">Download free <span class="arr">→</span></a>
+        <p class="fine">No account, no card.</p>
+      </div>
       <div class="card pop">
+        <span class="badge">Unlimited</span>
         <p class="nm">Hopshot</p>
         <p class="desc">Everything, on every device you use.</p>
         <div class="pr"><b>$10</b><span>USD once</span></div>
         <ul>
-          <li>Capture, shelf, drag &amp; copy</li>
-          <li>Up to 3 computers</li>
+          <li>Unlimited screenshots and pins</li>
+          <li>Up to 3 computers, Windows &amp; Mac</li>
           <li>Keep up to 100 items for 1h, 24h or 7 days</li>
           <li class="plus">Pair your phone, captures appear automatically</li>
           <li class="plus">Send photos from phone to computer</li>
           <li class="plus"><b>Phone sync included, forever</b></li>
           <li>All 1.x updates</li>
         </ul>
-        <a class="btn btn-block js-buy-sync" href="https://app.hopshot.xyz/download">Get Hopshot <span class="arr">→</span></a>
-        <p class="fine">One payment. No subscription, no renewal, no card kept on file.
-          Phone sync is included for good.</p>
+        <a class="btn btn-block js-buy-sync" href="https://app.hopshot.xyz/download">Download, then unlock <span class="arr">→</span></a>
+        <p class="fine">Unlock from inside the app. One payment, no subscription, no card kept on file.</p>
       </div>
     </div>
     <div class="price-foot"><span>💸 14-day refund, no questions asked</span><span>♾️ No subscription</span><span>🔒 Secure checkout by Stripe</span><span>🖥️ Windows 10/11 · macOS 13+</span></div>
@@ -436,7 +452,8 @@ footer .featured:hover{text-decoration:none}
   <div class="narrow">
     <div class="center"><span class="eyebrow">FAQ</span><h2>Frequently asked questions</h2></div>
     <div class="faq" style="margin-top:40px">
-      <details><summary>When do I get Hopshot?</summary><p>Straight away. Download it free, and it unlocks itself within seconds of paying — there is no license key to copy and nothing to enter.</p></details>
+      <details><summary>Is there a free version?</summary><p>Yes. Download it and use it free: 10 screenshots and 3 sends to your phone a day, with up to 3 pinned. When you want more, unlock unlimited plus a paired phone for $10 once, from inside the app.</p></details>
+      <details><summary>How do I unlock unlimited?</summary><p>From the shelf or Settings → License in the app. Checkout opens in your browser and Hopshot unlocks itself within seconds of paying — there is no license key to copy and nothing to enter.</p></details>
       <details><summary>Is this a subscription?</summary><p>No, and there is nothing to cancel. One payment of $10 and Hopshot is yours — phone sync included, permanently. We do not keep your card.</p></details>
       <details><summary>Does it work on Windows and Mac?</summary><p>Yes. Windows 10/11 and macOS 13 or newer. One licence covers up to three computers, in any mix of Windows and Mac.</p></details>
       <details><summary>Can you see my screenshots?</summary><p>No. Nothing leaves your computer unless you send it to your phone, share a link or turn on Sync. When it does, it's encrypted on your device first, and the key never reaches our servers. Cloud copies are deleted automatically (24 hours by default, 7 days at most).</p></details>
@@ -464,9 +481,9 @@ footer .featured:hover{text-decoration:none}
 <div class="final" id="get">
   <div class="wrap">
     <h2>Stop saving screenshots. Start dragging them.</h2>
-    <p class="lead">One price. Everything included. Yours forever.</p>
-    <a class="btn js-buy-sync" href="#pricing">Get Hopshot <span class="arr">→</span></a>
-    <p class="cta-note">$10 once · 14-day refund · Windows &amp; Mac</p>
+    <p class="lead">Free to start. $10 once for unlimited. Yours forever.</p>
+    <a class="btn js-buy-sync" href="#pricing">Download free <span class="arr">→</span></a>
+    <p class="cta-note">Free: 10 screenshots a day · Unlimited: $10 once · Windows &amp; Mac</p>
   </div>
 </div>
 
@@ -501,8 +518,8 @@ footer .featured:hover{text-decoration:none}
 <script>
 /* ===================== CONFIG: edit before deploying ===================== */
 const CONFIG = {
-  // Both CTAs go to the download. Hopshot is pay-first (PRD F8.1): free to download, locked
-  // until bought, and the purchase happens *inside the app* so it can be tied to the install
+  // Every CTA goes to the download. Hopshot has a Free plan (docs/designs/free-plan.md), and
+  // unlocking happens *inside the app* so it can be tied to the install
   // that started it (F8.3) — that binding is what removes the licence key.
   //
   // These used to be the old Payment Links. A Payment Link checkout carries no `claim`
