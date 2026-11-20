@@ -76,14 +76,15 @@ export function License() {
       {status === null && (
         <>
           <p className="text-body text-text-2">
-            Hopshot is locked until you buy it. Capture starts working the moment you pay —
-            there is no licence key to enter.
+            You're on Free: {limits.free.capturesPerDay} screenshots and {limits.free.dropsPerDay}{" "}
+            phone sends a day, {limits.free.maxPins} pinned. Unlocking lifts every limit the moment
+            you pay — there is no licence key to enter.
           </p>
 
           {/*
-            * DESIGN S9 price block. One plan (PRD §7): the Lifetime-only tier is gone,
-            * because it could not pair a phone — the thing Hopshot is for.
-            */}
+           * DESIGN S9 price block. One plan (PRD §7): the Lifetime-only tier is gone,
+           * because it could not pair a phone — the thing Hopshot is for.
+           */}
           {buying ? (
             <p className="text-body text-text-2">Finish paying in your browser…</p>
           ) : (
@@ -93,11 +94,11 @@ export function License() {
                 className="btn btn-primary self-start"
                 onClick={() => void buy("bundle")}
               >
-                Buy Hopshot · {limits.pricing.display}
+                Unlock Hopshot · {limits.pricing.display} once
               </button>
               <span className="text-caption text-text-3">
-                Up to 3 computers and 3 phones, phone sync included permanently.
-                No subscription. 14-day refund, no questions asked.
+                Up to 3 computers and 3 phones, phone sync included permanently. No subscription.
+                14-day refund, no questions asked.
               </span>
             </div>
           )}

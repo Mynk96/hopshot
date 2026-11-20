@@ -17,6 +17,8 @@ export const drops = new Hono<{ Bindings: Env }>();
 /** Counter kinds in the `usage` table. */
 const PER_INSTALL = "drops";
 const PER_IP = "drops_ip";
+/** Free-plan sends per network (docs/designs/free-plan.md), counted apart from paid ones. */
+const PER_IP_FREE = "drops_free_ip";
 
 type DropRow = {
   id: string;
@@ -48,25 +50,15 @@ drops.post("/:id", async (c) => {
 
   const plan = await resolvePlan(c.req.raw, c.env);
 
-  /*
-   * PRD F8.1: Hopshot is pay-first, so an unlicensed caller sends nothing. `limitsFor` maps
-   * an unknown plan onto the Lifetime caps, so without this gate an unlicensed user would
-   * keep a free 10 sends a day — the paywall would not have held.
-   *
-   * Checked *after* input validation, so a malformed request still reports what is actually
-   * wrong with it rather than being told to buy something.
-   *
-   * The shelf itself stays readable and draggable; that is local and nothing here touches it.
-   */
-  if (plan === "expired") {
-    return fail(
-      c,
-      "forbidden",
-      "Buy Hopshot to send links — your shelf is still here.",
-    );
-  }
-
   const planLimits = limitsFor(plan);
+  // `expired` is the Free plan: no licence, a few QR sends a day (docs/designs/free-plan.md).
+  const free = plan === "expired";
+  const price = limits.pricing.display;
+
+  // Deny by default: a plan with no sends at all (an unknown one) is refused outright.
+  if (planLimits.dropsPerDay === 0) {
+    return fail(c, "forbidden", "This plan can't send links.");
+  }
 
   // TTL has to be allowed on this plan (ARCHITECTURE §7.1).
   const ttl = c.req.query("ttl") ?? "24h";
@@ -74,7 +66,9 @@ drops.post("/:id", async (c) => {
     return fail(
       c,
       "forbidden",
-      `Links can last ${planLimits.dropTtlOptions.join(" or ")} on your plan. Sync allows longer.`,
+      free
+        ? `Free links last ${planLimits.dropTtlOptions.join(" or ")}. Unlock Hopshot for ${price} once to pick longer.`
+        : `Links can last ${planLimits.dropTtlOptions.join(" or ")} on your plan. Sync allows longer.`,
     );
   }
   const ttlMs = ttlToMs(ttl);
@@ -92,20 +86,35 @@ drops.post("/:id", async (c) => {
   const ipHash = await hashIp(clientIp(c.req.raw), c.env, now);
 
   // Daily caps, checked before the write (ARCHITECTURE §7.9).
-  const [perInstall, perIp] = await Promise.all([
+  const [perInstall, perIp, perIpFree] = await Promise.all([
     readUsage(c.env, installId, PER_INSTALL, now),
     readUsage(c.env, ipHash, PER_IP, now),
+    free ? readUsage(c.env, ipHash, PER_IP_FREE, now) : Promise.resolve({ count: 0, bytes: 0 }),
   ]);
 
   if (perInstall.count >= planLimits.dropsPerDay) {
     return fail(
       c,
       "limit_reached",
-      `That's ${planLimits.dropsPerDay} sends today. Sync raises it to ${limits.sync.dropsPerDay}.`,
+      free
+        ? `That's today's ${planLimits.dropsPerDay} free sends. Unlock Hopshot for ${price} once for ${limits.sync.dropsPerDay} a day.`
+        : `That's ${planLimits.dropsPerDay} sends today. Sync raises it to ${limits.sync.dropsPerDay}.`,
     );
   }
   if (perIp.count >= limits.server.perIpDropsPerDay) {
     return fail(c, "limit_reached", "This network has sent a lot today. Try again tomorrow.");
+  }
+  /*
+   * Install ids are made up by the client, so a fresh id would reset the per-install count.
+   * This per-network cap is what actually bounds the Free plan: at most
+   * freePerIpDropsPerDay × maxCiphertextBytes live at once, each gone within a day.
+   */
+  if (free && perIpFree.count >= limits.server.freePerIpDropsPerDay) {
+    return fail(
+      c,
+      "limit_reached",
+      `This network has used today's free sends. Unlock Hopshot for ${price} once to keep sending.`,
+    );
   }
 
   // The client picks the id, so a collision is a real possibility to report (§6: 409).
@@ -158,6 +167,7 @@ drops.post("/:id", async (c) => {
   await Promise.all([
     bumpUsage(c.env, installId, PER_INSTALL, body.byteLength, now),
     bumpUsage(c.env, ipHash, PER_IP, body.byteLength, now),
+    ...(free ? [bumpUsage(c.env, ipHash, PER_IP_FREE, body.byteLength, now)] : []),
   ]);
 
   return c.json({ id, deleteToken, expiresAt }, 201);
@@ -206,10 +216,10 @@ drops.get("/:id/info", async (c) => {
   if (!isValidId(id)) return fail(c, "bad_request", "That drop id isn't valid.");
 
   const row = await c.env.DB.prepare(
-    "SELECT size, expires_at, deleted_at FROM drops WHERE id = ?1",
+    "SELECT size, expires_at, deleted_at, plan FROM drops WHERE id = ?1",
   )
     .bind(id)
-    .first<{ size: number; expires_at: number; deleted_at: number | null }>();
+    .first<{ size: number; expires_at: number; deleted_at: number | null; plan: string }>();
 
   if (!row) return fail(c, "not_found", "That link doesn't exist.");
   if (row.deleted_at !== null || row.expires_at <= Date.now()) {
@@ -217,7 +227,9 @@ drops.get("/:id/info", async (c) => {
   }
 
   return c.json(
-    { expiresAt: row.expires_at, size: row.size },
+    // `free` lets the viewer show a small "Sent with Hopshot" link under free sends only
+    // (docs/designs/free-plan.md). The plan is all it reveals; nothing about the sender.
+    { expiresAt: row.expires_at, size: row.size, free: row.plan === "expired" },
     200,
     { "Cache-Control": "no-store" },
   );
@@ -254,4 +266,4 @@ drops.delete("/:id", async (c) => {
   return c.body(null, 204);
 });
 
-export { PER_INSTALL, PER_IP };
+export { PER_INSTALL, PER_IP, PER_IP_FREE };

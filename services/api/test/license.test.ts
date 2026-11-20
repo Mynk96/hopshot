@@ -11,7 +11,7 @@ import {
   revokeByPaymentIntent,
 } from "../src/lib/license.ts";
 import { verifyWebhook } from "../src/lib/stripe.ts";
-import { applyMigrations, captureEmail, freshId, resetEmail, send } from "./helpers.ts";
+import { applyMigrations, captureEmail, resetEmail, send } from "./helpers.ts";
 
 /**
  * Licensing (PRD F8, ARCHITECTURE §7.5).
@@ -414,50 +414,8 @@ describe("GET /v1/license/status", () => {
   });
 });
 
-describe("the paywall actually holds (PRD F8.1)", () => {
-  /**
-   * The trial ending has to stop new sends. `limitsFor` maps an unrecognised plan onto the
-   * Lifetime caps, so without an explicit gate an expired user kept ten free sends a day and
-   * the paywall was decorative.
-   */
-  it("refuses a drop from an install that has never bought", async () => {
-    const response = await send(`/v1/drops/${freshId()}?ttl=24h`, {
-      method: "POST",
-      headers: {
-        "X-Hopshot-Install": "install-no-trial",
-        "Content-Type": "application/octet-stream",
-        "CF-Connecting-IP": "203.0.113.9",
-      },
-      body: new Uint8Array([0x48, 0x4f, 0x50, 0x31, 1]),
-    });
-
-    expect(response.status).toBe(403);
-    expect(await response.text()).toContain("Buy Hopshot");
-  });
-
-  it("allows it again once a licence is presented", async () => {
-    const licenseId = await recordPurchase(env, {
-      customerId: "cus_1",
-      email: "buyer@example.com",
-      plan: "lifetime",
-      sessionId: "cs_1",
-      paymentIntentId: "pi_1",
-    });
-    const slot = await claimDeviceSlot(env, licenseId, "install-no-trial", "PC");
-    expect(slot.ok).toBe(true);
-    if (!slot.ok) return;
-
-    const response = await send(`/v1/drops/${freshId()}?ttl=24h`, {
-      method: "POST",
-      headers: {
-        "X-Hopshot-Install": "install-no-trial",
-        "X-Hopshot-License": slot.deviceToken,
-        "Content-Type": "application/octet-stream",
-        "CF-Connecting-IP": "203.0.113.9",
-      },
-      body: new Uint8Array([0x48, 0x4f, 0x50, 0x31, 1]),
-    });
-
-    expect(response.status).toBe(201);
-  });
-});
+/*
+ * The old "paywall holds" tests lived here. Since the Free plan (docs/designs/free-plan.md)
+ * an install with no licence *can* send a few drops a day; test/free-plan.test.ts covers
+ * what it can and cannot do.
+ */

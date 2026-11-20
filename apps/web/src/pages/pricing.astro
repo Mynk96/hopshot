@@ -6,77 +6,93 @@ import { limits } from "shared";
 const price = limits.pricing.display;
 
 /*
- * Pricing (PRD §7, DESIGN S9).
+ * Pricing (PRD §7, DESIGN S9, docs/designs/free-plan.md).
  *
- * One price, everything included (PRD §7, docs/designs/pay-first-10.md); the amount is
- * config/limits.json → pricing.display. The Lifetime-only tier is gone: it could not
- * do the thing Hopshot is actually for — capture here, appears on your phone — so it sold a
- * worse product at a lower margin and split the funnel to do it.
+ * Two columns: the Free plan and the one paid plan. Every number comes from
+ * config/limits.json, so this page, the app and the release notes always agree.
  *
  * Buying happens *in the app*, not here. There is no licence key, so a purchase has to be
  * tied to the install that started it (PRD F8.3) — a web checkout would have nothing to
  * unlock. This page explains and points at the download.
  */
 
+const free = limits.free;
+
+const freeIncludes: string[] = [
+  `${free.capturesPerDay} screenshots a day`,
+  "Shelf, drag into any app, copy",
+  `${free.dropsPerDay} sends to your phone a day (QR, 24h links)`,
+  `${free.maxPins} pinned at a time`,
+  "One computer",
+];
+
 const included: string[] = [
-  "Capture, shelf, drag-out and copy",
-  "Up to 3 computers and 3 phones",
-  "Send to phone — captures appear there automatically",
-  "200 share links a day, expiring in 1h, 24h or 7 days",
+  "Unlimited screenshots and pins",
+  "A paired phone: every capture appears there, and phone → computer",
+  "Up to 3 computers (Mac + Windows) and 3 phones",
+  `${limits.sync.dropsPerDay} share links a day, expiring in 1h, 24h or 7 days`,
   "All 1.x updates",
 ];
 ---
 
 <Base
   title="Pricing — Hopshot"
-  description={`Hopshot is ${price} once, everything included. 14-day refund.`}
+  description={`Hopshot is free to use, or ${price} once for everything. 14-day refund.`}
 >
   <main class="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
     <header class="flex flex-col gap-3">
-      <h1 class="text-display">Pay once.</h1>
+      <h1 class="text-display">Start free. Pay once if you love it.</h1>
       <p class="text-body text-text-2">
-        One price, everything included: capture, the shelf, drag anywhere and your phone. Paid
-        once. No subscription.
+        Hopshot is free to use with daily limits. One payment lifts every limit and adds your
+        phone. No subscription.
       </p>
     </header>
 
-    <section
-      class="flex flex-col gap-4 p-6"
-      style="background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-panel)"
-    >
-      <div class="flex items-baseline gap-2">
-        <span class="text-display">{price}</span>
-        <span class="text-body text-text-2">once</span>
-      </div>
-      <p class="text-body text-text-2">
-        Everything Hopshot does, on up to three computers and three phones.
-      </p>
-      <ul class="flex flex-col gap-1.5">
-        {
-          included.map((item) => (
-            <li class="text-body text-text-2">— {item}</li>
-          ))
-        }
-      </ul>
-      <p class="text-small text-text-2">
-        No subscription, ever. Phone sync is included for good — not for a year, not until a
-        renewal. One payment and Hopshot is yours.
-      </p>
-      <a class="btn btn-primary self-start" href="/download">Download for Windows</a>
-      <span class="text-caption text-text-3">
-        Free to download · 14-day refund, no questions asked
-      </span>
-    </section>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <section
+        class="flex flex-col gap-4 p-6"
+        style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-panel)"
+      >
+        <div class="flex items-baseline gap-2">
+          <span class="text-display">Free</span>
+        </div>
+        <p class="text-body text-text-2">Everything you need to try it properly.</p>
+        <ul class="flex flex-col gap-1.5">
+          {freeIncludes.map((item) => <li class="text-body text-text-2">— {item}</li>)}
+        </ul>
+        <a class="btn btn-secondary mt-auto self-start" href="/download">Download free</a>
+      </section>
+
+      <section
+        class="flex flex-col gap-4 p-6"
+        style="background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-panel)"
+      >
+        <div class="flex items-baseline gap-2">
+          <span class="text-display">{price}</span>
+          <span class="text-body text-text-2">once</span>
+        </div>
+        <p class="text-body text-text-2">No limits, and your phone, for good.</p>
+        <ul class="flex flex-col gap-1.5">
+          {included.map((item) => <li class="text-body text-text-2">— {item}</li>)}
+        </ul>
+        <p class="text-small text-text-2">
+          No subscription, ever. Phone sync is included for good — not for a year, not until a
+          renewal.
+        </p>
+        <a class="btn btn-primary mt-auto self-start" href="/download">Download, then unlock</a>
+        <span class="text-caption text-text-3">14-day refund, no questions asked</span>
+      </section>
+    </div>
 
     <section
       class="flex flex-col gap-3 p-5"
       style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-panel)"
     >
-      <h2 class="text-title">How buying works</h2>
+      <h2 class="text-title">How unlocking works</h2>
       <p class="text-body text-text-2">
-        Download Hopshot, then buy from inside the app: Settings → License. Checkout opens
-        in your browser and the app unlocks itself when you're done — usually within a few
-        seconds. Capture stays paused until then.
+        Download Hopshot and use it free. When you want more, unlock it from inside the app:
+        the shelf or Settings → License. Checkout opens in your browser and the app unlocks
+        itself when you're done — usually within a few seconds.
       </p>
       <p class="text-body text-text-2">
         <strong>There is no licence key.</strong> Your purchase belongs to the email you buy
@@ -85,8 +101,8 @@ const included: string[] = [
       <p class="text-body text-text-2">
         <strong>14-day refund, no questions asked.</strong> If Hopshot isn't what you wanted,
         reply to your receipt within two weeks and we'll refund it. No form, no reason needed.
+        You keep the Free plan.
       </p>
-      <a class="btn btn-primary self-start" href="/download">Download for Windows</a>
     </section>
 
     <p class="text-small text-text-3">Secure checkout by Stripe · 14-day refund</p>

@@ -146,7 +146,7 @@ Every limit lives here. Rust reads it with `include_str!` + serde, TS imports it
 
 Plan resolution: `expired` (nothing bought, or bought and refunded) → `lifetime` (valid Lifetime licence) → `sync` (valid Lifetime licence + active Sync subscription; gets Lifetime limits overridden by the `sync` block).
 
-Hopshot is **pay-first** (PRD F8.1, docs/designs/pay-first-10.md): every install starts `expired` with capture paused, and a licence is the only thing that grants a plan. `resolvePlan` therefore reads one header — `X-Hopshot-License` — and anything else is `expired`, which is also what makes a refund take the app away.
+`expired` is the **Free plan** (PRD F8.1, docs/designs/free-plan.md): every install starts there with daily caps from `limits.free`, and a licence is the only thing that grants a paid plan. `limitsFor` and `vaultLimitsFor` are exhaustive; an unknown plan gets nothing. `resolvePlan` therefore reads one header — `X-Hopshot-License` — and anything else is `expired`, which is also what makes a refund take the app away.
 
 ---
 
@@ -301,7 +301,7 @@ Auth header for vault calls: `Authorization: Bearer {deviceToken}`. Tokens are 3
 
 ### 7.5 Licenses and billing (Stripe)
 
-**No trial.** Pay-first: a new install is `expired` and capture is paused until a purchase completes. The desktop decides this locally from the keychain so the hotkey path never waits on a request, and an install that has *never* reached the server is locked too — treating "unknown" as permissive would make staying offline a bypass. The server refuses an `expired` caller every drop, vault and pairing request. `POST /trial/start` stays a stub reporting an ended trial for v0.1.x builds.
+**Free plan, no trial** (docs/designs/free-plan.md). A new install is `expired`, i.e. Free. The desktop counts captures and pins locally (the hotkey path never waits on a request); the server gives an `expired` caller `limits.free.dropsPerDay` QR sends, capped again per network (`drops_free_ip`, `server.freePerIpDropsPerDay`), and refuses every vault and pairing request. `POST /trial/start` stays a stub reporting an ended trial for v0.1.x builds.
 
 **Stripe setup** (test mode first, then live; the India account used for pre-orders, payouts in INR):
 

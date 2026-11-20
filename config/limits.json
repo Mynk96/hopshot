@@ -1,4 +1,15 @@
 {
+  "free": {
+    "capturesPerDay": 10,
+    "shelfCapacity": 10,
+    "maxPins": 3,
+    "dropTtlOptions": [
+      "24h"
+    ],
+    "dropsPerDay": 3,
+    "vault": false,
+    "maxComputers": 1
+  },
   "lifetime": {
     "shelfCapacity": 100,
     "itemTtlOptions": [
@@ -34,7 +45,8 @@
     "liveTicketTtlSeconds": 60,
     "licenseRecheckDays": 7,
     "licenseOfflineGraceDays": 30,
-    "perIpDropsPerDay": 100
+    "perIpDropsPerDay": 100,
+    "freePerIpDropsPerDay": 20
   },
   "insights": {
     "pingsPerIpPerDay": 60,

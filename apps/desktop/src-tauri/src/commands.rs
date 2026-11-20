@@ -478,7 +478,7 @@ pub fn get_plan(app: AppHandle) -> PlanStatus {
     PlanStatus {
         plan,
         includes_sync: plan.includes_sync(),
-        shelf_capacity: limits.lifetime.shelf_capacity,
+        shelf_capacity: plan.shelf_capacity(),
         item_ttl_options: limits.lifetime.item_ttl_options.clone(),
     }
 }

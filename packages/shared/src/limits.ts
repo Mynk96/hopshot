@@ -8,14 +8,30 @@ import limitsJson from "../../../config/limits.json";
 /**
  * ARCHITECTURE §4 plan resolution order: expired → lifetime → sync.
  *
- * `expired` means "no active licence" — never bought, or bought and refunded. Hopshot is
- * pay-first (PRD F8.1): there is no trial, so an install holds no plan at all until a
- * purchase, and `expired` is where every new install starts.
+ * `expired` means "no active licence" — never bought, or bought and refunded — and that is
+ * the **Free plan** (docs/designs/free-plan.md): every new install starts here and gets the
+ * `free` limits below. The wire name stays `expired` so older apps and stored rows keep
+ * parsing; read it as "free" everywhere.
  */
 export type PlanName = "expired" | "lifetime" | "sync";
 
 /** Item/drop time-to-live options, as they appear in the JSON and in `?ttl=` query params. */
 export type Ttl = "1h" | "24h" | "7d";
+
+/**
+ * What an install gets without a licence (docs/designs/free-plan.md). Capture, the shelf
+ * and drag work with daily caps; a few QR sends to a phone a day; no vault, so no paired
+ * phone. Captures and pins are counted on the device, sends on the server.
+ */
+export interface FreeLimits {
+  readonly capturesPerDay: number;
+  readonly shelfCapacity: number;
+  readonly maxPins: number;
+  readonly dropTtlOptions: readonly Ttl[];
+  readonly dropsPerDay: number;
+  readonly vault: boolean;
+  readonly maxComputers: number;
+}
 
 export interface LifetimeLimits {
   readonly shelfCapacity: number;
@@ -45,6 +61,9 @@ export interface ServerLimits {
   readonly licenseRecheckDays: number;
   readonly licenseOfflineGraceDays: number;
   readonly perIpDropsPerDay: number;
+  /** Free-plan sends from one network a day, on top of the per-install cap: install ids
+   * are made up by the client, so this is what actually bounds a free user. */
+  readonly freePerIpDropsPerDay: number;
 }
 
 /** Usage counts, the mailing list and in-app feedback (ARCHITECTURE §7.10). */
@@ -71,6 +90,7 @@ export interface PricingLimits {
 }
 
 export interface Limits {
+  readonly free: FreeLimits;
   readonly lifetime: LifetimeLimits;
   readonly sync: SyncLimits;
   readonly server: ServerLimits;

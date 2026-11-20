@@ -63,6 +63,9 @@ pub enum ShelfError {
     Decode(String),
     #[error("that file could not be read: {0}")]
     Io(String),
+    /// The Free plan's pin cap (docs/designs/free-plan.md). The text is shown as-is.
+    #[error("{0}")]
+    PinLimit(String),
 }
 
 impl From<std::io::Error> for ShelfError {
@@ -248,10 +251,32 @@ pub fn drag_finished<R: Runtime>(
     delete(app, id)
 }
 
+/// Whether one more pin fits under the plan's cap (docs/designs/free-plan.md). Unpinning, or
+/// pinning something already pinned, is always allowed.
+fn may_pin(max_pins: Option<u32>, pinned_now: usize, already_pinned: bool, pinning: bool) -> bool {
+    match max_pins {
+        None => true,
+        Some(_) if !pinning || already_pinned => true,
+        Some(max) => pinned_now < max as usize,
+    }
+}
+
 /// Pin or unpin (PRD F2.11).
 pub fn set_pinned<R: Runtime>(app: &AppHandle<R>, id: &str, pinned: bool) -> Result<Item, ShelfError> {
     let settings = crate::settings::load(app).unwrap_or_default();
-    let item = store(app)?.set_pinned(id, pinned, settings.item_ttl_ms())?;
+    let shelf = store(app)?;
+
+    let plan = crate::license::current_plan(app);
+    let already = shelf.get(id)?.is_pinned();
+    if !may_pin(plan.max_pins(), shelf.count_pinned()?, already, pinned) {
+        let max = plan.max_pins().unwrap_or_default();
+        let price = &crate::limits::limits().pricing.display;
+        return Err(ShelfError::PinLimit(format!(
+            "Free keeps {max} pinned. Unpin one, or unlock Hopshot for {price} once to pin as many as you like."
+        )));
+    }
+
+    let item = shelf.set_pinned(id, pinned, settings.item_ttl_ms())?;
     changed(app);
     Ok(item)
 }
@@ -476,4 +501,28 @@ fn adopt_orphan_captures(app_data: &Path, store: &Store, settings: &Settings) ->
 /// Stub: PRD F4 (send to phone) lands in Phase 5.
 pub fn send_last_to_phone<R: Runtime>(_app: &AppHandle<R>) {
     log::info!("shelf::send_last_to_phone() — stub until Phase 5");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::may_pin;
+
+    /// The Free plan's pin cap (docs/designs/free-plan.md).
+    #[test]
+    fn free_pins_stop_at_the_cap() {
+        assert!(may_pin(Some(3), 2, false, true));
+        assert!(!may_pin(Some(3), 3, false, true));
+    }
+
+    #[test]
+    fn unpinning_and_repinning_are_never_blocked() {
+        assert!(may_pin(Some(3), 3, true, false), "unpin");
+        assert!(may_pin(Some(3), 3, true, true), "already pinned");
+        assert!(may_pin(Some(3), 5, false, false), "unpin below a lowered cap");
+    }
+
+    #[test]
+    fn paid_plans_have_no_pin_cap() {
+        assert!(may_pin(None, 500, false, true));
+    }
 }

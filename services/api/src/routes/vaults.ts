@@ -54,7 +54,13 @@ vaults.post("/", async (c) => {
 
   const plan = await resolvePlan(c.req.raw, c.env);
   if (!vaultLimitsFor(plan).vault) {
-    return fail(c, "forbidden", "Syncing to your phone needs Sync. Everything else still works.");
+    return fail(
+      c,
+      "forbidden",
+      plan === "expired"
+        ? `Pairing a phone comes with Hopshot · ${limits.pricing.display} once. On Free you can still send to your phone by QR.`
+        : "Syncing to your phone needs Sync. Everything else still works.",
+    );
   }
 
   const body = await c.req.json<{ deviceName?: string; kind?: string }>().catch(() => null);

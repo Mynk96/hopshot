@@ -11,9 +11,10 @@ const LIMITS_JSON: &str = include_str!("../../../../config/limits.json");
 
 /// ARCHITECTURE §4 plan resolution order: expired → lifetime → sync.
 ///
-/// `Expired` means "no active licence" — never bought, or bought and refunded. Hopshot is
-/// pay-first (PRD F8.1): there is no trial, so every new install starts here with capture
-/// paused until a purchase.
+/// `Expired` means "no active licence" — never bought, or bought and refunded — and that is
+/// the **Free plan** (docs/designs/free-plan.md): capture, the shelf and drag with daily caps,
+/// a few QR sends to a phone, no paired phone. The name stays `expired` on the wire so the
+/// server and older builds keep agreeing; read it as "free".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Plan {
@@ -29,7 +30,7 @@ impl Plan {
     /// is a config change (CLAUDE.md rule 2).
     pub fn includes_sync(self) -> bool {
         match self {
-            Plan::Expired => false,
+            Plan::Expired => limits().free.vault,
             Plan::Lifetime => limits().lifetime.vault,
             Plan::Sync => limits().sync.vault,
         }
@@ -42,7 +43,33 @@ impl Plan {
     pub fn drop_ttl_options(self) -> &'static [String] {
         match self {
             Plan::Sync => &limits().sync.drop_ttl_options,
-            _ => &limits().lifetime.drop_ttl_options,
+            Plan::Lifetime => &limits().lifetime.drop_ttl_options,
+            Plan::Expired => &limits().free.drop_ttl_options,
+        }
+    }
+
+    /// Captures a day this plan allows, or `None` for no cap (docs/designs/free-plan.md).
+    pub fn captures_per_day(self) -> Option<u32> {
+        match self {
+            Plan::Expired => Some(limits().free.captures_per_day),
+            Plan::Lifetime | Plan::Sync => None,
+        }
+    }
+
+    /// How many items this plan may pin at once, or `None` for no cap.
+    pub fn max_pins(self) -> Option<u32> {
+        match self {
+            Plan::Expired => Some(limits().free.max_pins),
+            Plan::Lifetime | Plan::Sync => None,
+        }
+    }
+
+    /// How many unpinned items the shelf holds before the oldest go (PRD F2.8).
+    pub fn shelf_capacity(self) -> u32 {
+        match self {
+            Plan::Expired => limits().free.shelf_capacity,
+            // Sync is an add-on to Lifetime, so they share the same shelf.
+            Plan::Lifetime | Plan::Sync => limits().lifetime.shelf_capacity,
         }
     }
 
@@ -51,6 +78,20 @@ impl Plan {
     pub fn default_drop_ttl(self) -> Option<&'static str> {
         self.drop_ttl_options().first().map(String::as_str)
     }
+}
+
+/// What an install gets without a licence (docs/designs/free-plan.md). Captures and pins are
+/// counted here on the device; QR sends are counted by the server.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FreeLimits {
+    pub captures_per_day: u32,
+    pub shelf_capacity: u32,
+    pub max_pins: u32,
+    pub drop_ttl_options: Vec<String>,
+    pub drops_per_day: u32,
+    pub vault: bool,
+    pub max_computers: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -111,6 +152,7 @@ pub struct ServerLimits {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Limits {
+    pub free: FreeLimits,
     pub lifetime: LifetimeLimits,
     pub sync: SyncLimits,
     pub server: ServerLimits,
@@ -170,7 +212,29 @@ mod tests {
             !Plan::Lifetime.includes_sync(),
             "an older lifetime licence does not include phone sync"
         );
-        assert!(!Plan::Expired.includes_sync());
+        assert!(!Plan::Expired.includes_sync(), "a paired phone is what the purchase buys");
+    }
+
+    /// The Free plan (docs/designs/free-plan.md): caps on the device, none once paid.
+    #[test]
+    fn free_plan_caps_come_from_the_limits_file() {
+        let free = &limits().free;
+        assert_eq!(free.captures_per_day, 10);
+        assert_eq!(free.max_pins, 3);
+        assert_eq!(free.shelf_capacity, 10);
+        assert_eq!(free.drops_per_day, 3);
+        assert!(!free.vault);
+
+        assert_eq!(Plan::Expired.captures_per_day(), Some(free.captures_per_day));
+        assert_eq!(Plan::Expired.max_pins(), Some(free.max_pins));
+        assert_eq!(Plan::Expired.shelf_capacity(), free.shelf_capacity);
+        assert_eq!(Plan::Expired.drop_ttl_options(), free.drop_ttl_options.as_slice());
+
+        for paid in [Plan::Lifetime, Plan::Sync] {
+            assert_eq!(paid.captures_per_day(), None, "{paid:?}");
+            assert_eq!(paid.max_pins(), None, "{paid:?}");
+            assert_eq!(paid.shelf_capacity(), limits().lifetime.shelf_capacity, "{paid:?}");
+        }
     }
 
     /// `send_drop` falls back to this when the shelf does not pick a lifetime, so every plan
@@ -181,6 +245,7 @@ mod tests {
             assert!(plan.default_drop_ttl().is_some(), "{plan:?}");
         }
         assert_eq!(Plan::Lifetime.default_drop_ttl(), Some("24h"));
+        assert_eq!(Plan::Expired.default_drop_ttl(), Some("24h"));
         assert_eq!(Plan::Sync.drop_ttl_options().len(), 3);
     }
 

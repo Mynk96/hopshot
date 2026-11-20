@@ -21,7 +21,15 @@ type State =
   | { phase: "bad-link" }
   | { phase: "gone" }
   | { phase: "failed"; message: string }
-  | { phase: "ready"; src: string; file: File; expiresAt: number; meta: Meta | null };
+  | {
+      phase: "ready";
+      src: string;
+      file: File;
+      expiresAt: number;
+      meta: Meta | null;
+      /** Sent from the Free plan: show the small "Sent with Hopshot" link (free-plan.md). */
+      free: boolean;
+    };
 
 export function DropViewer({ id }: { id: string }) {
   const [state, setState] = useState<State>({ phase: "decrypting" });
@@ -56,7 +64,12 @@ export function DropViewer({ id }: { id: string }) {
           return;
         }
         if (!info.ok) throw new Error(`info ${info.status}`);
-        const { expiresAt } = (await info.json()) as { expiresAt: number; size: number };
+        const { expiresAt, free } = (await info.json()) as {
+          expiresAt: number;
+          size: number;
+          /** Absent from an older API: treat as paid, so no link appears by surprise. */
+          free?: boolean;
+        };
 
         const blob = await fetch(`${API_BASE}/drops/${id}`, { cache: "no-store" });
         if (blob.status === 404 || blob.status === 410) {
@@ -77,7 +90,14 @@ export function DropViewer({ id }: { id: string }) {
         });
 
         objectUrl.current = URL.createObjectURL(file);
-        setState({ phase: "ready", src: objectUrl.current, file, expiresAt, meta });
+        setState({
+          phase: "ready",
+          src: objectUrl.current,
+          file,
+          expiresAt,
+          meta,
+          free: free === true,
+        });
       } catch (error) {
         if (cancelled) return;
         // A failed tag check means a wrong or truncated key, which reads as a bad link.
@@ -99,11 +119,7 @@ export function DropViewer({ id }: { id: string }) {
   if (state.phase === "decrypting") return <Centered>Decrypting…</Centered>;
 
   if (state.phase === "bad-link") {
-    return (
-      <Centered>
-        This link is incomplete — ask the sender to copy it again.
-      </Centered>
-    );
+    return <Centered>This link is incomplete — ask the sender to copy it again.</Centered>;
   }
 
   if (state.phase === "gone") {
@@ -115,13 +131,7 @@ export function DropViewer({ id }: { id: string }) {
   return <Ready id={id} state={state} />;
 }
 
-function Ready({
-  id,
-  state,
-}: {
-  id: string;
-  state: Extract<State, { phase: "ready" }>;
-}) {
+function Ready({ id, state }: { id: string; state: Extract<State, { phase: "ready" }> }) {
   const [note, setNote] = useState<string | null>(null);
   const left = useCountdown(state.expiresAt);
 
@@ -187,12 +197,16 @@ function Ready({
 
       {note && <p className="text-caption text-text-2">{note}</p>}
 
-      <Footer id={id} onReported={() => flash("Thanks — we'll take a look.")} />
+      <Footer id={id} free={state.free} onReported={() => flash("Thanks — we'll take a look.")} />
     </main>
   );
 }
 
-function Footer({ id, onReported }: { id: string; onReported: () => void }) {
+/**
+ * A free send carries a small "Sent with Hopshot · get it free" link; a paid one shows only
+ * Report (docs/designs/free-plan.md). Nothing about the sender is shown either way.
+ */
+function Footer({ id, free, onReported }: { id: string; free: boolean; onReported: () => void }) {
   const report = async () => {
     // The drop id is not secret; the key is, and it is not in this body.
     await fetch(`${API_BASE}/report`, {
@@ -205,12 +219,18 @@ function Footer({ id, onReported }: { id: string; onReported: () => void }) {
 
   return (
     <footer className="mt-auto pt-6 text-center text-caption text-text-2">
-      <p>
-        Sent with <b>Hopshot</b> — screenshots that clean up after themselves.{" "}
-        <a href="/" className="underline" style={{ color: "var(--accent-text)" }}>
-          For Mac &amp; Windows →
-        </a>
-      </p>
+      {free && (
+        <p>
+          Sent with <b>Hopshot</b> — screenshots that clean up after themselves.{" "}
+          <a
+            href="https://hopshot.xyz/?ref=drop"
+            className="underline"
+            style={{ color: "var(--accent-text)" }}
+          >
+            Get it free for Mac &amp; Windows →
+          </a>
+        </p>
+      )}
       <button type="button" onClick={() => void report()} className="mt-2 underline">
         Report
       </button>
@@ -270,11 +290,7 @@ function useCountdown(expiresAt: number): string | null {
 }
 
 /** The `X-Hopshot-Meta` header, if the sender included one (ARCHITECTURE §6). */
-async function readMeta(
-  response: Response,
-  key: Uint8Array,
-  id: string,
-): Promise<Meta | null> {
+async function readMeta(response: Response, key: Uint8Array, id: string): Promise<Meta | null> {
   const header = response.headers.get("X-Hopshot-Meta");
   if (!header) return null;
 
