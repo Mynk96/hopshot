@@ -1,0 +1,61 @@
+# Deploy the API Worker and/or the web app (app.hopshot.xyz) from master, by hand.
+#
+# The same steps as docs/DEPLOY.md §6 and §7, run here so a deploy doesn't depend on whose
+# laptop has wrangler signed in. It uses the CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID
+# secrets that go-live.yml already uses; the token needs "Workers Scripts: Edit" (and the
+# routes/custom domains it already owns) for these deploys to work.
+#
+# Order for a release (docs/LAUNCH.md §2a): API before Go live, web after Go live, because
+# /download builds its installer links from tauri.conf.json.
+#
+# The marketing site (hopshot.xyz) is not here: Workers Builds deploys it on every push.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to deploy"
+        required: true
+        type: choice
+        options: [api, web, both]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Deploy the API
+        if: inputs.target == 'api' || inputs.target == 'both'
+        run: pnpm -F api run deploy
+
+      - name: Build and deploy the web app
+        if: inputs.target == 'web' || inputs.target == 'both'
+        working-directory: apps/web
+        env:
+          PUBLIC_HOPSHOT_API: https://api.hopshot.xyz/v1
+        run: |
+          pnpm build
+          npx wrangler deploy
