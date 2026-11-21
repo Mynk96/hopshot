@@ -32,12 +32,25 @@ h2{font-weight:700;font-size:19px;letter-spacing:-.01em;margin:40px 0 8px}
 p,li{color:var(--text-2)}
 ul{padding-left:20px}
 footer{background:#FBF8F4;border-top:1px solid var(--line);padding:32px 0;color:var(--text-3);font-size:14px}
-</style></head><body>
+</style><!-- Google Analytics 4. Marketing pages only: never add this to app.hopshot.xyz, whose viewer
+     carries decryption keys in the URL fragment (CLAUDE.md rule 1). No ads features; no cookies
+     in the EEA, UK or Switzerland. See privacy.html. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KK27FZL7N2"></script>
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'granted'});
+gtag('consent','default',{analytics_storage:'denied',region:['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','IS','LI','NO','GB','CH']});
+gtag('js',new Date());
+gtag('config','G-KK27FZL7N2',{allow_google_signals:false,allow_ad_personalization_signals:false});
+// One event for every download button, so we can see which page and which button sends people.
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.js-buy-sync,a[href*="app.hopshot.xyz/download"],a[href*="downloads.hopshot.xyz"]');if(!a)return;var s=a.closest('[id]');gtag('event','download_click',{link_location:s?s.id:'page',link_text:(a.textContent||'').trim().slice(0,40)});},true);
+</script>
+</head><body>
 <header><div class="wrap"><a class="logo" href="index.html"><span class="mark"></span>Hopshot</a><a class="back" href="index.html">← Back to home</a></div></header>
 <main><div class="wrap">
-<h1>Privacy policy</h1><p class="upd">Last updated: 17 November 2026</p>
+<h1>Privacy policy</h1><p class="upd">Last updated: 21 November 2026</p>
 <h2>What we collect on this website</h2>
-<ul><li><b>Your email address</b>, if you joined our launch list before launch, along with the optional answers you gave (whether you were interested in Sync and which computer you use) and which page or post you came from.</li><li><b>Payment details</b>, if you buy Hopshot. These are collected and processed by our payment provider; we receive your name, email, country and the payment status.</li><li><b>Anonymous visit counts</b> through privacy-friendly analytics that use no cookies and collect no personal data.</li></ul>
+<ul><li><b>Your email address</b>, if you joined our launch list before launch, along with the optional answers you gave (whether you were interested in Sync and which computer you use) and which page or post you came from.</li><li><b>Payment details</b>, if you buy Hopshot. These are collected and processed by our payment provider; we receive your name, email, country and the payment status.</li><li><b>Website analytics</b> through Google Analytics, so we can see which pages and links bring visitors and which download buttons get used. It records pages viewed, the site or post you came from, your approximate country and device type, and clicks on download buttons. Google Analytics 4 does not store IP addresses, and we turn off its advertising features. Outside the EEA, the UK and Switzerland it sets first-party cookies (<code>_ga</code>); inside those regions it runs without cookies. This applies to hopshot.xyz only, never to the Hopshot app or the pages that open shared screenshots.</li></ul>
 <h2>How we use it</h2>
 <p>To send your receipt, the email that unlocks Hopshot, and any updates you signed up for. We don't sell, rent or share your information, and we don't send marketing beyond what you signed up for. You can unsubscribe at any time.</p>
 <h2>The Hopshot app</h2>
