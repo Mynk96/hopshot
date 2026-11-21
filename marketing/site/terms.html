@@ -32,7 +32,20 @@ h2{font-weight:700;font-size:19px;letter-spacing:-.01em;margin:40px 0 8px}
 p,li{color:var(--text-2)}
 ul{padding-left:20px}
 footer{background:#FBF8F4;border-top:1px solid var(--line);padding:32px 0;color:var(--text-3);font-size:14px}
-</style></head><body>
+</style><!-- Google Analytics 4. Marketing pages only: never add this to app.hopshot.xyz, whose viewer
+     carries decryption keys in the URL fragment (CLAUDE.md rule 1). No ads features; no cookies
+     in the EEA, UK or Switzerland. See privacy.html. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KK27FZL7N2"></script>
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'granted'});
+gtag('consent','default',{analytics_storage:'denied',region:['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','IS','LI','NO','GB','CH']});
+gtag('js',new Date());
+gtag('config','G-KK27FZL7N2',{allow_google_signals:false,allow_ad_personalization_signals:false});
+// One event for every download button, so we can see which page and which button sends people.
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.js-buy-sync,a[href*="app.hopshot.xyz/download"],a[href*="downloads.hopshot.xyz"]');if(!a)return;var s=a.closest('[id]');gtag('event','download_click',{link_location:s?s.id:'page',link_text:(a.textContent||'').trim().slice(0,40)});},true);
+</script>
+</head><body>
 <header><div class="wrap"><a class="logo" href="index.html"><span class="mark"></span>Hopshot</a><a class="back" href="index.html">← Back to home</a></div></header>
 <main><div class="wrap">
 <h1>Terms</h1><p class="upd">Last updated: 27 October 2026</p>
