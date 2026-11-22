@@ -73,13 +73,13 @@ document.addEventListener('click',function(e){var a=e.target.closest&&e.target.c
 <p>Dragging an image file into the terminal is the most reliable route. Windows Terminal inserts the file's path and Claude Code attaches the image.</p>
 <p>The catch: Win+Shift+S only puts the image on the clipboard. You have to save it, find it in File Explorer and drag it over. After a few rounds your Pictures folder fills with <code>Screenshot 2026-…png</code> files.</p>
 
-<section class="cta">
+<section class="cta" id="download">
 <h2>The faster way: a screenshot shelf</h2>
 <p>Hopshot turns Fix 3 into one step. Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>2</kbd>, select an area, and the screenshot lands on a small floating shelf. Drag it from the shelf straight into Claude Code, Cursor, ChatGPT or any browser upload box.</p>
 <video poster="/demo-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Hopshot demo: capture an area, then drag it from the shelf into a chat"><source src="/demo.webm" type="video/webm"><source src="/demo.mp4" type="video/mp4"></video>
 <ul><li>No saving and no hunting in File Explorer.</li><li>Every capture is also copied to the clipboard, so <kbd>Alt</kbd>+<kbd>V</kbd> still works.</li><li>Screenshots stay on the shelf after you drag them, so you can drop the same one into another chat.</li><li>Captures delete themselves after 1 hour, 24 hours or 7 days, so nothing piles up.</li></ul>
-<a class="btn btn-lg" href="https://app.hopshot.xyz/download">Get Hopshot for Windows or Mac <span aria-hidden="true">→</span></a>
-<p class="note">$10 once · no subscription · 14-day refund · Windows 10/11 and macOS 13+</p>
+<a class="btn btn-lg" href="https://app.hopshot.xyz/download?ref=seo-paste-screenshot-claude-code-windows">Download free <span aria-hidden="true">→</span></a>
+<p class="note">Free: 10 captures a day · Unlimited: $10 once · 14-day refund · Windows 10/11 and macOS 13+</p>
 </section>
 
 <section class="faq"><h2>FAQ</h2><details><summary>Does this work in the VS Code terminal?</summary><p>Yes. Alt+V and drag-and-drop work there too. If Ctrl+V pastes text instead of an image, use Alt+V.</p></details><details><summary>Does it work in WSL?</summary><p>WSL often can't read images from the Windows clipboard. Dragging a file into the WSL tab in Windows Terminal is the dependable route.</p></details><details><summary>Can I add several screenshots to one prompt?</summary><p>Yes. Drag them in one after another; each stays on the shelf until it expires.</p></details><details><summary>Can I change Hopshot's capture shortcut?</summary><p>Yes. Ctrl+Shift+2 is the default and you can pick another in Settings.</p></details></section>
