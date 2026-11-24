@@ -1,9 +1,11 @@
 //! Capture pipeline (ARCHITECTURE §5.2).
 //!
 //! ```text
-//! hotkey ─▶ permissions check ─▶ frames::grab_all() ─▶ overlay::ensure_windows + show_all
+//! hotkey ─▶ permissions check ─▶ window_list::snapshot() ─▶ frames::grab_all()
+//!        ─▶ overlay::ensure_windows + show_all
 //! drag   ─▶ overlay_commit {monitorId, rect} ─▶ crop::to_physical ─▶ Frame::crop
 //!        ─▶ PNG into app-data/captures ─▶ overlay::hide_all
+//! click  ─▶ overlay_commit_window {monitorId, index} ─▶ the stored window rect ─▶ same path
 //! ```
 //!
 //! The sync upload from §5.2 lands in Phase 5; everything else in the pipeline is here.
@@ -13,10 +15,11 @@ pub mod frames;
 pub mod overlay;
 pub mod permissions;
 pub mod watch;
+pub mod window_list;
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -26,6 +29,7 @@ use thiserror::Error;
 use crate::capture::crop::LogicalRect;
 use crate::capture::frames::{FrozenFrames, FrameError};
 use crate::capture::overlay::OverlayError;
+use crate::platform;
 
 #[derive(Debug, Error)]
 pub enum CaptureError {
@@ -49,12 +53,16 @@ pub enum Mode {
     Region,
     /// PRD F1.4 — the whole monitor under the cursor, with no overlay.
     Screen,
+    /// PRD F1.6 — the same overlay, opened in window mode (tray "Capture window").
+    Window,
 }
 
 /// Bumped per capture so the webview cannot reuse the previous frame from its cache.
 static FRAME_NONCE: AtomicU64 = AtomicU64::new(1);
 /// The nonce of the capture currently on screen, for [`pending`].
 static CURRENT_NONCE: AtomicU64 = AtomicU64::new(0);
+/// Whether the capture on screen opened in window mode, for [`pending`].
+static WINDOW_MODE: AtomicBool = AtomicBool::new(false);
 
 /// Begin a capture.
 ///
@@ -93,7 +101,13 @@ fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureEr
     }
 
     let started = Instant::now();
-    let frames = frames::grab_all()?;
+    // Listed while the overlays are still hidden, so they can't appear in the list; a window
+    // that moves in the few ms before the grab is accepted (cleanshot-gaps.md, PR 2).
+    let windows = match mode {
+        Mode::Region | Mode::Window => window_list::snapshot(),
+        Mode::Screen => Vec::new(),
+    };
+    let mut frames = frames::grab_all()?;
 
     match mode {
         Mode::Screen => {
@@ -110,7 +124,14 @@ fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureEr
             );
             deliver(app, &path, &image, crate::shelf::store::Source::Capture, true);
         }
-        Mode::Region => {
+        Mode::Region | Mode::Window => {
+            for frame in &mut frames {
+                frame.windows =
+                    window_list::rects_for(&windows, platform::WINDOW_SPACE, &frame.bounds);
+            }
+            let window_mode = mode == Mode::Window;
+            WINDOW_MODE.store(window_mode, Ordering::Relaxed);
+
             let monitors = overlay::monitors_of(&frames);
             overlay::ensure_windows(app, &monitors)?;
 
@@ -121,7 +142,7 @@ fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureEr
             // the overlay:start event entirely, and then asks for it with `pending` — which
             // can only answer once the frames are in place.
             app.state::<FrozenFrames>().replace(frames);
-            overlay::show_all(app, &monitors, nonce)?;
+            overlay::show_all(app, &monitors, nonce, window_mode)?;
 
             log::info!(
                 "hotkey → overlay visible in {:.1} ms (budget 300 ms)",
@@ -190,6 +211,31 @@ pub fn commit<R: Runtime>(
 
     deliver(app, &path, &image, crate::shelf::store::Source::Capture, true);
     Ok(path)
+}
+
+/// Commit the window the overlay highlighted (PRD F1.6).
+///
+/// The overlay sends only an index into the list Rust gave it; the rect is looked up here,
+/// so the UI can never ask for pixels outside a window it was offered.
+pub fn commit_window<R: Runtime>(
+    app: &AppHandle<R>,
+    monitor_id: u32,
+    index: usize,
+) -> Result<PathBuf, CaptureError> {
+    let rect = window_rect(&app.state::<FrozenFrames>(), monitor_id, index)?;
+    commit(app, monitor_id, rect)
+}
+
+/// The stored window rect behind an overlay's index.
+fn window_rect(
+    frames: &FrozenFrames,
+    monitor_id: u32,
+    index: usize,
+) -> Result<LogicalRect, CaptureError> {
+    frames
+        .with(monitor_id, |frame| frame.windows.get(index).copied())
+        .ok_or(CaptureError::StaleMonitor)?
+        .ok_or(CaptureError::EmptySelection)
 }
 
 /// Capture the whole monitor the overlay is on (PRD F1.3 — the `F` key).
@@ -313,10 +359,9 @@ pub fn pending<R: Runtime>(app: &AppHandle<R>, monitor_id: u32) -> Option<overla
     if nonce == 0 {
         return None;
     }
+    let window_mode = WINDOW_MODE.load(Ordering::Relaxed);
     app.state::<FrozenFrames>()
-        .with(monitor_id, |frame| {
-            overlay::start_payload(frame.monitor_id, &frame.bounds, nonce)
-        })
+        .with(monitor_id, |frame| overlay::start_payload(frame, nonce, window_mode))
 }
 
 /// Close the overlay without capturing (PRD F1.3 — `Esc`).
@@ -382,9 +427,52 @@ mod tests {
 
     #[test]
     fn modes_match_the_architecture_command_surface() {
-        // start_capture(mode: 'region'|'screen')
+        // start_capture(mode: 'region'|'screen'|'window')
         assert_eq!(serde_json::to_string(&Mode::Region).unwrap(), "\"region\"");
         assert_eq!(serde_json::to_string(&Mode::Screen).unwrap(), "\"screen\"");
+        assert_eq!(serde_json::to_string(&Mode::Window).unwrap(), "\"window\"");
+    }
+
+    fn held(windows: Vec<LogicalRect>) -> FrozenFrames {
+        let frames = FrozenFrames::default();
+        frames.replace(vec![crate::capture::frames::Frame {
+            monitor_id: 4,
+            bounds: MonitorBounds::from_logical(0, 0, 800, 600, 2.0),
+            image: image::RgbaImage::new(1, 1),
+            display_bytes: Vec::new(),
+            windows,
+        }]);
+        frames
+    }
+
+    #[test]
+    fn a_window_index_resolves_to_the_stored_rect() {
+        let rect = LogicalRect {
+            x: 10.0,
+            y: 20.0,
+            width: 300.0,
+            height: 200.0,
+        };
+        let frames = held(vec![rect]);
+        assert_eq!(window_rect(&frames, 4, 0).ok(), Some(rect));
+    }
+
+    #[test]
+    fn an_index_past_the_list_is_an_empty_selection() {
+        let frames = held(Vec::new());
+        assert!(matches!(
+            window_rect(&frames, 4, 0),
+            Err(CaptureError::EmptySelection)
+        ));
+    }
+
+    #[test]
+    fn a_monitor_no_longer_frozen_is_stale() {
+        let frames = held(Vec::new());
+        assert!(matches!(
+            window_rect(&frames, 9, 0),
+            Err(CaptureError::StaleMonitor)
+        ));
     }
 
     #[test]

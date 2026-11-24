@@ -194,3 +194,73 @@ pub fn is_os_screenshot(_path: &std::path::Path) -> bool {
 
 /// Nothing to wait for on Windows.
 pub const SCREENSHOT_FLAG_MAY_LAG: bool = false;
+
+/// Windows reports window bounds in physical virtual-desktop pixels (PRD F1.6).
+pub const WINDOW_SPACE: crate::capture::window_list::Space =
+    crate::capture::window_list::Space::Physical;
+
+/// On-screen top-level windows, front-to-back (PRD F1.6).
+///
+/// xcap's `Window::all()` already drops invisible, cloaked and empty windows, Hopshot's own,
+/// Progman, and untitled tool windows, and reports bounds from `DWMWA_EXTENDED_FRAME_BOUNDS`
+/// (no invisible resize border). It keeps the taskbars, so the class name and extended
+/// style are read here for `window_list::keep`. Titles are never read.
+pub fn list_windows() -> Result<
+    Vec<crate::capture::window_list::WindowInfo>,
+    crate::capture::window_list::WindowListError,
+> {
+    use crate::capture::window_list::{WindowInfo, WindowListError};
+
+    let windows = xcap::Window::all().map_err(|error| WindowListError::List(error.to_string()))?;
+
+    let mut listed = Vec::with_capacity(windows.len());
+    for window in windows {
+        // A window can close between EnumWindows and these reads; skip it rather than fail.
+        let read = || -> Result<WindowInfo, xcap::XCapError> {
+            let hwnd = hwnd_of(window.id()?);
+            Ok(WindowInfo {
+                pid: window.pid()?,
+                layer: 0,
+                alpha: 1.0,
+                minimized: window.is_minimized()?,
+                class_name: class_name(hwnd),
+                tool_window: has_ex_style(hwnd, WS_EX_TOOLWINDOW),
+                x: f64::from(window.x()?),
+                y: f64::from(window.y()?),
+                width: f64::from(window.width()?),
+                height: f64::from(window.height()?),
+            })
+        };
+        match read() {
+            Ok(info) => listed.push(info),
+            Err(error) => log::debug!("skipped a window that changed while listing: {error}"),
+        }
+    }
+
+    Ok(listed)
+}
+
+/// xcap hands out `hwnd as u32`. Window handles are 32-bit significant and Windows
+/// sign-extends them (`LongToHandle`), so widen the same way.
+fn hwnd_of(id: u32) -> HWND {
+    id as i32 as isize as HWND
+}
+
+fn class_name(hwnd: HWND) -> Option<String> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetClassNameW;
+
+    let mut buffer = [0u16; 256];
+    // SAFETY: the buffer is valid for its full length, which is what we pass; the call
+    // writes at most that many UTF-16 units and returns how many it wrote.
+    let written = unsafe { GetClassNameW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32) };
+    if written <= 0 {
+        return None;
+    }
+    Some(String::from_utf16_lossy(&buffer[..written as usize]))
+}
+
+fn has_ex_style(hwnd: HWND, bits: u32) -> bool {
+    // SAFETY: GetWindowLongPtrW on a stale handle returns 0 rather than faulting.
+    let style = unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) };
+    style & (bits as isize) == (bits as isize)
+}

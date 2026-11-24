@@ -125,6 +125,7 @@ sets `html.no-vibrancy`, which redefines `--surface` to `--surface-solid` (see �
 
 ```
 Capture area                ⌘⇧2
+Capture window
 Capture full screen
 Show shelf                  ⌘⇧1
 Send last to phone
@@ -141,9 +142,15 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 ### S2 — Capture overlay
 
 - Frozen screen, dimmed. Crosshair cursor.
-- **Idle:** centered hint pill near the top: `Drag to capture · F full screen · Esc cancel`.
+- **Idle:** centered hint pill near the top: `Drag to capture · Space window · F full screen · Esc cancel`.
 - **Dragging:** the selection is undimmed with a 1 px white inner border and a 1 px black outer border. A mono size label (`1280 × 720`) sits below-right of the cursor and flips inside near screen edges.
 - **Committed:** 80 ms white flash inside the selection (skipped with reduced motion), then the overlay hides.
+- **Window mode** (PRD F1.6): Space toggles it, and tray "Capture window" opens straight into it.
+  - Hovering highlights the topmost window under the pointer. The window is undimmed with a 2 px `--accent` inset ring and no transition. Click or Enter captures it, with the same flash. A click with nothing highlighted does nothing.
+  - Hint: `Click a window · Space for area`. With no windows on that monitor: `No windows to capture here · Space for area`.
+  - `F` and `Esc` work as in region mode, and Space goes back to region mode.
+  - A window that spans two monitors is highlighted, clipped, on each one, and a capture never spans monitors.
+  - Accepted limits (cleanshot-gaps.md D4): macOS rounded corners include a few desktop pixels, and a window that is partly covered is captured with whatever covers it. Floating palettes (macOS layer > 0), the menu bar, the Dock and the taskbars are never offered.
 
 ### S3 — Shelf (the core screen)
 

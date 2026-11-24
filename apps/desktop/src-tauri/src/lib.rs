@@ -38,6 +38,7 @@ const SETTINGS_WINDOW: &str = "settings";
 mod menu_id {
     pub const CAPTURE_AREA: &str = "capture_area";
     pub const CAPTURE_SCREEN: &str = "capture_screen";
+    pub const CAPTURE_WINDOW: &str = "capture_window";
     pub const SHOW_SHELF: &str = "show_shelf";
     pub const SEND_LAST: &str = "send_last";
     pub const PAIR_PHONE: &str = "pair_phone";
@@ -82,6 +83,7 @@ pub fn run() {
             commands::overlay_pending,
             commands::overlay_commit,
             commands::overlay_commit_full,
+            commands::overlay_commit_window,
             commands::overlay_cancel,
             commands::permissions_status,
             commands::permissions_open_settings,
@@ -313,6 +315,15 @@ fn build_menu<R: Runtime>(
         true,
         settings.full_screen_hotkey.as_deref(),
     )?;
+    // PRD F1.6: the overlay opened in window mode. No default hotkey, like F1.4; Space
+    // switches modes inside any capture.
+    let capture_window = MenuItem::with_id(
+        app,
+        menu_id::CAPTURE_WINDOW,
+        "Capture window",
+        true,
+        None::<&str>,
+    )?;
     let show_shelf = MenuItem::with_id(
         app,
         menu_id::SHOW_SHELF,
@@ -353,6 +364,7 @@ fn build_menu<R: Runtime>(
     let menu = Menu::new(app)?;
     menu.append_items(&[
         &capture_area,
+        &capture_window,
         &capture_screen,
         &show_shelf,
         &send_last,
@@ -391,6 +403,7 @@ fn on_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
     match event.id().as_ref() {
         menu_id::CAPTURE_AREA => capture::start(app, capture::Mode::Region),
         menu_id::CAPTURE_SCREEN => capture::start(app, capture::Mode::Screen),
+        menu_id::CAPTURE_WINDOW => capture::start(app, capture::Mode::Window),
         menu_id::SHOW_SHELF => shelf::show(app),
         menu_id::SEND_LAST => shelf::send_last_to_phone(app),
         menu_id::PAIR_PHONE => {

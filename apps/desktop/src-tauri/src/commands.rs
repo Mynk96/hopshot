@@ -105,6 +105,19 @@ pub fn overlay_commit(
         .map_err(|error| error.to_string())
 }
 
+/// Click or Enter on a highlighted window (PRD F1.6). Only an index travels: Rust looks
+/// the rect up in the list it gave this overlay and never accepts one from the UI.
+#[tauri::command]
+pub fn overlay_commit_window(
+    app: AppHandle,
+    monitor_id: u32,
+    index: usize,
+) -> Result<String, String> {
+    capture::commit_window(&app, monitor_id, index)
+        .map(|path| path.display().to_string())
+        .map_err(|error| error.to_string())
+}
+
 /// `F` on the overlay — capture the whole monitor it is covering (PRD F1.3).
 #[tauri::command]
 pub fn overlay_commit_full(app: AppHandle, monitor_id: u32) -> Result<String, String> {

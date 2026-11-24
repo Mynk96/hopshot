@@ -16,8 +16,8 @@ use tauri::{
 };
 use thiserror::Error;
 
-use crate::capture::crop::MonitorBounds;
-use crate::capture::frames::Frame;
+use crate::capture::crop::{LogicalRect, MonitorBounds};
+use crate::capture::frames::{Frame, FrozenFrames};
 use crate::platform;
 
 #[derive(Debug, Error)]
@@ -37,6 +37,11 @@ pub struct OverlayStart {
     pub width: f64,
     pub height: f64,
     pub scale_factor: f64,
+    /// Highlightable windows on this monitor, front-to-back, in CSS px (PRD F1.6). Rects
+    /// only: titles and app names never reach the overlay.
+    pub windows: Vec<LogicalRect>,
+    /// Open in window mode (tray "Capture window") rather than region mode.
+    pub start_in_window_mode: bool,
 }
 
 /// `overlay-{monitorId}` — the label from ARCHITECTURE §5.1.
@@ -127,14 +132,19 @@ fn build_window<R: Runtime>(
     Ok(window)
 }
 
-/// Build the `overlay:start` payload for one monitor.
-pub fn start_payload(monitor_id: u32, bounds: &MonitorBounds, nonce: u64) -> OverlayStart {
+/// Build the `overlay:start` payload for one frozen monitor.
+///
+/// `show_all` and `capture::pending` both build it from the held frame, so an overlay that
+/// missed the event gets exactly the same windows and mode.
+pub fn start_payload(frame: &Frame, nonce: u64, window_mode: bool) -> OverlayStart {
     OverlayStart {
-        monitor_id,
-        frame_url: frame_url(monitor_id, nonce),
-        width: bounds.logical_width,
-        height: bounds.logical_height,
-        scale_factor: bounds.scale_factor,
+        monitor_id: frame.monitor_id,
+        frame_url: frame_url(frame.monitor_id, nonce),
+        width: frame.bounds.logical_width,
+        height: frame.bounds.logical_height,
+        scale_factor: frame.bounds.scale_factor,
+        windows: frame.windows.clone(),
+        start_in_window_mode: window_mode,
     }
 }
 
@@ -146,15 +156,22 @@ pub fn show_all<R: Runtime>(
     app: &AppHandle<R>,
     monitors: &[(u32, MonitorBounds)],
     nonce: u64,
+    window_mode: bool,
 ) -> Result<(), OverlayError> {
-    for (monitor_id, bounds) in monitors {
+    for (monitor_id, _) in monitors {
         let label = label_for(*monitor_id);
         let Some(window) = app.get_webview_window(&label) else {
             log::warn!("{label} vanished before it could be shown");
             continue;
         };
 
-        let payload = start_payload(*monitor_id, bounds, nonce);
+        let Some(payload) = app
+            .state::<FrozenFrames>()
+            .with(*monitor_id, |frame| start_payload(frame, nonce, window_mode))
+        else {
+            log::warn!("{label} has no frozen frame to show");
+            continue;
+        };
         // `Emitter::emit` broadcasts to every webview, even when called on one window, so
         // with two monitors each overlay would keep whichever payload arrived last and draw
         // the other monitor's frame. The target has to be named. The overlay subscribes with
@@ -198,6 +215,55 @@ pub fn hide_all<R: Runtime>(app: &AppHandle<R>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn frame_with_windows(monitor_id: u32, windows: Vec<LogicalRect>) -> Frame {
+        Frame {
+            monitor_id,
+            bounds: MonitorBounds::from_physical(0, 0, 200, 100, 2.0),
+            image: image::RgbaImage::new(1, 1),
+            display_bytes: Vec::new(),
+            windows,
+        }
+    }
+
+    /// `pending()` and `show_all` both call this, so an overlay for a freshly plugged-in
+    /// monitor gets the same windows and mode as the others.
+    #[test]
+    fn the_payload_carries_only_this_monitor_s_windows_and_the_mode() {
+        let rect = LogicalRect {
+            x: 1.0,
+            y: 2.0,
+            width: 30.0,
+            height: 40.0,
+        };
+        let frames = FrozenFrames::default();
+        frames.replace(vec![
+            frame_with_windows(1, vec![rect]),
+            frame_with_windows(2, Vec::new()),
+        ]);
+
+        let one = frames
+            .with(1, |frame| start_payload(frame, 9, true))
+            .expect("monitor 1 is held");
+        assert_eq!(one.windows, vec![rect]);
+        assert!(one.start_in_window_mode);
+        assert_eq!(one.width, 100.0);
+        assert_eq!(one.height, 50.0);
+
+        let two = frames
+            .with(2, |frame| start_payload(frame, 9, false))
+            .expect("monitor 2 is held");
+        assert!(two.windows.is_empty());
+        assert!(!two.start_in_window_mode);
+    }
+
+    #[test]
+    fn the_payload_uses_the_overlay_s_camel_case_names() {
+        let json = serde_json::to_value(start_payload(&frame_with_windows(3, Vec::new()), 1, true))
+            .expect("serializes");
+        assert_eq!(json["startInWindowMode"], serde_json::json!(true));
+        assert!(json["windows"].is_array());
+    }
 
     #[test]
     fn labels_match_the_architecture_scheme() {

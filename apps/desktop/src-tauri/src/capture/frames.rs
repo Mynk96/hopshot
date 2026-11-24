@@ -17,7 +17,7 @@ use image::{ImageFormat, RgbaImage};
 use thiserror::Error;
 use xcap::Monitor;
 
-use crate::capture::crop::{MonitorBounds, PhysicalRect};
+use crate::capture::crop::{LogicalRect, MonitorBounds, PhysicalRect};
 
 #[derive(Debug, Error)]
 pub enum FrameError {
@@ -38,6 +38,10 @@ pub struct Frame {
     pub image: RgbaImage,
     /// The same pixels as BMP, ready for the `frame://` protocol.
     pub display_bytes: Vec<u8>,
+    /// Windows the overlay can highlight on this monitor (PRD F1.6), front-to-back, in this
+    /// overlay's CSS px. Filled by `capture::start`; the overlay only ever sends an index
+    /// back, so the rect that gets cropped always comes from here.
+    pub windows: Vec<LogicalRect>,
 }
 
 impl Frame {
@@ -202,6 +206,7 @@ pub fn grab_all() -> Result<Vec<Frame>, FrameError> {
             bounds,
             image,
             display_bytes,
+            windows: Vec::new(),
         });
     }
 
@@ -313,6 +318,7 @@ mod tests {
             bounds: MonitorBounds::from_physical(0, 0, 10, 10, 1.0),
             image,
             display_bytes: Vec::new(),
+            windows: Vec::new(),
         };
         let cropped = frame.crop(PhysicalRect {
             x: 2,
@@ -335,6 +341,7 @@ mod tests {
             bounds: MonitorBounds::from_physical(0, 0, 2, 2, 1.0),
             image: RgbaImage::new(2, 2),
             display_bytes: vec![1, 2, 3],
+            windows: Vec::new(),
         }]);
 
         assert_eq!(frames.display_bytes(7), Some(vec![1, 2, 3]));
