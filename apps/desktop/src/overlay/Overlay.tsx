@@ -4,12 +4,16 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Capture overlay (DESIGN S2, PRD F1.2–F1.3).
+ * Capture overlay (DESIGN S2, PRD F1.2–F1.3, F1.6).
  *
  * One of these runs per monitor, in its own `overlay-{monitorId}` window that covers that
  * monitor exactly. All geometry here is CSS px relative to this window, which is what
  * `crop::to_physical` expects — Rust converts to physical pixels using this monitor's own
  * scale factor.
+ *
+ * Two modes, switched with Space: region (drag a rectangle) and window (hover highlights
+ * the topmost window, click or Enter captures it). In window mode only an index goes back
+ * to Rust, which looks the rect up in the list it sent; the UI just draws and hit-tests.
  */
 
 /** Payload of `overlay:start`, built in Rust so the URL scheme can differ per platform. */
@@ -19,7 +23,13 @@ type OverlayStart = {
   width: number;
   height: number;
   scaleFactor: number;
+  /** Highlightable windows on this monitor, front-to-back (PRD F1.6). */
+  windows: Rect[];
+  /** Tray "Capture window" opens straight into window mode. */
+  startInWindowMode: boolean;
 };
+
+type Mode = "region" | "window";
 
 type Point = { x: number; y: number };
 type Rect = { x: number; y: number; width: number; height: number };
@@ -40,6 +50,22 @@ function rectFrom(a: Point, b: Point): Rect {
   };
 }
 
+function contains(rect: Rect, point: Point) {
+  return (
+    point.x >= rect.x &&
+    point.y >= rect.y &&
+    point.x < rect.x + rect.width &&
+    point.y < rect.y + rect.height
+  );
+}
+
+/** The topmost window under the pointer: the list is front-to-back, so the first hit. */
+function windowAt(windows: Rect[], point: Point | null): number | null {
+  if (!point) return null;
+  const index = windows.findIndex((rect) => contains(rect, point));
+  return index === -1 ? null : index;
+}
+
 const prefersReducedMotion = () =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -48,10 +74,16 @@ export default function Overlay() {
   const [origin, setOrigin] = useState<Point | null>(null);
   const [cursor, setCursor] = useState<Point | null>(null);
   const [flash, setFlash] = useState<Rect | null>(null);
+  const [mode, setMode] = useState<Mode>("region");
+  // Where the pointer is, for the window-mode highlight. Region mode only tracks the cursor
+  // while dragging, so this is kept separately.
+  const [hover, setHover] = useState<Point | null>(null);
+
+  const hovered = start && mode === "window" ? windowAt(start.windows, hover) : null;
 
   // Read inside global key handlers, which would otherwise close over a stale selection.
-  const live = useRef({ start, origin, cursor });
-  live.current = { start, origin, cursor };
+  const live = useRef({ start, origin, cursor, mode, hovered });
+  live.current = { start, origin, cursor, mode, hovered };
 
   useEffect(() => {
     const begin = (next: OverlayStart) => {
@@ -59,6 +91,8 @@ export default function Overlay() {
       setOrigin(null);
       setCursor(null);
       setFlash(null);
+      setHover(null);
+      setMode(next.startInWindowMode ? "window" : "region");
     };
 
     // Subscribed to this window only: Rust addresses `overlay:start` at one overlay, and a
@@ -103,6 +137,17 @@ export default function Overlay() {
     await invoke("overlay_commit", { monitorId, rect });
   }, []);
 
+  /** Capture the highlighted window (PRD F1.6). Rust resolves the index to its own rect. */
+  const commitWindow = useCallback(async (monitorId: number, rect: Rect, index: number) => {
+    if (!prefersReducedMotion()) {
+      setFlash(rect);
+      await new Promise((resolve) => setTimeout(resolve, FLASH_MS));
+      setFlash(null);
+    }
+    setHover(null);
+    await invoke("overlay_commit_window", { monitorId, index });
+  }, []);
+
   const commitFullScreen = useCallback(async (monitorId: number) => {
     setOrigin(null);
     setCursor(null);
@@ -110,10 +155,28 @@ export default function Overlay() {
   }, []);
 
   // PRD F1.3: Esc cancels, F captures the whole monitor, Enter commits the selection.
+  // PRD F1.6: Space switches between region and window mode.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { start: current, origin: from, cursor: to } = live.current;
+      const { start: current, origin: from, cursor: to, mode: now, hovered: index } =
+        live.current;
       if (!current) return;
+
+      if (event.key === " ") {
+        event.preventDefault();
+        if (event.repeat) return;
+        // A half-finished drag doesn't carry over into the other mode.
+        setOrigin(null);
+        setCursor(null);
+        setMode(now === "region" ? "window" : "region");
+        return;
+      }
+      if (now === "window" && event.key === "Enter") {
+        event.preventDefault();
+        const rect = index === null ? undefined : current.windows[index];
+        if (index !== null && rect) void commitWindow(current.monitorId, rect, index);
+        return;
+      }
 
       if (event.key === "Escape") {
         event.preventDefault();
@@ -133,15 +196,19 @@ export default function Overlay() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancel, commit, commitFullScreen]);
+  }, [cancel, commit, commitFullScreen, commitWindow]);
 
   if (!start) return null;
 
   const selection = origin && cursor ? rectFrom(origin, cursor) : null;
   const dragging = selection !== null && (selection.width > 0 || selection.height > 0);
 
+  const highlight = hovered === null ? null : (start.windows[hovered] ?? null);
+
   const onPointerDown = (event: React.PointerEvent) => {
     if (event.button !== 0) return;
+    // Window mode captures on release; there is no drag.
+    if (mode === "window") return;
     const point = { x: event.clientX, y: event.clientY };
     setOrigin(point);
     setCursor(point);
@@ -149,10 +216,19 @@ export default function Overlay() {
   };
 
   const onPointerMove = (event: React.PointerEvent) => {
-    setCursor({ x: event.clientX, y: event.clientY });
+    const point = { x: event.clientX, y: event.clientY };
+    setCursor(point);
+    setHover(point);
   };
 
   const onPointerUp = (event: React.PointerEvent) => {
+    if (mode === "window") {
+      // A click with nothing highlighted does nothing (cleanshot-gaps.md, overlay states).
+      if (event.button === 0 && hovered !== null && highlight) {
+        void commitWindow(start.monitorId, highlight, hovered);
+      }
+      return;
+    }
     if (!origin) return;
     const end = { x: event.clientX, y: event.clientY };
     const rect = rectFrom(origin, end);
@@ -168,7 +244,7 @@ export default function Overlay() {
   return (
     <div
       className="fixed inset-0 overflow-hidden"
-      style={{ cursor: "crosshair" }}
+      style={{ cursor: mode === "window" ? "default" : "crosshair" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -188,31 +264,19 @@ export default function Overlay() {
       />
 
       {/* …except the selection, which shows the undimmed pixels underneath. */}
-      {dragging && selection && (
-        <div
-          className="pointer-events-none absolute overflow-hidden"
-          style={{
-            left: selection.x,
-            top: selection.y,
-            width: selection.width,
-            height: selection.height,
-            // 1 px white inner border, 1 px black outer border.
-            boxShadow: "inset 0 0 0 1px #fff, 0 0 0 1px #000",
-          }}
-        >
-          <img
-            src={start.frameUrl}
-            alt=""
-            draggable={false}
-            className="absolute max-w-none select-none"
-            style={{
-              left: -selection.x,
-              top: -selection.y,
-              width: start.width,
-              height: start.height,
-            }}
-          />
-        </div>
+      {mode === "region" && dragging && selection && (
+        <Undimmed
+          rect={selection}
+          frame={start}
+          // 1 px white inner border, 1 px black outer border.
+          ring="inset 0 0 0 1px #fff, 0 0 0 1px #000"
+        />
+      )}
+
+      {/* Window mode: the topmost window under the pointer, undimmed with an accent ring.
+          No transition, so reduced motion needs nothing extra. */}
+      {mode === "window" && highlight && (
+        <Undimmed rect={highlight} frame={start} ring="inset 0 0 0 2px var(--accent)" />
       )}
 
       {flash && (
@@ -227,8 +291,9 @@ export default function Overlay() {
         />
       )}
 
-      {!dragging && <HintPill />}
-      {dragging && selection && cursor && (
+      {mode === "region" && !dragging && <RegionHint />}
+      {mode === "window" && <WindowHint hasWindows={start.windows.length > 0} />}
+      {mode === "region" && dragging && selection && cursor && (
         <SizeLabel
           selection={selection}
           cursor={cursor}
@@ -240,14 +305,43 @@ export default function Overlay() {
   );
 }
 
+/** A piece of the frozen frame shown undimmed, for the selection or a window highlight. */
+function Undimmed({ rect, frame, ring }: { rect: Rect; frame: OverlayStart; ring: string }) {
+  return (
+    <div
+      className="pointer-events-none absolute overflow-hidden"
+      style={{
+        left: rect.x,
+        top: rect.y,
+        width: rect.width,
+        height: rect.height,
+        boxShadow: ring,
+      }}
+    >
+      <img
+        src={frame.frameUrl}
+        alt=""
+        draggable={false}
+        className="absolute max-w-none select-none"
+        style={{
+          left: -rect.x,
+          top: -rect.y,
+          width: frame.width,
+          height: frame.height,
+        }}
+      />
+    </div>
+  );
+}
+
 /**
- * DESIGN S2 idle state: a centered pill near the top.
+ * DESIGN S2 hint: a centered pill near the top.
  *
  * Opaque, not glass. The pill floats over whatever the user happened to be looking at, so a
  * 78%-translucent surface put 11 px text on top of arbitrary screenshot content — and the
  * keys are the one thing in the overlay the user has to be able to read.
  */
-function HintPill() {
+function HintPill({ children }: { children: React.ReactNode }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-12 flex justify-center">
       <div
@@ -259,15 +353,39 @@ function HintPill() {
           padding: "7px 14px",
         }}
       >
-        <span>Drag to capture</span>
-        <Sep />
-        <Keycap>F</Keycap>
-        <span>full screen</span>
-        <Sep />
-        <Keycap>Esc</Keycap>
-        <span>cancel</span>
+        {children}
       </div>
     </div>
+  );
+}
+
+/** DESIGN S2 idle state in region mode. */
+function RegionHint() {
+  return (
+    <HintPill>
+      <span>Drag to capture</span>
+      <Sep />
+      <Keycap>Space</Keycap>
+      <span>window</span>
+      <Sep />
+      <Keycap>F</Keycap>
+      <span>full screen</span>
+      <Sep />
+      <Keycap>Esc</Keycap>
+      <span>cancel</span>
+    </HintPill>
+  );
+}
+
+/** DESIGN S2 window mode (PRD F1.6). */
+function WindowHint({ hasWindows }: { hasWindows: boolean }) {
+  return (
+    <HintPill>
+      <span>{hasWindows ? "Click a window" : "No windows to capture here"}</span>
+      <Sep />
+      <Keycap>Space</Keycap>
+      <span>for area</span>
+    </HintPill>
   );
 }
 

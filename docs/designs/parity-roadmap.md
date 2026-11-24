@@ -68,7 +68,7 @@ The markup toolbar lives in the overlay window, used both at capture time (Shift
 - With markup, F1.5's "< 500 ms on the shelf" counts from pressing Enter/Done.
 - With markup, `commit` writes nothing to `captures/` and runs no part of `deliver` (clipboard copy, shelf insert, `record_capture`, vault auto-sync). On Done, Rust flattens, writes `originals/{id}.png` and `captures/{id}.png`, and then calls `deliver` once with the flattened PNG. Esc-discard delivers and records nothing (eng review S1).
 - Onboarding (DESIGN S8) adds one line teaching Shift-release.
-- The S2 idle hint pill teaches it on every capture (design review D4): `Drag to capture · ⇧ to mark up · F full screen · Esc cancel`, with keycaps in mono 11 px. Windows shows `Shift` instead of `⇧`.
+- The S2 idle hint pill teaches it on every capture (design review D4): `Drag to capture · ⇧ to mark up · Space window · F full screen · Esc cancel` (`Space window` shipped with window capture in 0.1.15), with keycaps in mono 11 px. Windows shows `Shift` instead of `⇧`.
 
 **Plan gating (D7).**
 - Markup and Copy for AI are free on every plan. No `config/limits.json` gate is added.
