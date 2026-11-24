@@ -290,6 +290,93 @@ pub fn is_os_screenshot(path: &std::path::Path) -> bool {
 /// The xattr is set just after the file is written, so a missing flag may only be early.
 pub const SCREENSHOT_FLAG_MAY_LAG: bool = true;
 
+/// macOS reports window bounds in global points, the same space as the overlay (PRD F1.6).
+pub const WINDOW_SPACE: crate::capture::window_list::Space =
+    crate::capture::window_list::Space::Logical;
+
+/// On-screen windows, front-to-back (PRD F1.6).
+///
+/// One `CGWindowListCopyWindowInfo` call. xcap's `Window` getters are not used here: each of
+/// them copies the whole window list again. Only layer, alpha, owner pid and bounds are
+/// read; titles and owner names never are. A null list (no Screen Recording permission, or
+/// a WindowServer hiccup) is an empty list, not an error, so region capture is unaffected.
+pub fn list_windows() -> Result<
+    Vec<crate::capture::window_list::WindowInfo>,
+    crate::capture::window_list::WindowListError,
+> {
+    use core_foundation::base::{CFType, TCFType};
+    use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
+    use core_foundation::number::CFNumber;
+    use core_foundation::string::CFString;
+    use core_graphics::geometry::CGRect;
+    use core_graphics::window::{
+        copy_window_info, kCGNullWindowID, kCGWindowAlpha, kCGWindowBounds, kCGWindowLayer,
+        kCGWindowListExcludeDesktopElements, kCGWindowListOptionOnScreenOnly,
+        kCGWindowOwnerPID,
+    };
+
+    use crate::capture::window_list::WindowInfo;
+
+    let Some(list) = copy_window_info(
+        kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
+        kCGNullWindowID,
+    ) else {
+        log::warn!("the window list came back empty");
+        return Ok(Vec::new());
+    };
+
+    // SAFETY: the kCGWindow* keys are immutable CFString constants exported by CoreGraphics.
+    let (layer_key, alpha_key, pid_key, bounds_key) = unsafe {
+        (
+            CFString::wrap_under_get_rule(kCGWindowLayer),
+            CFString::wrap_under_get_rule(kCGWindowAlpha),
+            CFString::wrap_under_get_rule(kCGWindowOwnerPID),
+            CFString::wrap_under_get_rule(kCGWindowBounds),
+        )
+    };
+
+    let mut listed = Vec::with_capacity(list.len() as usize);
+    for entry in list.iter() {
+        // SAFETY: every element of the array CGWindowListCopyWindowInfo returns is a
+        // CFDictionary with CFString keys; get-rule retains it for as long as we hold it.
+        let info: CFDictionary<CFString, CFType> =
+            unsafe { CFDictionary::wrap_under_get_rule(*entry as CFDictionaryRef) };
+
+        let number = |key: &CFString| {
+            info.find(key)
+                .and_then(|value| value.downcast::<CFNumber>())
+        };
+        let bounds = info
+            .find(&bounds_key)
+            .and_then(|value| value.downcast::<CFDictionary>())
+            .and_then(|dict| CGRect::from_dict_representation(&dict));
+
+        // A window that is missing any of these is skipped, not fatal.
+        let (Some(layer), Some(pid), Some(bounds)) = (
+            number(&layer_key).and_then(|n| n.to_i64()),
+            number(&pid_key).and_then(|n| n.to_i64()),
+            bounds,
+        ) else {
+            continue;
+        };
+
+        listed.push(WindowInfo {
+            pid: u32::try_from(pid).unwrap_or(0),
+            layer,
+            alpha: number(&alpha_key).and_then(|n| n.to_f64()).unwrap_or(1.0),
+            minimized: false, // minimized windows are not on screen, so they are not listed
+            class_name: None,
+            tool_window: false,
+            x: bounds.origin.x,
+            y: bounds.origin.y,
+            width: bounds.size.width,
+            height: bounds.size.height,
+        });
+    }
+
+    Ok(listed)
+}
+
 #[cfg(test)]
 mod screenshot_tests {
     use super::expand_location;
