@@ -323,6 +323,10 @@ jobs:
           set -euo pipefail
 
           cat > notes.md <<'NOTES'
+          **New in this version: window capture.** Press **Space** while capturing to switch to
+          window mode, then click the window you want. Or pick **Capture window** from the
+          tray menu.
+
           Hopshot for Windows 10/11 (64-bit) and macOS 13 or newer (Apple Silicon and Intel).
 
           **Windows:** the installer is **unsigned**, so SmartScreen will warn the first time:
