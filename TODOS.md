@@ -23,30 +23,8 @@ E3 (when the trial clock starts) is reopened.
 **Priority:** P2
 **Depends on:** Phase 1 (free shelf) shipped, plus the day-7 answers from the founder's 6 comp users, or about 20 organic installs.
 
-## Capture (deferred non-goals)
+## Capture
 
-### Quick markup
-
-**What:** Minimal markup on a shelf item: arrow (including double-headed), box, highlight, blur, text, crop with rotate. Not a full editor.
-
-**Why:** The most repeated ask from CleanShot X users on X (@faktory: double-headed arrows; @milindmishra_: marking up PR proofs). It is a PRD §3.3 non-goal, so it waits for a Hopshot user or buyer to ask.
-
-**Context:** Deferred in `docs/designs/cleanshot-gaps.md` (D2, 2026-11-23). Evidence: project doc `claude/user-feedback.md`.
-
-**Effort:** L
-**Priority:** P3
-**Depends on:** a request from a Hopshot user or buyer.
-
-### Copy text / search the shelf by text (OCR)
-
-**What:** On-device text recognition (Apple Vision, Windows.Media.Ocr): "Copy text" on a shelf item, and search the shelf by the text in captures.
-
-**Why:** A standard CleanShot feature; no Hopshot user has asked yet. PRD §3.3 non-goal.
-
-**Context:** Deferred in `docs/designs/cleanshot-gaps.md` (D2, 2026-11-23).
-
-**Effort:** M
-**Priority:** P3
-**Depends on:** a request from a Hopshot user or buyer.
+Quick markup and Copy text (OCR) were moved out of this file on 24 Nov 2026. They are now scheduled for 0.2.0 as PRD F11 (Markup) and F12 (Copy for AI); see `docs/designs/parity-roadmap.md`. OCR shelf search is on the PRD §3.4 gated roadmap (Tier 2, history search).
 
 ## Completed
