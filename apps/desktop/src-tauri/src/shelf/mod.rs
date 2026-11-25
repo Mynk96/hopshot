@@ -4,6 +4,8 @@
 //! `expiry` runs the sweep. Everything the UI can do to an item goes through here so the
 //! command layer stays thin (CLAUDE.md rule 3).
 
+pub mod background;
+pub mod edit;
 pub mod expiry;
 pub mod files;
 pub mod store;
@@ -430,9 +432,18 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> Result<(), ShelfError> {
         log::info!("adopted {adopted} capture(s) that predate the shelf database");
     }
 
+    // Before anything can read the shelf: finish any background Done a crash interrupted,
+    // and remove originals and temp files nothing points at (design doc 0.1.16).
+    edit::recover(&dir, &store);
+
     app.manage(store);
+    app.manage(edit::EditState::default());
     // `drag/` is purged by the sweep, which runs immediately and then on its timer.
     expiry::start(app);
+
+    // Links an edit replaced while offline: try deleting them again, off the startup path.
+    let handle = app.clone();
+    std::thread::spawn(move || crate::cloud::drops::retry_superseded(&handle));
 
     Ok(())
 }

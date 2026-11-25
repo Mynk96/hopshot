@@ -15,9 +15,11 @@ export function MoreMenu({
   onReveal,
   onPin,
   onDelete,
+  onBackground,
 }: {
   item: ShelfItem;
   onClose: () => void;
+  onBackground: () => void;
   onSaveAs: () => void;
   onReveal: () => void;
   onPin: () => void;
@@ -62,6 +64,8 @@ export function MoreMenu({
       className="raised hop-in absolute inset-x-2 bottom-11 z-10 flex flex-col overflow-hidden p-1 text-caption"
       style={{ borderRadius: "var(--radius-control)" }}
     >
+      <Row icon="image" label="Background" shortcut="B" onClick={run(onBackground)} />
+      <hr style={{ borderColor: "var(--raised-border)", margin: "4px 0" }} />
       <Row icon="save" label="Save as…" onClick={run(onSaveAs)} />
       <Row
         icon="folder"
@@ -82,11 +86,13 @@ export function MoreMenu({
 function Row({
   icon,
   label,
+  shortcut,
   danger,
   onClick,
 }: {
   icon: string;
   label: string;
+  shortcut?: string;
   danger?: boolean;
   onClick: () => void;
 }) {
@@ -99,6 +105,11 @@ function Row({
     >
       <Icon name={icon} />
       {label}
+      {shortcut && (
+        <span className="ml-auto" style={{ color: "var(--text-3)", fontFamily: "var(--mono)" }}>
+          {shortcut}
+        </span>
+      )}
     </button>
   );
 }

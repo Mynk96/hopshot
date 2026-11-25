@@ -12,6 +12,8 @@ export type ShelfItem = {
   width: number;
   height: number;
   bytes: number;
+  /** Over the send limit in config/limits.json: never uploaded, so auto-sync skips it. */
+  tooBigToSend: boolean;
 };
 
 export type Toast = { text: string; kind?: "info" | "error" };

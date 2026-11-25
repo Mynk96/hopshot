@@ -59,7 +59,7 @@ People take screenshots mainly to **move them somewhere else right away** — in
 
 ### 3.3 Non-goals (v1) — do not build
 
-- Anything on the gated roadmap (§3.4) until its trigger fires: screen recording, GIFs, scrolling capture, beautify, pin to screen and the rest
+- Anything on the gated roadmap (§3.4) until its trigger fires: screen recording, GIFs, pin to screen and the rest
 - Permanent hosting, galleries or history beyond 7 days
 - Teams, shared workspaces, SSO
 - Native iOS/Android apps (the phone side is a web app)
@@ -71,19 +71,19 @@ These may come later, but only if v1 shows real demand.
 
 Markup and on-device text recognition left this list on 24 Nov 2026. They ship in 0.2.0 as F11 (Markup) and F12 (Copy for AI). See `docs/designs/parity-roadmap.md`.
 
+**Founder override, 25 Nov 2026:** the background tool ("Beautify") and scrolling capture leave the gated roadmap without a trigger and ship in 0.1.16 and 0.1.17. Copy for AI moves to 0.2.1. See `docs/designs/next-features.md`.
+
 ### 3.4 Gated roadmap (build only when the trigger fires)
 
 A trigger is one of: a Hopshot user or buyer asks for the feature, or watching real users shows them reaching for it. Requests from people who use CleanShot but not Hopshot don't count. Tier 2 stops completely if fewer than 3 strangers have paid by 16 Dec 2026 (design doc, Kill or Success Line).
 
 | Tier | Feature | Constraint when built |
 |---|---|---|
-| 2 | Beautify (background, padding, shadow) | — |
 | 2 | Capture timer | — |
 | 2 | Pin a screenshot on screen | — |
 | 2 | OCR search, QR reading, translate | On-device only. Translate is Mac only, on macOS 15+ (Apple Translation). Windows has no offline translate API, so no translate there. |
 | 2 | Auto-redact personal info | Uses on-device text recognition only |
 | 2 | History search | Within the existing 7-day retention |
-| 2 | Scrolling capture | — |
 | 3 | Screen recording (MP4/GIF, audio, click highlights) and trim | Must pass the G4 budget (installer < 15 MB, idle RAM < 80 MB) before it is scheduled |
 
 ---

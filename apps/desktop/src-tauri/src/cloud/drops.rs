@@ -41,6 +41,9 @@ pub enum DropError {
     Read(String),
     #[error("this item has no link to delete")]
     NoDrop,
+    /// Over `maxImageBytes`: refused before any upload (DESIGN §5 "Too big to send").
+    #[error("{}", crate::limits::too_big_message())]
+    TooBig,
     #[error(transparent)]
     Shelf(#[from] ShelfError),
 }
@@ -82,6 +85,9 @@ pub fn send<R: Runtime>(app: &AppHandle<R>, item_id: &str, ttl: &str) -> Result<
     // Reuse the existing live drop rather than paying for a second upload.
     if let Some(existing) = existing_drop(&item) {
         return Ok(existing);
+    }
+    if item.too_big_to_send {
+        return Err(DropError::TooBig);
     }
 
     let plaintext = std::fs::read(&item.path).map_err(|e| DropError::Read(e.to_string()))?;
@@ -156,8 +162,87 @@ pub fn delete_all<R: Runtime>(app: &AppHandle<R>) -> Result<usize, DropError> {
         store.clear_drop(item_id)?;
     }
 
-    log::info!("deleted {} drop(s) online", targets.len());
-    Ok(targets.len())
+    // Links an edit replaced but couldn't delete at the time are still online, and no item
+    // points at them any more, so they have to be walked separately.
+    let superseded = store.superseded_drops()?;
+    for old in &superseded {
+        client::delete(&format!("/drops/{}", old.drop_id), &old.delete_token)?;
+        store.forget_superseded(&old.drop_id)?;
+    }
+
+    let total = targets.len() + superseded.len();
+    log::info!("deleted {total} drop(s) online");
+    Ok(total)
+}
+
+/// What happened to an item's old link when its image changed (background Done).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OldLink {
+    /// The item had no link.
+    None,
+    /// Deleted (or already gone) online.
+    Removed,
+    /// Couldn't be deleted yet; it's in `superseded_drops` and will be retried.
+    Pending,
+}
+
+/// Retire an item's link because its image changed (design doc, "Share link (drop) on
+/// Done"). Called *after* the local edit is committed, off the UI thread, so an offline
+/// machine never holds Done open for the client's timeout.
+///
+/// Either way the item ends with no link, so the next Copy link mints one with the new
+/// image; a failed delete leaves the old link in `superseded_drops` for [`retry_superseded`]
+/// and [`delete_all`].
+pub fn retire<R: Runtime>(app: &AppHandle<R>, item_id: &str) -> Result<OldLink, DropError> {
+    let store = crate::shelf::store(app)?;
+    let item = store.get(item_id)?;
+    let (Some(drop_id), Some(token)) = (item.drop_id.clone(), item.drop_delete_token.clone()) else {
+        return Ok(OldLink::None);
+    };
+
+    // An expired link is already gone from the server's point of view.
+    if item.drop_expires_at.is_some_and(|at| at <= crate::shelf::store::now_ms()) {
+        store.clear_drop(item_id)?;
+        return Ok(OldLink::None);
+    }
+
+    // Moved first, so a crash mid-delete can't lose track of a live link.
+    store.supersede_drop(item_id)?;
+    match client::delete(&format!("/drops/{drop_id}"), &token) {
+        Ok(()) => {
+            store.forget_superseded(&drop_id)?;
+            Ok(OldLink::Removed)
+        }
+        Err(error) => {
+            log::warn!("could not delete superseded drop {drop_id} yet: {error}");
+            Ok(OldLink::Pending)
+        }
+    }
+}
+
+/// Try again to delete links an edit replaced. Runs at startup; rows go once deleted or
+/// expired. Best-effort: anything still failing waits for the next launch or delete-all.
+pub fn retry_superseded<R: Runtime>(app: &AppHandle<R>) {
+    let Ok(store) = crate::shelf::store(app) else {
+        return;
+    };
+    let Ok(pending) = store.superseded_drops() else {
+        return;
+    };
+    let now = crate::shelf::store::now_ms();
+    for old in pending {
+        if old.expires_at <= now {
+            let _ = store.forget_superseded(&old.drop_id);
+            continue;
+        }
+        match client::delete(&format!("/drops/{}", old.drop_id), &old.delete_token) {
+            Ok(()) => {
+                let _ = store.forget_superseded(&old.drop_id);
+                log::info!("deleted superseded drop {}", old.drop_id);
+            }
+            Err(error) => log::info!("superseded drop {} still pending: {error}", old.drop_id),
+        }
+    }
 }
 
 /// The still-valid drop already on an item, if any.
@@ -254,6 +339,10 @@ mod tests {
             drop_key: drop.map(|_| "key".to_string()),
             drop_delete_token: drop.map(|(_, t)| t.to_string()),
             drop_expires_at: drop.map(|_| 1),
+            original_path: None,
+            style: None,
+            pending_style: None,
+            too_big_to_send: false,
         }
     }
 

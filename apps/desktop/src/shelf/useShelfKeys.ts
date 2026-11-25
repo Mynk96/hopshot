@@ -4,7 +4,7 @@ import type { ShelfItem } from "./types";
 /**
  * The shelf keyboard map from DESIGN §7:
  * `↑/↓` select · `Enter` copy · `⌘/Ctrl+C` copy · `P` send to phone · `L` copy link ·
- * `Delete` remove · `Esc` hide.
+ * `Delete` remove · `Esc` hide · `B` background (docs/designs/next-features.md).
  */
 export function useShelfKeys({
   items,
@@ -15,6 +15,7 @@ export function useShelfKeys({
   onHide,
   onPhone,
   onLink,
+  onBackground,
 }: {
   items: ShelfItem[];
   selected: string | null;
@@ -24,11 +25,32 @@ export function useShelfKeys({
   onHide: () => void;
   onPhone: (id: string) => void;
   onLink: (id: string) => void;
+  onBackground: (id: string) => void;
 }) {
   // Handlers are registered once; reading through a ref keeps them from closing over a
   // stale item list on every render.
-  const live = useRef({ items, selected, setSelected, onCopy, onDelete, onHide, onPhone, onLink });
-  live.current = { items, selected, setSelected, onCopy, onDelete, onHide, onPhone, onLink };
+  const live = useRef({
+    items,
+    selected,
+    setSelected,
+    onCopy,
+    onDelete,
+    onHide,
+    onPhone,
+    onLink,
+    onBackground,
+  });
+  live.current = {
+    items,
+    selected,
+    setSelected,
+    onCopy,
+    onDelete,
+    onHide,
+    onPhone,
+    onLink,
+    onBackground,
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -86,6 +108,10 @@ export function useShelfKeys({
       if (event.key.toLowerCase() === "l") {
         event.preventDefault();
         return state.onLink(current.id);
+      }
+      if (event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        return state.onBackground(current.id);
       }
     };
 

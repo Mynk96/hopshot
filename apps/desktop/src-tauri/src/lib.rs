@@ -85,6 +85,11 @@ pub fn run() {
             commands::overlay_commit_full,
             commands::overlay_commit_window,
             commands::overlay_cancel,
+            commands::edit_background,
+            commands::edit_pending,
+            commands::edit_preview,
+            commands::edit_done,
+            commands::edit_cancel,
             commands::permissions_status,
             commands::permissions_open_settings,
             commands::show_shelf,
@@ -226,6 +231,22 @@ fn serve_frame<R: Runtime>(
             .body(Cow::Borrowed(&[][..]))
             .unwrap_or_default()
     };
+
+    // "/edit/12" → the Edit surface's current preview (PNG, from memory, by nonce only).
+    if let Some(nonce) = request.uri().path().strip_prefix("/edit/") {
+        let Some(bytes) = nonce
+            .parse::<u64>()
+            .ok()
+            .and_then(|nonce| shelf::edit::preview_bytes(ctx.app_handle(), nonce))
+        else {
+            return not_found();
+        };
+        return http::Response::builder()
+            .header(http::header::CONTENT_TYPE, "image/png")
+            .header(http::header::CACHE_CONTROL, "no-store")
+            .body(Cow::Owned(bytes))
+            .unwrap_or_else(|_| not_found());
+    }
 
     // "/3?v=7" → 3. The query is only a cache-buster.
     let monitor_id = request

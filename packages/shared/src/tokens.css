@@ -37,6 +37,14 @@
   --overlay-dim: rgba(0, 0, 0, 0.35);
   --blur: 24px;
 
+  /* 2.4 Background fills. Painted into the user's image, so they don't change with the
+     theme. Mirrors shelf/background.rs, which renders the real thing. */
+  --fill-mist: #e4e7ec;
+  --fill-sand: #efe4d6;
+  --fill-sage: #dce8de;
+  --fill-sky: #dae6f4;
+  --fill-sunset: linear-gradient(135deg, #ff8a3d, #ff5e7a);
+
   /* 2.2 Typography */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
     Inter, system-ui, sans-serif;

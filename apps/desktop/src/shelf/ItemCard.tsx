@@ -146,6 +146,14 @@ export function ItemCard({
         {label}
       </Chip>
 
+      {/* DESIGN S3: over the send limit, so auto-sync skipped it. Hidden while the action
+          bar is up, which shares the bottom edge. */}
+      {item.tooBigToSend && (
+        <Chip className="bottom-1.5 left-1.5 transition group-hover:opacity-0 group-focus-within:opacity-0">
+          Too big to sync
+        </Chip>
+      )}
+
       <div
         className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 gap-0.5 p-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
         style={{

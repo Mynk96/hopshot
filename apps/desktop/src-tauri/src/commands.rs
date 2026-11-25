@@ -131,6 +131,45 @@ pub fn overlay_cancel(app: AppHandle) {
     capture::cancel(&app);
 }
 
+/// Open the Edit surface with the background panel (More ▾ → Background, or `B`).
+#[tauri::command]
+pub fn edit_background(app: AppHandle, id: String) -> Result<(), String> {
+    shelf::edit::open(&app, &id).map_err(|error| error.to_string())
+}
+
+/// What an overlay that missed `overlay:edit` should show.
+#[tauri::command]
+pub fn edit_pending(app: AppHandle, monitor_id: u32) -> Option<shelf::edit::EditStart> {
+    shelf::edit::pending(&app, monitor_id)
+}
+
+/// Re-render the preview for a panel change.
+#[tauri::command]
+pub async fn edit_preview(
+    app: AppHandle,
+    style: shelf::background::Style,
+) -> Result<shelf::edit::EditPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        shelf::edit::preview(&app, style).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+/// Done ↵: apply the background for real. Off the main thread: a 4K render takes a moment.
+#[tauri::command]
+pub async fn edit_done(app: AppHandle, style: shelf::background::Style) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || shelf::edit::done(&app, style))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// Esc / Cancel: close the Edit surface with the item unchanged.
+#[tauri::command]
+pub fn edit_cancel(app: AppHandle) {
+    shelf::edit::cancel(&app);
+}
+
 /// `permissions_status()` (ARCHITECTURE §5.4).
 #[tauri::command]
 pub fn permissions_status() -> capture::permissions::ScreenAccess {
