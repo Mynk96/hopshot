@@ -169,9 +169,35 @@ pub fn limits() -> &'static Limits {
     })
 }
 
+/// Over the per-image send limit (`lifetime.maxImageBytes`)? Such an image is never
+/// uploaded: auto-sync skips it, and Send and Copy link refuse it before any network call.
+pub fn too_big_to_send(bytes: u64) -> bool {
+    bytes > limits().lifetime.max_image_bytes
+}
+
+/// DESIGN §5 "Too big to send", with the size taken from `config/limits.json` so the copy
+/// can never disagree with the limit it describes (CLAUDE.md rule 2).
+pub fn too_big_message() -> String {
+    let megabytes = limits().lifetime.max_image_bytes as f64 / (1024.0 * 1024.0);
+    let shown = if megabytes.fract() < 0.05 {
+        format!("{}", megabytes.round() as u64)
+    } else {
+        format!("{megabytes:.1}")
+    };
+    format!("That image is too big to send. {shown} MB is the limit.")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_too_big_message_reads_its_size_from_the_limits_file() {
+        assert_eq!(too_big_message(), "That image is too big to send. 10 MB is the limit.");
+        let limit = limits().lifetime.max_image_bytes;
+        assert!(!too_big_to_send(limit));
+        assert!(too_big_to_send(limit + 1));
+    }
 
     #[test]
     fn parses_the_bundled_limits_file() {

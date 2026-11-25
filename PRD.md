@@ -59,17 +59,32 @@ People take screenshots mainly to **move them somewhere else right away** — in
 
 ### 3.3 Non-goals (v1) — do not build
 
-- Annotation or markup editor (arrows, blur, text)
-- Screen recording, GIFs, scrolling capture
-- OCR / text extraction
+- Anything on the gated roadmap (§3.4) until its trigger fires: screen recording, GIFs, pin to screen and the rest
 - Permanent hosting, galleries or history beyond 7 days
 - Teams, shared workspaces, SSO
 - Native iOS/Android apps (the phone side is a web app)
 - Linux
 - Mac App Store build
-- AI features of any kind
+- Cloud processing of capture content. Images and recognized text never leave the device except as HOP1 ciphertext (CLAUDE.md rule 1). On-device text recognition is allowed.
 
 These may come later, but only if v1 shows real demand.
+
+Markup and on-device text recognition left this list on 24 Nov 2026. They ship in 0.2.0 as F11 (Markup) and F12 (Copy for AI). See `docs/designs/parity-roadmap.md`.
+
+**Founder override, 25 Nov 2026:** the background tool ("Beautify") and scrolling capture leave the gated roadmap without a trigger and ship in 0.1.16 and 0.1.17. Copy for AI moves to 0.2.1. See `docs/designs/next-features.md`.
+
+### 3.4 Gated roadmap (build only when the trigger fires)
+
+A trigger is one of: a Hopshot user or buyer asks for the feature, or watching real users shows them reaching for it. Requests from people who use CleanShot but not Hopshot don't count. Tier 2 stops completely if fewer than 3 strangers have paid by 16 Dec 2026 (design doc, Kill or Success Line).
+
+| Tier | Feature | Constraint when built |
+|---|---|---|
+| 2 | Capture timer | — |
+| 2 | Pin a screenshot on screen | — |
+| 2 | OCR search, QR reading, translate | On-device only. Translate is Mac only, on macOS 15+ (Apple Translation). Windows has no offline translate API, so no translate there. |
+| 2 | Auto-redact personal info | Uses on-device text recognition only |
+| 2 | History search | Within the existing 7-day retention |
+| 3 | Screen recording (MP4/GIF, audio, click highlights) and trim | Must pass the G4 budget (installer < 15 MB, idle RAM < 80 MB) before it is scheduled |
 
 ---
 
@@ -117,7 +132,7 @@ Priority key: **P0** = must ship at launch · **P1** = ship in the first 2–4 w
 | F1.3 | **Overlay shortcuts.** `Esc` cancels · `F` captures the whole current monitor · `Enter` captures the current selection · click without dragging captures the monitor under the cursor. | All shortcuts work on both OSes. |
 | F1.4 | **Full-screen capture** from the tray menu (and an optional separate hotkey, unset by default). | Captures the monitor under the cursor. |
 | F1.5 | **After capture:** save the PNG into Hopshot's private app-data folder (not Desktop/Downloads/Pictures), add it to the shelf, copy it to the clipboard (setting, default ON), and show the shelf with the new item highlighted. | The item is on the shelf in < 500 ms after mouse-up. |
-| F1.6 | **Window capture** (hover to highlight a window, click to capture). | — **P1** |
+| F1.6 | **Window capture**: Space toggles window mode in the overlay; hover highlights the topmost window, click or Enter captures it. | Ships in 0.1.15 (`docs/designs/cleanshot-gaps.md`, PR 2). — **P0 from 0.1.15** |
 | F1.7 | **Catch other screenshots** (US-9): optional watcher that adds images from the clipboard and/or the OS screenshot folder to the shelf. Off by default; toggle in Settings → Shelf. | — **P1** |
 
 ### F2 — Shelf (P0)
@@ -204,6 +219,24 @@ Sections: **General** (launch at login, hotkeys, after-capture actions, theme) �
 ### F10 — Link a second computer (P1, Sync)
 
 On computer A: Settings → Devices → "Link another computer" shows a 12-character code (`ABCD-EFGH-JKLM`). On computer B: "Join with code". The server holds the vault key encrypted under that code for 10 minutes, single use, with at most 5 attempts. Both computers then share one shelf.
+
+### F11 — Markup (P0 from 0.2.0)
+
+The full spec is in `docs/designs/parity-roadmap.md` (Recommended Approach) and DESIGN.md S2.
+
+| Req | Description | Acceptance criteria |
+|---|---|---|
+| F11.1 | **Opt-in at capture.** A plain release captures instantly, as in F1.5. Holding ⇧ (Shift) while releasing, ⇧F, or the setting Settings → General → After capture → **Open markup tools** opens the markup toolbar on the selection. | Nothing is copied, synced or counted until Done. Esc discards and records nothing. With markup, F1.5's 500 ms counts from Done. |
+| F11.2 | **Tools:** select, arrow, rectangle, ellipse, text, pen, highlighter, numbered step, redact (Solid by default, plus Obscure: pixelate or blur), crop/rotate. There are 6 fixed colours and S/M/L sizes. | Solid redaction leaves no original pixel in the region. Text accepts only characters the bundled Inter covers. |
+| F11.3 | **Edit from the shelf:** More ▾ → Edit, double-click the card, or `E`. Editing re-flattens from the kept original. | Every outgoing path (drag, copy, phone, link, Save as) sends only the edited image. Old phone copies and share links are deleted. |
+| F11.4 | Markup is free on every plan and Edit does not count as a capture. | — |
+
+### F12 — Copy for AI (P0 from 0.2.0)
+
+| Req | Description | Acceptance criteria |
+|---|---|---|
+| F12.1 | One action, on the card and in the toolbar, puts the image and the text recognized on-device (Apple Vision / Windows.Media.Ocr) on the clipboard. | Recognized text is never logged, stored, synced or sent. If the user copies something else while recognition runs, the clipboard is left alone and a "Copy text" toast is offered instead. |
+| F12.2 | Free on every plan. | Copy text appears in ChatGPT and Claude.ai in Chrome, Edge and Safari, or the documented fallback applies (design doc, step 2 spike). |
 
 ---
 
@@ -337,4 +370,4 @@ Details: `BUILD_PLAN.md`. Launch checklist: `docs/LAUNCH.md`.
 1. Trademark search for "Hopshot" (USPTO/WIPO) and Microsoft Store name reservation.
 2. Store version pricing: the Store listing is a free download with in-app Stripe checkout (Microsoft allows non-game apps to use their own payment system; confirm current Store policy before submitting).
 3. Anyone who paid through the pre-order Payment Links has no licence: `POST /admin/licenses` was never built and those links are archived. Check Stripe for completed payments and settle them before launch — they paid and have nothing.
-4. Is it worth making Window capture (F1.6) P0 for Mac users, who expect it from ⌘⇧4 + Space?
+4. ~~Is it worth making Window capture (F1.6) P0 for Mac users, who expect it from ⌘⇧4 + Space?~~ Answered 24 Nov 2026: yes, on both OSes, in 0.1.15.

@@ -87,6 +87,12 @@ fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureEr
         return Ok(());
     }
 
+    // One overlay session at a time: the Edit surface is using the overlay windows.
+    if crate::shelf::edit::is_open(app) {
+        log::info!("capture ignored: an edit is open");
+        return Ok(());
+    }
+
     // Without Screen Recording, xcap returns wallpaper-only images rather than failing, so
     // refusing up front is the only way the user learns what is actually wrong.
     let access = permissions::status();
@@ -362,6 +368,11 @@ pub fn pending<R: Runtime>(app: &AppHandle<R>, monitor_id: u32) -> Option<overla
     let window_mode = WINDOW_MODE.load(Ordering::Relaxed);
     app.state::<FrozenFrames>()
         .with(monitor_id, |frame| overlay::start_payload(frame, nonce, window_mode))
+}
+
+/// Is a capture overlay on screen? The Edit surface won't open over one.
+pub fn in_progress() -> bool {
+    CURRENT_NONCE.load(Ordering::Relaxed) != 0
 }
 
 /// Close the overlay without capturing (PRD F1.3 — `Esc`).

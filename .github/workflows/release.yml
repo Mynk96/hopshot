@@ -323,9 +323,10 @@ jobs:
           set -euo pipefail
 
           cat > notes.md <<'NOTES'
-          **New in this version: window capture.** Press **Space** while capturing to switch to
-          window mode, then click the window you want. Or pick **Capture window** from the
-          tray menu.
+          **New in this version: backgrounds.** Put any screenshot on a soft colour or gradient
+          with padding, rounded corners and a shadow, ready for a post or a slide. On a card,
+          choose **More → Background**, or select it and press **B**. Your original is kept, so
+          you can change the background again later.
 
           Hopshot for Windows 10/11 (64-bit) and macOS 13 or newer (Apple Silicon and Intel).
 

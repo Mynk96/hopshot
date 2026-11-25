@@ -204,6 +204,19 @@ export default function Shelf() {
     [flash],
   );
 
+  /** Open the Edit surface with the background panel. Rust owns the rest. */
+  const background = useCallback(
+    async (id: string) => {
+      try {
+        await invoke("edit_background", { id });
+      } catch (error) {
+        console.error("edit_background failed", error);
+        flash(String(error), "error");
+      }
+    },
+    [flash],
+  );
+
   const reveal = useCallback(async (id: string) => {
     try {
       await invoke("reveal_item", { id });
@@ -257,6 +270,7 @@ export default function Shelf() {
     // front rather than a second code path.
     onPhone: (id) => setQrFor(id),
     onLink: (id) => setQrFor(id),
+    onBackground: (id) => void background(id),
   });
 
   const menuItem = useMemo(
@@ -374,6 +388,7 @@ export default function Shelf() {
           onReveal={() => void reveal(menuItem.id)}
           onPin={() => void togglePin(menuItem)}
           onDelete={() => void remove(menuItem.id)}
+          onBackground={() => void background(menuItem.id)}
         />
       )}
 

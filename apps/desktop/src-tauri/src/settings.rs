@@ -83,6 +83,9 @@ pub struct Settings {
     /// fresh install and for a settings.json written before onboarding existed, so every
     /// install sees it once.
     pub onboarded: bool,
+    /// The last background the user applied, so the next Background opens with it and is
+    /// one click (design doc 0.1.16, "Remembered choice"). `None` until the first Done.
+    pub background_style: Option<crate::shelf::background::Style>,
 }
 
 impl Default for Settings {
@@ -102,6 +105,7 @@ impl Default for Settings {
             catch_other_screenshots: false,
             install_id: None,
             onboarded: false,
+            background_style: None,
         }
     }
 }

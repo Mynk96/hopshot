@@ -26,6 +26,9 @@ pub enum VaultError {
     /// Nothing is paired yet, so there is no vault to act in.
     #[error("Pair a phone first.")]
     NotPaired,
+    /// Over `maxImageBytes`: refused before any upload (DESIGN §5 "Too big to send").
+    #[error("{}", crate::limits::too_big_message())]
+    TooBig,
 }
 
 /* ── Wire shapes. Mirrors packages/shared/src/types.ts ────────────────────── */
@@ -341,6 +344,12 @@ pub fn sync_capture_in_background<R: tauri::Runtime>(
         return;
     };
 
+    // Never uploaded, so never attempted: the card's "Too big to sync" chip says why.
+    if item.too_big_to_send {
+        log::info!("auto-sync skipped {}: over the send limit", item.id);
+        return;
+    }
+
     let path = item.path.clone();
     let file_name = item.file_name.clone();
     let (width, height) = (item.width, item.height);
@@ -414,6 +423,9 @@ pub fn send_to_phones<R: tauri::Runtime>(
 
     let store = crate::shelf::store(app).map_err(|_| VaultError::NotPaired)?;
     let item = store.get(item_id).map_err(|_| VaultError::NotPaired)?;
+    if item.too_big_to_send {
+        return Err(VaultError::TooBig);
+    }
 
     let png = std::fs::read(&item.path)
         .map_err(|error| VaultError::Client(ClientError::Protocol(error.to_string())))?;
