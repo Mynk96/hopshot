@@ -12,6 +12,8 @@ pub mod store;
 pub mod thumbs;
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use thiserror::Error;
@@ -340,6 +342,11 @@ pub fn hide<R: Runtime>(app: &AppHandle<R>) {
 /// once instead of on the next appearance, and tell every window the new values: the
 /// shelf reads its auto-hide delay and expiry label from them.
 pub fn settings_changed<R: Runtime>(app: &AppHandle<R>, settings: &crate::settings::Settings) {
+    // A new side wins over wherever the user dragged the shelf: that is the only reason to
+    // change it. Any other setting leaves a dragged shelf where it is.
+    if let Some(placement) = app.try_state::<Placement>() {
+        placement.forget_if_side_changed(settings.shelf_side_is_left());
+    }
     if let Some(window) = app.get_webview_window(SHELF_WINDOW) {
         if window.is_visible().unwrap_or(false) {
             if let Err(error) = position(app, &window) {
@@ -371,7 +378,8 @@ pub fn set_height<R: Runtime>(app: &AppHandle<R>, logical_height: f64) {
     set_size(app, SHELF_WIDTH, logical_height);
 }
 
-/// Resize the shelf and re-park it.
+/// Resize the shelf and re-park it — or, once the user has dragged it, keep it where they
+/// put it.
 ///
 /// The width is a parameter because of the send sheet: DESIGN S4 specifies a 260 px popover,
 /// which cannot fit inside a 208 px window — the QR ends up around 148 px, too dense for a
@@ -381,8 +389,14 @@ pub fn set_size<R: Runtime>(app: &AppHandle<R>, logical_width: f64, logical_heig
     let Some(window) = app.get_webview_window(SHELF_WINDOW) else {
         return;
     };
+    // Read before resizing: on macOS a resize can move the top-left corner, and the
+    // dragged-to spot is the one to keep.
+    let before = window.outer_position().ok();
+    if let Some(placement) = app.try_state::<Placement>() {
+        placement.programmatic();
+    }
     let _ = window.set_size(tauri::LogicalSize::new(logical_width, logical_height));
-    let _ = position(app, &window);
+    let _ = place(app, &window, before);
 }
 
 /// DESIGN S3: 208 px wide.
@@ -391,9 +405,154 @@ pub const SHELF_WIDTH: f64 = 208.0;
 pub const SHELF_WIDTH_WITH_SHEET: f64 = 300.0;
 /// DESIGN S3: 12 px from the screen edge.
 const SHELF_MARGIN: f64 = 12.0;
+/// `Moved` events this soon after we moved or resized the window are ours, not the user's.
+const PROGRAMMATIC_GRACE: Duration = Duration::from_millis(300);
+/// macOS positions windows in points, so a physical position we set can come back rounded.
+const POSITION_TOLERANCE_PX: i32 = 4;
 
-/// Park the shelf against the configured screen edge, vertically centered (DESIGN S3).
+/// Whether the user has dragged the shelf away from its parked spot this session.
+///
+/// Without this every resize — each new capture grows the shelf — and every show re-parked
+/// it against the screen edge, so a drag only lasted until the next screenshot.
+#[derive(Default)]
+pub struct Placement(Mutex<PlacementState>);
+
+#[derive(Default)]
+struct PlacementState {
+    /// Where we last put the window ourselves.
+    parked_at: Option<(i32, i32)>,
+    /// When we last moved or resized it.
+    touched_at: Option<Instant>,
+    /// `Some(side_is_left)` once the user dragged it; the side it was parked on then.
+    moved_on_side: Option<bool>,
+}
+
+impl Placement {
+    fn state(&self) -> std::sync::MutexGuard<'_, PlacementState> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn programmatic(&self) {
+        self.state().touched_at = Some(Instant::now());
+    }
+
+    fn parked(&self, at: (i32, i32)) {
+        let mut state = self.state();
+        state.parked_at = Some(at);
+        state.touched_at = Some(Instant::now());
+    }
+
+    fn user_moved(&self) -> bool {
+        self.state().moved_on_side.is_some()
+    }
+
+    /// A `Moved` event arrived; decide whether the user caused it.
+    fn observe(&self, at: (i32, i32), side_is_left: impl FnOnce() -> bool) {
+        let mut state = self.state();
+        let recent = state
+            .touched_at
+            .is_some_and(|when| when.elapsed() < PROGRAMMATIC_GRACE);
+        if !is_users_move(state.parked_at, at, recent) {
+            return;
+        }
+        if state.moved_on_side.is_none() {
+            state.moved_on_side = Some(side_is_left());
+        }
+    }
+
+    fn forget_if_side_changed(&self, side_is_left: bool) {
+        let mut state = self.state();
+        if state.moved_on_side.is_some_and(|side| side != side_is_left) {
+            state.moved_on_side = None;
+        }
+    }
+}
+
+/// A move is the user's unless it lands where we just put the window, or arrives while our
+/// own move or resize is still settling.
+fn is_users_move(parked_at: Option<(i32, i32)>, at: (i32, i32), recent: bool) -> bool {
+    if recent {
+        return false;
+    }
+    !parked_at.is_some_and(|(x, y)| {
+        (x - at.0).abs() <= POSITION_TOLERANCE_PX && (y - at.1).abs() <= POSITION_TOLERANCE_PX
+    })
+}
+
+/// Keep a window of `size` at `at` fully inside the monitor at `origin` × `area`.
+fn clamp_into(
+    at: (i32, i32),
+    size: (i32, i32),
+    origin: (i32, i32),
+    area: (i32, i32),
+) -> (i32, i32) {
+    let clamp = |value: i32, length: i32, start: i32, span: i32| {
+        let max = start + (span - length).max(0);
+        value.clamp(start, max)
+    };
+    (
+        clamp(at.0, size.0, origin.0, area.0),
+        clamp(at.1, size.1, origin.1, area.1),
+    )
+}
+
+/// Start telling the user's drags apart from our own moves. Call once, at setup.
+pub fn track_moves<R: Runtime>(window: &tauri::WebviewWindow<R>) {
+    let app = window.app_handle().clone();
+    app.manage(Placement::default());
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Moved(at) = event {
+            // A drag fires many of these; settings are only read on the first one.
+            app.state::<Placement>().observe((at.x, at.y), || {
+                crate::settings::load(&app)
+                    .unwrap_or_default()
+                    .shelf_side_is_left()
+            });
+        }
+    });
+}
+
+/// Park the shelf against the configured screen edge, vertically centered (DESIGN S3) —
+/// unless the user dragged it somewhere, in which case it stays there.
 fn position<R: Runtime>(app: &AppHandle<R>, window: &tauri::WebviewWindow<R>) -> tauri::Result<()> {
+    let current = window.outer_position().ok();
+    place(app, window, current)
+}
+
+fn place<R: Runtime>(
+    app: &AppHandle<R>,
+    window: &tauri::WebviewWindow<R>,
+    current: Option<tauri::PhysicalPosition<i32>>,
+) -> tauri::Result<()> {
+    let placement = app.try_state::<Placement>();
+    let size = window.outer_size()?;
+    let size = (size.width as i32, size.height as i32);
+
+    if let (Some(current), true) = (current, placement.as_ref().is_some_and(|p| p.user_moved())) {
+        // Stay where the user put it, but never let a taller shelf hang off the screen.
+        let monitor = app
+            .monitor_from_point(f64::from(current.x), f64::from(current.y))
+            .ok()
+            .flatten()
+            .or(app.primary_monitor()?);
+        let Some(monitor) = monitor else {
+            return Ok(());
+        };
+        let (origin, area) = (monitor.position(), monitor.size());
+        let (x, y) = clamp_into(
+            (current.x, current.y),
+            size,
+            (origin.x, origin.y),
+            (area.width as i32, area.height as i32),
+        );
+        if let Some(placement) = placement {
+            placement.parked((x, y));
+        }
+        return window.set_position(tauri::PhysicalPosition::new(x, y));
+    }
+
     let settings = crate::settings::load(app).unwrap_or_default();
 
     let monitor = app
@@ -409,16 +568,18 @@ fn position<R: Runtime>(app: &AppHandle<R>, window: &tauri::WebviewWindow<R>) ->
     let scale = monitor.scale_factor();
     let area = monitor.size();
     let origin = monitor.position();
-    let size = window.outer_size()?;
     let margin = (SHELF_MARGIN * scale).round() as i32;
 
     let x = if settings.shelf_side_is_left() {
         origin.x + margin
     } else {
-        origin.x + area.width as i32 - size.width as i32 - margin
+        origin.x + area.width as i32 - size.0 - margin
     };
-    let y = origin.y + ((area.height as i32 - size.height as i32) / 2);
+    let y = origin.y + ((area.height as i32 - size.1) / 2);
 
+    if let Some(placement) = placement {
+        placement.parked((x, y));
+    }
     window.set_position(tauri::PhysicalPosition::new(x, y))
 }
 
@@ -516,7 +677,56 @@ pub fn send_last_to_phone<R: Runtime>(_app: &AppHandle<R>) {
 
 #[cfg(test)]
 mod tests {
-    use super::may_pin;
+    use super::{clamp_into, is_users_move, may_pin};
+
+    #[test]
+    fn our_own_moves_are_not_the_users() {
+        assert!(!is_users_move(Some((100, 200)), (100, 200), false), "exact");
+        assert!(
+            !is_users_move(Some((100, 200)), (102, 199), false),
+            "rounded to points"
+        );
+        assert!(
+            !is_users_move(Some((100, 200)), (600, 50), true),
+            "still settling"
+        );
+    }
+
+    #[test]
+    fn a_drag_is_the_users() {
+        assert!(is_users_move(Some((100, 200)), (100, 260), false));
+        assert!(is_users_move(None, (10, 10), false));
+    }
+
+    #[test]
+    fn a_dragged_shelf_stays_on_screen() {
+        let monitor = ((0, 0), (1920, 1080));
+        // Already inside: untouched.
+        assert_eq!(
+            clamp_into((300, 400), (208, 420), monitor.0, monitor.1),
+            (300, 400)
+        );
+        // Grew past the bottom edge: pulled up.
+        assert_eq!(
+            clamp_into((300, 900), (208, 420), monitor.0, monitor.1),
+            (300, 660)
+        );
+        // Dragged past the left and top edges.
+        assert_eq!(
+            clamp_into((-50, -10), (208, 420), monitor.0, monitor.1),
+            (0, 0)
+        );
+        // Second monitor to the right, offset origin.
+        assert_eq!(
+            clamp_into((4400, 100), (208, 420), (1920, 0), (2560, 1440)),
+            (4272, 100)
+        );
+        // Taller than the screen: pinned to the top rather than panicking.
+        assert_eq!(
+            clamp_into((10, 10), (208, 2000), monitor.0, monitor.1),
+            (10, 0)
+        );
+    }
 
     /// The Free plan's pin cap (docs/designs/free-plan.md).
     #[test]

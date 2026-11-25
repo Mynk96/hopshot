@@ -114,7 +114,8 @@ export default function Shelf() {
       listen("shelf:changed", () => void refresh()),
       listen<{ id: string }>("shelf:highlight", (event) => {
         setHighlighted(event.payload.id);
-        setSelected(event.payload.id);
+        // Not selected: the persistent accent ring means "you picked this one". A fresh
+        // capture only gets the brief arrival cue; ↓ or a click still selects it.
         // DESIGN S3: the accent ring is an arrival cue, not a persistent state.
         setTimeout(() => setHighlighted(null), 900);
       }),
@@ -295,13 +296,15 @@ export default function Shelf() {
         className="flex shrink-0 items-center gap-1.5 pl-2.5 pr-1"
         style={{ height: HEADER_PX, borderBottom: "1px solid var(--border)" }}
       >
+        {/* Tauri only drags when the press lands on the drag region itself, so everything
+            decorative in the header lets the pointer fall through to it. */}
         <BrandMark />
-        <b className="text-body-strong">Hopshot</b>
+        <b className="pointer-events-none text-body-strong">Hopshot</b>
         {items.length > 0 && (
           <span
             // The count is information, not decoration: an empty shelf says "Nothing here
             // yet" in the body already, so a "0" chip is just noise.
-            className="text-caption tabular-nums text-text-2"
+            className="pointer-events-none text-caption tabular-nums text-text-2"
             style={{
               background: "var(--surface-2)",
               borderRadius: "var(--radius-chip)",
@@ -311,7 +314,7 @@ export default function Shelf() {
             {items.length}
           </span>
         )}
-        <span className="flex-1" />
+        <span data-tauri-drag-region className="flex-1 self-stretch" />
         <IconButton
           label="Keep shelf open"
           pressed={pinnedOpen}
@@ -463,7 +466,7 @@ export function BrandMark({ size = 15 }: { size?: number }) {
       width={size}
       height={size}
       viewBox="0 0 16 16"
-      className="shrink-0"
+      className="pointer-events-none shrink-0"
       style={{ overflow: "visible" }}
     >
       <rect
