@@ -38,7 +38,7 @@ REALITY: pr-count pass 2 PRs, unchanged from proposal (D5)
 | ID | Decision | Answer (23 Nov 2026) |
 |---|---|---|
 | D1 | CEO review mode | SCOPE REDUCTION: copy + window capture only |
-| D2 | Markup, OCR (PRD non-goals) | Defer both to TODOS.md; PRD unchanged |
+| D2 | Markup, OCR (PRD non-goals) | Defer both to TODOS.md; PRD unchanged. **Superseded 24 Nov 2026** by `docs/designs/parity-roadmap.md`: the founder chose full parity, so markup and Copy for AI ship in 0.2.0 (PRD F11/F12). |
 | D3 | Window-capture trigger | Space toggles window mode inside the overlay; "Capture window" tray item; click-without-drag keeps capturing the monitor (F1.3 unchanged) |
 | D4 | Window-capture pixels | Crop the frozen frame at the window's bounds |
 | D5 | Delivery | Two PRs: site copy first, then desktop 0.1.15 |

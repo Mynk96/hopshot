@@ -97,7 +97,7 @@ sets `html.no-vibrancy`, which redefines `--surface` to `--surface-solid` (see �
   - New item: scale .96 → 1 plus an accent ring that fades out over 900 ms.
   - Toast: fade/slide 8 px, 160 ms, auto-dismiss after 1.6 s.
   - `prefers-reduced-motion`: fades only, no slides or scales.
-- **Icons:** Lucide at 16 px, 1.75 stroke. Names: `copy`, `smartphone`, `link`, `trash-2`, `pin`, `folder-down`, `x`, `settings`, `check`, `qr-code`, `upload`, `share`, `download`.
+- **Icons:** Lucide at 16 px, 1.75 stroke. Names: `copy`, `smartphone`, `link`, `trash-2`, `pin`, `folder-down`, `x`, `settings`, `check`, `qr-code`, `upload`, `share`, `download`, `scan-text` (Copy for AI). Markup tool icons come from the same Lucide set at the same size and stroke.
 
 ---
 
@@ -110,7 +110,9 @@ sets `html.no-vibrancy`, which redefines `--surface` to `--surface-solid` (see �
 | **Chip** | Height 18, padding 0 6, `caption`, surface-2. Time chip turns `--warning` text under 1 h left. |
 | **Badge (source)** | Chip with an icon: "iPhone", "Clipboard", "Windows PC". |
 | **Thumbnail card** | 184×115 (16:10), `object-fit: cover`, radius 10, 1 px border. Hover: lift 1 px + action bar. Selected: 2 px accent ring. Dragging: 50% opacity in place. |
-| **Action bar** | Appears on hover/focus at the bottom of the card: glass pill with 4 icon buttons (Copy, Phone, Link, More ▾). More → Save as…, Reveal, Pin, Delete link, Delete. |
+| **Action bar** | Appears on hover/focus at the bottom of the card: glass pill with 4 icon buttons (Copy, Copy for AI, Phone, More ▾). More → Edit, Copy link, Save as…, Reveal, Pin, Delete link, Delete. Double-click a card (or `E`) also opens Edit. |
+| **Markup toolbar** | Opaque pill: `--surface-raised`, `--raised-border` hairline, `--shadow-raised`, radius 14, height 40, padding 6. Groups are split by `--raised-border` dividers: tools (Icon buttons 28×28, ghost; the selected tool uses `--press` with an `--accent-text` icon) \| colour dot + width dot \| undo, redo \| **Copy for AI** (secondary Button, `scan-text`) · **Done** (primary Button with a ↵ keycap). Never glass: see §2.2a. |
+| **Hint pill** | Keycaps and `small` text on `--scrim` / `--on-scrim`, radius 999. Used for the overlay hints in S2. |
 | **Toast** | Floating pill at the top of the shelf: icon + one short line. |
 | **Popover (QR)** | 260 wide, anchored to the card's left side (right side if the shelf is on the left), glass, radius 14. |
 | **Switch** | 32×18, accent when on. |
@@ -142,7 +144,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 ### S2 — Capture overlay
 
 - Frozen screen, dimmed. Crosshair cursor.
-- **Idle:** centered hint pill near the top: `Drag to capture · Space window · F full screen · Esc cancel`.
+- **Idle:** centered hint pill near the top: `Drag to capture · ⇧ to mark up · Space window · F full screen · Esc cancel` (Windows: `Shift`). 0.1.15 ships it without the `⇧ to mark up` part, which arrives with markup in 0.2.0.
 - **Dragging:** the selection is undimmed with a 1 px white inner border and a 1 px black outer border. A mono size label (`1280 × 720`) sits below-right of the cursor and flips inside near screen edges.
 - **Committed:** 80 ms white flash inside the selection (skipped with reduced motion), then the overlay hides.
 - **Window mode** (PRD F1.6): Space toggles it, and tray "Capture window" opens straight into it.
@@ -151,6 +153,17 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
   - `F` and `Esc` work as in region mode, and Space goes back to region mode.
   - A window that spans two monitors is highlighted, clipped, on each one, and a capture never spans monitors.
   - Accepted limits (cleanshot-gaps.md D4): macOS rounded corners include a few desktop pixels, and a window that is partly covered is captured with whatever covers it. Floating palettes (macOS layer > 0), the menu bar, the Dock and the taskbars are never offered.
+- **Markup** (⇧ held on release, ⇧F, or **Open markup tools** on; also Edit from the shelf). The selection stays undimmed and the Markup toolbar appears:
+  - **Placement:** centred 8 px below the selection, clamped at least 12 px inside the monitor. With less than 56 px below, it flips 8 px above. If neither fits (full screen), it floats inside the selection, 16 px from its bottom edge.
+  - **Hint pill** 8 px above the toolbar: `↵ done · ⌘Z undo · Esc discard` (Windows: `Enter`, `Ctrl+Z`). Hidden while a text box is being edited.
+  - **Tools and keys:** Select V, Arrow A, Rectangle R, Ellipse O, Text T, Pen P, Highlighter H, Numbered step N, Redact B, Crop C. ⌘/Ctrl+Z undo, ⇧⌘Z / Ctrl+Y redo, Delete removes the selected shape. Space and F do nothing.
+  - **Ink** (drawn on the screenshot, so it does not change with the theme): Orange `#FF6B2C` (default), Red `#FF3B30`, Yellow `#FFD60A` (highlighter default, 40% alpha), Blue `#0A84FF`, Black `#111111`, White `#FFFFFF`. The colour dot opens a one-row popover. Stroke S/M/L is 2/4/8 px and text S/M/L is 16/24/36 px, both times the image scale factor. The last choice is kept per tool for the session.
+  - **Redact:** Solid by default. Pixelate and Blur are offered as "Obscure", with the tooltip "Hides detail. Use Solid to fully hide text."
+  - **Selection:** a 1 px dashed `--accent` box and 8×8 white handles with a 1 px `#111` border (an arrow gets one handle per end). Drag to move, drag a handle to resize. ⇧ keeps the ratio, or snaps an arrow to 15°. A shape you just drew stays selected. Handles are preview-only.
+  - **Esc ladder:** leaves the text box first. With shapes on screen it then shows "Press Esc again to discard". With nothing drawn it closes (cancelling the capture, or leaving an Edit unchanged).
+  - **Errors** show in a line above the toolbar, and the toolbar stays open (see §5).
+  - Drawing needs a pointer. Keyboard users can crop, finish, copy and discard (§7).
+- **Edit surface:** the overlay on the monitor under the pointer. The live desktop is dimmed with the overlay dim. The item's original is centred at up to 90% of the monitor, with the toolbar 16 px below it. The toolbar shows at once and the image fades in (no fade with reduced motion).
 
 ### S3 — Shelf (the core screen)
 
@@ -169,7 +182,10 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 | Dragging | Card at 50%; after a successful drop, toast "Dropped" (and remove it if the setting is on) |
 | From phone | Badge "iPhone"; shelf auto-opens; toast "New from Mayank's iPhone" |
 | Uploading | Thin 2 px progress bar at the bottom of the card |
-| Upload error | Small danger dot on the card + toast "Couldn't send — Retry" |
+| Upload error | Small danger dot on the card + toast "Couldn't send — Retry". The red dot means only this. |
+| Reading text (Copy for AI) | Chip "Reading text…" with a small spinner in the card's corner (`--surface-2`, `aria-live=polite`), then a toast (§5) |
+| Removing an old copy (after an edit) | Amber `--warning` dot. Tooltip "Removing the old copy…", or "Couldn't remove the old copy yet. Hopshot will keep trying." while it retries. Once the card is gone, Settings shows "Removing N old copies". |
+| Edited | The card's thumbnail updates in place with the new-item accent ring |
 | Offline | Footer: "Offline — sending paused" |
 | Capacity reached (100) | Oldest unpinned card fades out when a new one arrives |
 | Locked (nothing bought, or refunded) | Capture paused; banner at the top of the shelf: **"Unlock Hopshot for $10"** / "One payment, everything included. 14-day refund, no questions." + `Buy · $10 once`. The shelf stays readable and draggable (PRD F8.1a). The price is `pricing.display`. |
@@ -204,7 +220,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 
 ### S7 — Settings (720×520, sidebar + content)
 
-- **General:** Launch at login · Capture hotkey · Show shelf hotkey · After capture: [✓] Copy to clipboard [✓] Show shelf · Theme: System / Light / Dark.
+- **General:** Launch at login · Capture hotkey · Show shelf hotkey · After capture: [✓] Copy to clipboard [✓] Show shelf [ ] Open markup tools (helper: "Or hold ⇧ when you release.") · Theme: System / Light / Dark.
 - **Shelf:** Position Left/Right · Auto-hide 4s/8s/15s/Never · Keep items 1h / **24h** / 7d · Remove after drag · Catch other screenshots (P1).
 - **Devices:** paired list (icon, name, last seen, Revoke) · `Pair a phone` · `Link another computer` (P1) · Auto-sync captures to my devices.
 - **License:** plan card (Lifetime / Lifetime + Sync with the date Sync runs until, plus **Manage Sync**; or the plans block with both prices and the 14-day refund when nothing is bought) and the purchase email; **Computers (n of 3)** with Remove on each; `Buy Hopshot`, `Add Sync` or `Manage subscription`; when nothing is bought, **Already bought? Restore** (PRD F8.3c — the path for a reinstall or a second computer). No key field anywhere.
@@ -219,7 +235,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 1. **Welcome:** display text "Screenshots that clean up after themselves." + 3 bullets (Drag anywhere · Open on your phone · Gone in 24h) → `Get started`.
 2. **Permission (macOS only):** "Hopshot needs Screen Recording permission to capture your screen." → `Open System Settings`. A live status row goes from ◌ Waiting… to ✓ Granted. Small print: "macOS may ask you to confirm this again from time to time."
 3. **Pay:** "Unlock Hopshot for $10" / "One payment, everything included: capture, the shelf, drag anywhere, and your phone. No subscription. 14-day refund, no questions." → `Buy · $10 once` · `Already bought? Restore`. After Buy, "Finish paying in your browser…" until the licence lands (license:changed), then ✓ Unlocked and `Continue` enables. `Not now` jumps to Done (capture is locked, so there is nothing to try). Skipped when already licensed.
-4. **Try it:** keycaps animation `⌘ ⇧ 2` → "Select anything on your screen." Completes automatically when the first capture lands, then shows "Now drag it from the shelf into any browser tab."
+4. **Try it:** keycaps animation `⌘ ⇧ 2` → "Select anything on your screen." Completes automatically when the first capture lands, then shows "Now drag it from the shelf into any browser tab." and, below it, "Hold ⇧ when you release to mark it up first."
 5. **Done:** licensed: "You're all set" / "Every capture lands on the shelf. Drag it into any app, copy it, or send it to your phone."; not yet: "Almost there" / "Hopshot stays locked until you unlock it for $10, from the shelf or Settings → License…". Then "Hopshot lives in your menu bar. Show the shelf any time with {shelf keys}." → `Finish`.
 
 Shown on first launch while `settings.onboarded` is false (fresh installs and upgrades from before 0.1.7 see it once). `Finish` **or** the window's close button sets it. The permission step is skipped when access is already granted, so after macOS's "Quit & Reopen" the user lands on **Try it**. Keycaps show the configured shortcuts, not hard-coded ones. Done also offers an optional email sign-up ("Hear about new tools from the maker of Hopshot", double opt-in). There is no stats checkbox: usage counts are always on and disclosed (ARCHITECTURE §7.10).
@@ -251,6 +267,18 @@ Shown on first launch while `settings.onboarded` is false (fresh installs and up
 | Offline | "Offline — sending paused" |
 | Delete all cloud data confirm | "Delete everything Hopshot stored online? Your shelf on this computer stays." |
 | Pair expired | "This pairing code expired. Make a new one on your computer." |
+| Copy for AI | "Copied image + text" |
+| Copy for AI, no text | "No text found. Image copied." |
+| Copy for AI, no recognizer | "Text reading isn't available on this PC. Image copied." |
+| Copy for AI, clipboard changed meanwhile | "Text ready · Copy text" (10 s) |
+| Copy for AI, image-only clipboard (spike fallback) | "Image copied · Copy text" (10 s) |
+| Unsupported character in text | "This character isn't supported in text yet" (caption under the box, 1.6 s) |
+| Markup too large | "That's more markup than one screenshot can hold. Undo a few and press Done again." |
+| Markup couldn't be saved | "Couldn't save your markup. Your screenshot is unchanged." |
+| Edited item removed mid-edit | "That screenshot was removed, so your markup wasn't saved." |
+| Old copy removed | "Old link removed. Share again for a new one." |
+| Old copy still pending | "Couldn't remove the old copy yet. Hopshot will keep trying." |
+| First edit of a pre-0.2.0 synced item | "Copies sent before this update stay on your phone until they expire (up to 7 days)." |
 
 Voice: short, plain, friendly. Never "Oops!" or exclamation marks in errors. Use "you" and "your".
 
@@ -271,6 +299,7 @@ A rounded square with a deep charcoal gradient background (#24242A → #121216).
 ## 7. Accessibility
 
 - Every icon button has an `aria-label` and a tooltip.
-- Shelf keyboard: `↑/↓` select, `Enter` copy, `⌘/Ctrl+C` copy, `P` send to phone, `L` copy link, `Delete` remove, `Esc` hide.
+- Shelf keyboard: `↑/↓` select, `Enter` copy, `⌘/Ctrl+C` copy, `E` edit, `P` send to phone, `L` copy link, `Delete` remove, `Esc` hide.
+- Markup toolbar: `role=toolbar` with a roving tabindex. Tab enters and leaves it, ←/→ move, and Enter/Space activate the focused button; with focus outside the toolbar, Enter is Done. Every button has an `aria-label` and a tooltip that includes its key ("Arrow (A)"). The "Reading text…" chip and the toasts are `aria-live=polite`. With reduced motion, the toolbar, hints and Edit image appear with no fade or slide.
 - Focus rings are always visible when using the keyboard (`:focus-visible`).
 - Contrast: body text ≥ 4.5:1 on glass. Check against both a white and a black wallpaper, since the glass is translucent. Fall back to `--surface-solid` when "Reduce transparency" is on (macOS) or on Windows 10.
