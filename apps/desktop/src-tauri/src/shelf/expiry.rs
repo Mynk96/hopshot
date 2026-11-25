@@ -57,7 +57,10 @@ pub fn sweep(store: &Store, app_data: &Path, plan: Plan, now: i64) -> Result<Swe
 /// Delete an item's capture, thumbnail and staged drag copy. Best-effort: a missing file is
 /// already the desired end state, and a locked one must not stop the rest of the sweep.
 pub fn remove_files(app_data: &Path, item: &Item) {
-    for path in [&item.path, &item.thumb_path] {
+    // The original kept by an edit is full-resolution pixels too (design doc, "Every
+    // item-removal path deletes path, original_path and thumb_path").
+    let original = item.original_path.as_ref();
+    for path in [Some(&item.path), Some(&item.thumb_path), original].into_iter().flatten() {
         let path = Path::new(path);
         if path.exists() {
             if let Err(error) = fs::remove_file(path) {

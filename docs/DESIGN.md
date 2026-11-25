@@ -99,6 +99,20 @@ sets `html.no-vibrancy`, which redefines `--surface` to `--surface-solid` (see �
   - `prefers-reduced-motion`: fades only, no slides or scales.
 - **Icons:** Lucide at 16 px, 1.75 stroke. Names: `copy`, `smartphone`, `link`, `trash-2`, `pin`, `folder-down`, `x`, `settings`, `check`, `qr-code`, `upload`, `share`, `download`, `scan-text` (Copy for AI). Markup tool icons come from the same Lucide set at the same size and stroke.
 
+### 2.4 Background fills
+
+Painted into the user's image by the background tool, so they don't change with the theme. `apps/desktop/src-tauri/src/shelf/background.rs` renders them; `--fill-*` in `packages/shared/src/tokens.css` draws the swatches.
+
+| Token | Value |
+|---|---|
+| `--fill-mist` | `#E4E7EC` |
+| `--fill-sand` | `#EFE4D6` |
+| `--fill-sage` | `#DCE8DE` |
+| `--fill-sky` | `#DAE6F4` |
+| `--fill-sunset` | gradient `#FF8A3D` → `#FF5E7A`, top-left to bottom-right |
+
+"None" leaves the padding transparent (a PNG with alpha), with the shadow still drawn.
+
 ---
 
 ## 3. Components
@@ -110,7 +124,7 @@ sets `html.no-vibrancy`, which redefines `--surface` to `--surface-solid` (see �
 | **Chip** | Height 18, padding 0 6, `caption`, surface-2. Time chip turns `--warning` text under 1 h left. |
 | **Badge (source)** | Chip with an icon: "iPhone", "Clipboard", "Windows PC". |
 | **Thumbnail card** | 184×115 (16:10), `object-fit: cover`, radius 10, 1 px border. Hover: lift 1 px + action bar. Selected: 2 px accent ring. Dragging: 50% opacity in place. |
-| **Action bar** | Appears on hover/focus at the bottom of the card: glass pill with 4 icon buttons (Copy, Copy for AI, Phone, More ▾). More → Edit, Copy link, Save as…, Reveal, Pin, Delete link, Delete. Double-click a card (or `E`) also opens Edit. |
+| **Action bar** | Appears on hover/focus at the bottom of the card: glass pill with 4 icon buttons (Copy, Copy for AI, Phone, More ▾). More → Edit, Background (`B`), Copy link, Save as…, Reveal, Pin, Delete link, Delete. Double-click a card (or `E`) also opens Edit. |
 | **Markup toolbar** | Opaque pill: `--surface-raised`, `--raised-border` hairline, `--shadow-raised`, radius 14, height 40, padding 6. Groups are split by `--raised-border` dividers: tools (Icon buttons 28×28, ghost; the selected tool uses `--press` with an `--accent-text` icon) \| colour dot + width dot \| undo, redo \| **Copy for AI** (secondary Button, `scan-text`) · **Done** (primary Button with a ↵ keycap). Never glass: see §2.2a. |
 | **Hint pill** | Keycaps and `small` text on `--scrim` / `--on-scrim`, radius 999. Used for the overlay hints in S2. |
 | **Toast** | Floating pill at the top of the shelf: icon + one short line. |
@@ -163,7 +177,12 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
   - **Esc ladder:** leaves the text box first. With shapes on screen it then shows "Press Esc again to discard". With nothing drawn it closes (cancelling the capture, or leaving an Edit unchanged).
   - **Errors** show in a line above the toolbar, and the toolbar stays open (see §5).
   - Drawing needs a pointer. Keyboard users can crop, finish, copy and discard (§7).
-- **Edit surface:** the overlay on the monitor under the pointer. The live desktop is dimmed with the overlay dim. The item's original is centred at up to 90% of the monitor, with the toolbar 16 px below it. The toolbar shows at once and the image fades in (no fade with reduced motion).
+- **Edit surface:** the overlay on the monitor under the pointer. The live desktop is dimmed with the overlay dim. The item's original is centred at up to 90% of the monitor, with the toolbar 16 px below it. The toolbar shows at once and the image fades in (no fade with reduced motion). Only one overlay session runs at a time: the capture hotkey is ignored while an edit is open.
+- **Background panel** (0.1.16; More ▾ → Background or `B` on the selected card). The image and a 248 px raised panel sit side by side, 24 px apart, centred together at up to 90% of the monitor. The preview is rendered by Rust from the kept original, so it is exactly what Done saves.
+  - **Panel, top to bottom:** title "Background"; six fill swatches (None, Mist, Sand, Sage, Sky, Sunset — §2.4) as a radio group, the chosen one with the focus ring; Padding S/M/L; Corners slider 0–24; Shadow switch; Size Auto / 16:9 / 1:1; the saved size in mono (`3448 × 2388`); Cancel and **Done ↵** (Windows: `Done Enter`).
+  - **Defaults:** the item's own style if it was edited before, otherwise the last style applied, otherwise Sunset · M · 12 · shadow on · Auto.
+  - **Keys:** Enter is Done, Esc is Cancel. A click on the dimmed desktop does nothing.
+  - **Done:** the button reads "Saving…" while the full-size image renders, then the surface closes and the card updates with the new-item ring. On failure the surface stays open with the §5 error above the buttons.
 
 ### S3 — Shelf (the core screen)
 
@@ -186,6 +205,7 @@ Windows shows `Ctrl+Shift+2` etc. Tray icon: a monochrome template image (macOS)
 | Reading text (Copy for AI) | Chip "Reading text…" with a small spinner in the card's corner (`--surface-2`, `aria-live=polite`), then a toast (§5) |
 | Removing an old copy (after an edit) | Amber `--warning` dot. Tooltip "Removing the old copy…", or "Couldn't remove the old copy yet. Hopshot will keep trying." while it retries. Once the card is gone, Settings shows "Removing N old copies". |
 | Edited | The card's thumbnail updates in place with the new-item accent ring |
+| Too big to sync | Chip "Too big to sync" in the card's bottom-left corner (hidden while the action bar is up). The item is over `maxImageBytes`, so auto-sync skipped it; Send and Copy link refuse it with the §5 copy. Drag and Copy still work. |
 | Offline | Footer: "Offline — sending paused" |
 | Capacity reached (100) | Oldest unpinned card fades out when a new one arrives |
 | Locked (nothing bought, or refunded) | Capture paused; banner at the top of the shelf: **"Unlock Hopshot for $10"** / "One payment, everything included. 14-day refund, no questions." + `Buy · $10 once`. The shelf stays readable and draggable (PRD F8.1a). The price is `pricing.display`. |
@@ -275,7 +295,10 @@ Shown on first launch while `settings.onboarded` is false (fresh installs and up
 | Unsupported character in text | "This character isn't supported in text yet" (caption under the box, 1.6 s) |
 | Markup too large | "That's more markup than one screenshot can hold. Undo a few and press Done again." |
 | Markup couldn't be saved | "Couldn't save your markup. Your screenshot is unchanged." |
-| Edited item removed mid-edit | "That screenshot was removed, so your markup wasn't saved." |
+| Edited item removed mid-edit | "That screenshot was removed, so your markup wasn't saved." (Background: "…so your background wasn't saved.") |
+| Background couldn't be saved | "Couldn't save the background. Your screenshot is unchanged." |
+| Too big to send | "That image is too big to send. {N} MB is the limit." N comes from `lifetime.maxImageBytes`. |
+| Too tall to copy (scrolling capture, 0.1.17) | "Too tall to copy. Drag it from the shelf instead." |
 | Old copy removed | "Old link removed. Share again for a new one." |
 | Old copy still pending | "Couldn't remove the old copy yet. Hopshot will keep trying." |
 | First edit of a pre-0.2.0 synced item | "Copies sent before this update stay on your phone until they expire (up to 7 days)." |

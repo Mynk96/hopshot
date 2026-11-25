@@ -346,7 +346,7 @@ fn status_message(status: u16) -> String {
     match status {
         403 => "Links can't last that long on your plan.".to_string(),
         409 => "That link id was already taken. Try again.".to_string(),
-        413 => "That image is too big to send. 10 MB is the limit.".to_string(),
+        413 => crate::limits::too_big_message(),
         429 => "That's all your sends for today.".to_string(),
         // Distinguished because they mean different things to whoever is debugging: a 404
         // is a URL problem on our side, a 5xx is the server or a gateway.

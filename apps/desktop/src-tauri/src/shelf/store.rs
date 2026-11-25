@@ -88,6 +88,18 @@ pub struct Item {
     pub drop_key: Option<String>,
     pub drop_delete_token: Option<String>,
     pub drop_expires_at: Option<i64>,
+    /// `originals/{id}.png` once the item has been edited (migration 1). Re-edits always
+    /// start from this, never from the edited `path`.
+    pub original_path: Option<String>,
+    /// The background style applied to `path`, as JSON (`shelf::background::Style`).
+    pub style: Option<String>,
+    /// Set between the two transactions of a background Done. A row that still has it at
+    /// startup had its Done interrupted, and recovery rolls it forward.
+    #[serde(skip)]
+    pub pending_style: Option<String>,
+    /// Over `maxImageBytes` from `config/limits.json`, so it is never uploaded: auto-sync
+    /// skips it and the card shows "Too big to sync".
+    pub too_big_to_send: bool,
 }
 
 impl Item {
@@ -112,8 +124,22 @@ impl Item {
             drop_key: row.get("drop_key")?,
             drop_delete_token: row.get("drop_delete_token")?,
             drop_expires_at: row.get("drop_expires_at")?,
+            original_path: row.get("original_path")?,
+            style: row.get("style")?,
+            pending_style: row.get("pending_style")?,
+            too_big_to_send: crate::limits::too_big_to_send(row.get::<_, i64>("bytes")? as u64),
         })
     }
+}
+
+/// A share link that was replaced by an edit but couldn't be deleted at the time
+/// (design doc, "Share link (drop) on Done"). Kept until a delete succeeds or it expires,
+/// so "Delete all my cloud data" can still reach it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SupersededDrop {
+    pub drop_id: String,
+    pub delete_token: String,
+    pub expires_at: i64,
 }
 
 /// What a new row needs. The id, timestamps and expiry are worked out by [`Store::insert`].
@@ -200,6 +226,8 @@ impl Store {
             )
             .map_err(|e| StoreError::Open(e.to_string()))?;
 
+        migrate(&connection).map_err(|e| StoreError::Open(e.to_string()))?;
+
         Ok(Store {
             connection: Mutex::new(connection),
         })
@@ -243,6 +271,10 @@ impl Store {
             drop_key: None,
             drop_delete_token: None,
             drop_expires_at: None,
+            original_path: None,
+            style: None,
+            pending_style: None,
+            too_big_to_send: crate::limits::too_big_to_send(item.bytes),
         };
 
         self.with(|connection| {
@@ -418,6 +450,113 @@ impl Store {
         })
     }
 
+    /// Background Done, transaction A: remember the original and the style about to be
+    /// applied. `path` is untouched, so a crash after this leaves a whole item.
+    pub fn begin_edit(&self, id: &str, original_path: &str, pending_style: &str) -> Result<(), StoreError> {
+        self.with(|connection| {
+            let changed = connection.execute(
+                "UPDATE items SET original_path = ?2, pending_style = ?3 WHERE id = ?1",
+                params![id, original_path, pending_style],
+            )?;
+            if changed == 0 {
+                return Err(StoreError::Missing);
+            }
+            Ok(())
+        })
+    }
+
+    /// Background Done, transaction B: the framed file is in place at `path`.
+    ///
+    /// The thumbnail gets a new path rather than being overwritten: the shelf webview
+    /// caches images by URL, so a rewritten `thumbs/{id}.png` would keep showing the old one.
+    pub fn finish_edit(
+        &self,
+        id: &str,
+        thumb_path: &str,
+        width: u32,
+        height: u32,
+        bytes: u64,
+    ) -> Result<Item, StoreError> {
+        self.with(|connection| {
+            let changed = connection.execute(
+                "UPDATE items SET style = pending_style, pending_style = NULL, thumb_path = ?2,
+                                  width = ?3, height = ?4, bytes = ?5
+                 WHERE id = ?1 AND pending_style IS NOT NULL",
+                params![id, thumb_path, width as i64, height as i64, bytes as i64],
+            )?;
+            if changed == 0 {
+                return Err(StoreError::Missing);
+            }
+            Ok(())
+        })?;
+        self.get(id)
+    }
+
+    /// Recovery for a row whose edited file is gone: `path` holds the original again.
+    pub fn reset_edit(
+        &self,
+        id: &str,
+        thumb_path: &str,
+        width: u32,
+        height: u32,
+        bytes: u64,
+    ) -> Result<(), StoreError> {
+        self.with(|connection| {
+            connection.execute(
+                "UPDATE items SET style = NULL, pending_style = NULL, thumb_path = ?2,
+                                  width = ?3, height = ?4, bytes = ?5
+                 WHERE id = ?1",
+                params![id, thumb_path, width as i64, height as i64, bytes as i64],
+            )?;
+            Ok(())
+        })
+    }
+
+    /// Move an item's drop into `superseded_drops` and clear it from the row, atomically,
+    /// so the next Copy link mints a new one while the old stays deletable.
+    pub fn supersede_drop(&self, id: &str) -> Result<(), StoreError> {
+        let mut guard = self.connection.lock().unwrap_or_else(|e| e.into_inner());
+        let tx = guard.transaction()?;
+        tx.execute(
+            "INSERT OR REPLACE INTO superseded_drops (drop_id, delete_token, expires_at)
+             SELECT drop_id, drop_delete_token, COALESCE(drop_expires_at, 0) FROM items
+             WHERE id = ?1 AND drop_id IS NOT NULL AND drop_delete_token IS NOT NULL",
+            params![id],
+        )?;
+        tx.execute(
+            "UPDATE items SET drop_id = NULL, drop_key = NULL, drop_delete_token = NULL,
+                              drop_expires_at = NULL
+             WHERE id = ?1",
+            params![id],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Every superseded link still waiting for its delete.
+    pub fn superseded_drops(&self) -> Result<Vec<SupersededDrop>, StoreError> {
+        self.with(|connection| {
+            let mut statement =
+                connection.prepare("SELECT drop_id, delete_token, expires_at FROM superseded_drops")?;
+            let rows = statement.query_map([], |row| {
+                Ok(SupersededDrop {
+                    drop_id: row.get(0)?,
+                    delete_token: row.get(1)?,
+                    expires_at: row.get(2)?,
+                })
+            })?;
+            Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+        })
+    }
+
+    /// Forget a superseded link: deleted, or expired on its own.
+    pub fn forget_superseded(&self, drop_id: &str) -> Result<(), StoreError> {
+        self.with(|connection| {
+            connection.execute("DELETE FROM superseded_drops WHERE drop_id = ?1", params![drop_id])?;
+            Ok(())
+        })
+    }
+
     /// Is this file already tracked? Used when adopting Phase 1 captures.
     pub fn has_path(&self, path: &str) -> Result<bool, StoreError> {
         self.with(|connection| {
@@ -429,6 +568,35 @@ impl Store {
             Ok(count > 0)
         })
     }
+}
+
+/// Schema migrations, keyed on `PRAGMA user_version` (design doc 0.1.16, "Storage").
+///
+/// The base `CREATE TABLE` above stays as it was, so a database from any earlier release
+/// reaches the same schema as a fresh one by running the same steps. Each step runs in one
+/// transaction with its version bump, so a crash can't leave half a migration applied.
+fn migrate(connection: &Connection) -> rusqlite::Result<()> {
+    let version: i64 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+
+    if version < 1 {
+        // `annotations` lands now with the rest so 0.2.0 markup needs no second migration.
+        connection.execute_batch(
+            "BEGIN;
+             ALTER TABLE items ADD COLUMN original_path TEXT;
+             ALTER TABLE items ADD COLUMN style TEXT;
+             ALTER TABLE items ADD COLUMN pending_style TEXT;
+             ALTER TABLE items ADD COLUMN annotations TEXT;
+             CREATE TABLE IF NOT EXISTS superseded_drops (
+               drop_id      TEXT PRIMARY KEY,
+               delete_token TEXT NOT NULL,
+               expires_at   INTEGER NOT NULL
+             );
+             PRAGMA user_version = 1;
+             COMMIT;",
+        )?;
+    }
+
+    Ok(())
 }
 
 /// Shelf capacity for a plan, from `config/limits.json`: the Free plan's smaller shelf, or
@@ -565,6 +733,109 @@ mod tests {
 
         store.set_pinned(&a.id, false, DAY_MS).expect("unpin a");
         assert_eq!(store.count_pinned().expect("count"), 1);
+    }
+
+    /// A database written by 0.1.15 or earlier reaches the same schema as a fresh one, and
+    /// keeps its rows (design doc 0.1.16, "Storage").
+    #[test]
+    fn migration_1_upgrades_an_existing_database_in_place() {
+        let connection = Connection::open_in_memory().expect("connection");
+        connection
+            .execute_batch(
+                "CREATE TABLE items (
+                   id TEXT PRIMARY KEY, created_at INTEGER NOT NULL, expires_at INTEGER,
+                   source TEXT NOT NULL, origin_device TEXT, file_name TEXT NOT NULL,
+                   path TEXT NOT NULL, thumb_path TEXT NOT NULL,
+                   width INTEGER NOT NULL, height INTEGER NOT NULL, bytes INTEGER NOT NULL,
+                   vault_item_id TEXT, drop_id TEXT, drop_key TEXT, drop_delete_token TEXT,
+                   drop_expires_at INTEGER);
+                 INSERT INTO items (id, created_at, source, file_name, path, thumb_path,
+                                    width, height, bytes)
+                 VALUES ('old', 1, 'capture', 'a.png', '/a.png', '/t.png', 1, 1, 1);",
+            )
+            .expect("0.1.15 schema");
+
+        let store = Store::from_connection(connection).expect("migrate");
+        let item = store.get("old").expect("row kept");
+        assert_eq!(item.original_path, None);
+        assert_eq!(item.style, None);
+        let version: i64 = store
+            .with(|c| Ok(c.query_row("PRAGMA user_version", [], |row| row.get(0))?))
+            .expect("version");
+        assert_eq!(version, 1);
+        assert!(store.superseded_drops().expect("table exists").is_empty());
+    }
+
+    #[test]
+    fn migrating_twice_is_a_no_op() {
+        let store = Store::in_memory().expect("store");
+        store.with(|c| Ok(migrate(c)?)).expect("second run");
+        store.insert(sample("a.png"), Some(DAY_MS)).expect("still usable");
+    }
+
+    #[test]
+    fn an_edit_is_begun_then_finished_in_two_steps() {
+        let store = Store::in_memory().expect("store");
+        let item = store.insert(sample("a.png"), Some(DAY_MS)).expect("insert");
+
+        store.begin_edit(&item.id, "/originals/a.png", "{\"x\":1}").expect("txn a");
+        let mid = store.get(&item.id).expect("get");
+        assert_eq!(mid.pending_style.as_deref(), Some("{\"x\":1}"));
+        assert_eq!(mid.style, None, "the style isn't applied until the file is in place");
+
+        let done = store.finish_edit(&item.id, "/thumbs/a-e1.png", 300, 200, 999).expect("txn b");
+        assert_eq!(done.thumb_path, "/thumbs/a-e1.png");
+        assert_eq!(done.style.as_deref(), Some("{\"x\":1}"));
+        assert_eq!(done.pending_style, None);
+        assert_eq!((done.width, done.height, done.bytes), (300, 200, 999));
+        assert_eq!(done.original_path.as_deref(), Some("/originals/a.png"));
+    }
+
+    /// The old link must stay deletable ("Delete all my cloud data") after the item lets go
+    /// of it, so the next Copy link mints a new one.
+    #[test]
+    fn superseding_a_drop_moves_it_off_the_item_and_keeps_it_deletable() {
+        let store = Store::in_memory().expect("store");
+        let item = store.insert(sample("a.png"), Some(DAY_MS)).expect("insert");
+        store.set_drop(&item.id, "drop-1", "key-1", "token-1", 42).expect("set");
+
+        store.supersede_drop(&item.id).expect("supersede");
+
+        let after = store.get(&item.id).expect("get");
+        assert_eq!(after.drop_id, None);
+        assert_eq!(after.drop_key, None);
+        assert_eq!(
+            store.superseded_drops().expect("list"),
+            vec![SupersededDrop {
+                drop_id: "drop-1".into(),
+                delete_token: "token-1".into(),
+                expires_at: 42,
+            }]
+        );
+
+        store.forget_superseded("drop-1").expect("forget");
+        assert!(store.superseded_drops().expect("list").is_empty());
+    }
+
+    #[test]
+    fn superseding_an_item_without_a_link_records_nothing() {
+        let store = Store::in_memory().expect("store");
+        let item = store.insert(sample("a.png"), Some(DAY_MS)).expect("insert");
+        store.supersede_drop(&item.id).expect("supersede");
+        assert!(store.superseded_drops().expect("list").is_empty());
+    }
+
+    #[test]
+    fn items_over_the_send_limit_are_flagged() {
+        let store = Store::in_memory().expect("store");
+        let limit = limits().lifetime.max_image_bytes;
+        let small = store.insert(sample("a.png"), Some(DAY_MS)).expect("small");
+        let big = store
+            .insert(NewItem { bytes: limit + 1, ..sample("b.png") }, Some(DAY_MS))
+            .expect("big");
+        assert!(!store.get(&small.id).expect("get").too_big_to_send);
+        assert!(store.get(&big.id).expect("get").too_big_to_send);
+        assert!(big.too_big_to_send);
     }
 
     #[test]

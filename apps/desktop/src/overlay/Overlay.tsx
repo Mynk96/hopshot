@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { EditSurface, type EditStart } from "./EditSurface";
 
 /**
  * Capture overlay (DESIGN S2, PRD F1.2–F1.3, F1.6).
@@ -71,6 +72,8 @@ const prefersReducedMotion = () =>
 
 export default function Overlay() {
   const [start, setStart] = useState<OverlayStart | null>(null);
+  // The same window doubles as the Edit surface (DESIGN S2), one session at a time.
+  const [edit, setEdit] = useState<EditStart | null>(null);
   const [origin, setOrigin] = useState<Point | null>(null);
   const [cursor, setCursor] = useState<Point | null>(null);
   const [flash, setFlash] = useState<Rect | null>(null);
@@ -87,6 +90,7 @@ export default function Overlay() {
 
   useEffect(() => {
     const begin = (next: OverlayStart) => {
+      setEdit(null);
       setStart(next);
       setOrigin(null);
       setCursor(null);
@@ -102,6 +106,14 @@ export default function Overlay() {
     const pending = listen<OverlayStart>("overlay:start", (event) => begin(event.payload), {
       target: label,
     });
+    const editing = listen<EditStart>(
+      "overlay:edit",
+      (event) => {
+        setStart(null);
+        setEdit(event.payload);
+      },
+      { target: label },
+    );
 
     // A window created for a newly attached monitor misses the event that opened this
     // capture, so ask for the current state once on mount.
@@ -110,10 +122,17 @@ export default function Overlay() {
       void invoke<OverlayStart | null>("overlay_pending", { monitorId }).then((current) => {
         if (current) begin(current);
       });
+      void invoke<EditStart | null>("edit_pending", { monitorId }).then((current) => {
+        if (current) {
+          setStart(null);
+          setEdit(current);
+        }
+      });
     }
 
     return () => {
       void pending.then((unlisten) => unlisten());
+      void editing.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -160,6 +179,7 @@ export default function Overlay() {
     const onKeyDown = (event: KeyboardEvent) => {
       const { start: current, origin: from, cursor: to, mode: now, hovered: index } =
         live.current;
+      // The Edit surface handles its own keys; `start` is null while it is up.
       if (!current) return;
 
       if (event.key === " ") {
@@ -198,6 +218,7 @@ export default function Overlay() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [cancel, commit, commitFullScreen, commitWindow]);
 
+  if (edit) return <EditSurface start={edit} />;
   if (!start) return null;
 
   const selection = origin && cursor ? rectFrom(origin, cursor) : null;
