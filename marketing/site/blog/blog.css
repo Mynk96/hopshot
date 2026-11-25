@@ -74,3 +74,4 @@ footer a:hover{text-decoration:underline}
 footer .sp{flex:1}
 @media (max-width:640px){body{font-size:17px}.lead{font-size:18px}.cta{padding:22px 18px}header.top .nl{display:none}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+footer .fnav{display:flex;flex-wrap:wrap;gap:10px 24px;width:100%}
