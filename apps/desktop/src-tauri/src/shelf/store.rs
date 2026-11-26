@@ -302,7 +302,8 @@ impl Store {
         Ok(row)
     }
 
-    /// Everything on the shelf, newest first (PRD F2.1).
+    /// Every row, newest first — including any past `expires_at` that the sweep has not
+    /// removed yet. Internal callers (cloud cleanup, edit recovery) need those too.
     pub fn list(&self) -> Result<Vec<Item>, StoreError> {
         self.with(|connection| {
             let mut statement = connection.prepare(
@@ -310,6 +311,30 @@ impl Store {
             )?;
             let rows = statement.query_map([], Item::from_row)?;
             Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+        })
+    }
+
+    /// What the shelf shows, newest first (PRD F2.1): every row not yet past `expires_at`,
+    /// so an item never lingers on screen between expiring and being swept (PRD F2.7).
+    pub fn list_live(&self, now: i64) -> Result<Vec<Item>, StoreError> {
+        self.with(|connection| {
+            let mut statement = connection.prepare(
+                "SELECT * FROM items WHERE expires_at IS NULL OR expires_at > ?1
+                 ORDER BY created_at DESC",
+            )?;
+            let rows = statement.query_map(params![now], Item::from_row)?;
+            Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+        })
+    }
+
+    /// When the next unpinned item expires, if any. The expiry job sleeps until then.
+    pub fn next_expiry(&self) -> Result<Option<i64>, StoreError> {
+        self.with(|connection| {
+            Ok(connection.query_row(
+                "SELECT MIN(expires_at) FROM items WHERE expires_at IS NOT NULL",
+                [],
+                |row| row.get::<_, Option<i64>>(0),
+            )?)
         })
     }
 

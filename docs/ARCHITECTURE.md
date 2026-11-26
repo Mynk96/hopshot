@@ -215,7 +215,7 @@ CREATE TABLE items (
 CREATE INDEX idx_items_created ON items(created_at DESC);
 ```
 
-- **Expiry job:** runs at start and every 10 min. It deletes rows where `expires_at < now` along with their files, and enforces capacity (it drops the oldest *unpinned* items beyond the plan's capacity).
+- **Expiry job:** runs at start, the moment the next item comes due, whenever the shelf is shown, and at least every 10 min. It naps at most 30 s and checks the wall clock, so system sleep and App Nap cannot delay it. It deletes rows where `expires_at < now` along with their files, and enforces capacity (it drops the oldest *unpinned* items beyond the plan's capacity). `list_items` never returns a row past `expires_at`, even before the sweep removes it.
 - **Drag staging:** on drag start, hard-link (or copy) `captures/{id}.png` to `drag/{file_name}` so the drop target sees a friendly name. Then call `startDrag({ item: [stagedPath], icon: thumbPath })`.
 - **Secrets** (`keyring`, service `xyz.hopshot`): `license_device_token`, `vault_id`, `vault_key`, `device_id`, `device_token`.
 

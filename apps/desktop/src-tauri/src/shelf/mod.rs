@@ -95,7 +95,7 @@ pub fn app_data<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, ShelfError> {
 
 /// Everything on the shelf, newest first (PRD F2.1).
 pub fn list<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<Item>, ShelfError> {
-    Ok(store(app)?.list()?)
+    Ok(store(app)?.list_live(store::now_ms())?)
 }
 
 /// Record a freshly captured PNG: write its thumbnail, insert the row, return the item.
@@ -323,6 +323,10 @@ pub fn show<R: Runtime>(app: &AppHandle<R>) {
     if let Err(error) = position(app, &window) {
         log::warn!("the shelf could not be positioned: {error}");
     }
+
+    // Anything that expired while the shelf was hidden — or while the Mac slept — goes now
+    // rather than on the job's next look.
+    expiry::sweep_soon(app);
 
     // The shelf webview mounts once at launch and is only shown and hidden after that, so
     // becoming visible is not something it can notice on its own — and the auto-hide
