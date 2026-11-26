@@ -95,33 +95,42 @@ pub fn overlay_pending(
 
 /// The overlay finished a drag (ARCHITECTURE §5.4). `rect` is CSS px, monitor-local.
 #[tauri::command]
-pub fn overlay_commit(
+pub async fn overlay_commit(
     app: AppHandle,
     monitor_id: u32,
     rect: capture::SelectionRect,
 ) -> Result<String, String> {
-    capture::commit(&app, monitor_id, rect)
-        .map(|path| path.display().to_string())
-        .map_err(|error| error.to_string())
+    off_main_thread(move || capture::commit(&app, monitor_id, rect)).await
 }
 
 /// Click or Enter on a highlighted window (PRD F1.6). Only an index travels: Rust looks
 /// the rect up in the list it gave this overlay and never accepts one from the UI.
 #[tauri::command]
-pub fn overlay_commit_window(
+pub async fn overlay_commit_window(
     app: AppHandle,
     monitor_id: u32,
     index: usize,
 ) -> Result<String, String> {
-    capture::commit_window(&app, monitor_id, index)
-        .map(|path| path.display().to_string())
-        .map_err(|error| error.to_string())
+    off_main_thread(move || capture::commit_window(&app, monitor_id, index)).await
 }
 
 /// `F` on the overlay — capture the whole monitor it is covering (PRD F1.3).
 #[tauri::command]
-pub fn overlay_commit_full(app: AppHandle, monitor_id: u32) -> Result<String, String> {
-    capture::commit_full(&app, monitor_id)
+pub async fn overlay_commit_full(app: AppHandle, monitor_id: u32) -> Result<String, String> {
+    off_main_thread(move || capture::commit_full(&app, monitor_id)).await
+}
+
+/// Run a commit on a blocking worker.
+///
+/// A plain `fn` command runs on the main thread in Tauri v2, and a commit encodes a PNG,
+/// writes a thumbnail and fills the clipboard. All of that froze the event loop, so the
+/// shelf could not answer a press or start a drag until it was done.
+async fn off_main_thread(
+    commit: impl FnOnce() -> Result<std::path::PathBuf, capture::CaptureError> + Send + 'static,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(commit)
+        .await
+        .map_err(|error| error.to_string())?
         .map(|path| path.display().to_string())
         .map_err(|error| error.to_string())
 }
