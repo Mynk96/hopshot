@@ -1,6 +1,7 @@
 //! The expiry job (PRD F2.7, F2.8, ARCHITECTURE §5.3).
 //!
-//! Runs once at startup and every 10 minutes after. Two rules, in order:
+//! Runs once at startup, as soon as the next item comes due, whenever the shelf is shown,
+//! and every 10 minutes regardless. Two rules, in order:
 //!
 //! 1. **Expiry** — rows past `expires_at` go, along with their files. Pinned rows have a
 //!    NULL `expires_at` and are never matched (PRD F2.11).
@@ -13,6 +14,8 @@
 
 use std::fs;
 use std::path::Path;
+use std::panic::AssertUnwindSafe;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager, Runtime};
@@ -74,15 +77,74 @@ pub fn remove_files(app_data: &Path, item: &Item) {
     crate::shelf::files::remove_staged(app_data, &item.id);
 }
 
-/// Run the sweep now and then on a timer for the lifetime of the app.
+/// The longest the job sleeps between looks at the wall clock.
+///
+/// A plain 10-minute `sleep` was the bug behind items lingering at "0m": macOS does not
+/// count time spent asleep, and App Nap stretches timers in a background app with no
+/// visible window, so one sleep could last far longer than 10 minutes. Short naps measured
+/// against the wall clock catch up within this long of waking.
+const MAX_NAP: Duration = Duration::from_secs(30);
+/// The shortest the job sleeps, so nothing can make it spin.
+const MIN_NAP: Duration = Duration::from_secs(1);
+
+/// Wall-clock time of the last full sweep, so the 10-minute pass survives system sleep.
+static LAST_FULL_SWEEP_MS: AtomicI64 = AtomicI64::new(0);
+
+/// Run the sweep now and then for the lifetime of the app: the moment the next item comes
+/// due, and a full pass (capacity, `drag/`) every [`SWEEP_INTERVAL`].
 pub fn start<R: Runtime>(app: &AppHandle<R>) {
-    run_once(app);
+    run_guarded(app);
 
     let handle = app.clone();
     std::thread::spawn(move || loop {
-        std::thread::sleep(SWEEP_INTERVAL);
-        run_once(&handle);
+        let now = crate::shelf::store::now_ms();
+        let next_expiry = handle
+            .try_state::<Store>()
+            .and_then(|store| store.next_expiry().ok().flatten());
+        let last_full = LAST_FULL_SWEEP_MS.load(Ordering::Relaxed);
+
+        if is_due(now, next_expiry, last_full) {
+            run_guarded(&handle);
+            // A row that keeps failing to delete stays due; this keeps the loop from spinning.
+            std::thread::sleep(MIN_NAP);
+        } else {
+            std::thread::sleep(nap(now, next_expiry, last_full));
+        }
     });
+}
+
+/// Sweep now, off the caller's thread. Used when the shelf is shown, so a Mac that just
+/// woke never shows items that expired while it slept.
+pub fn sweep_soon<R: Runtime>(app: &AppHandle<R>) {
+    let handle = app.clone();
+    std::thread::spawn(move || run_guarded(&handle));
+}
+
+/// Is a sweep owed: an item has expired, or the periodic full pass is due?
+fn is_due(now: i64, next_expiry: Option<i64>, last_full_sweep: i64) -> bool {
+    next_expiry.is_some_and(|at| at <= now) || now - last_full_sweep >= interval_ms()
+}
+
+/// How long to sleep before looking again: until the next item expires or the full pass is
+/// due, whichever is sooner, but never longer than [`MAX_NAP`].
+fn nap(now: i64, next_expiry: Option<i64>, last_full_sweep: i64) -> Duration {
+    let full_due = last_full_sweep + interval_ms();
+    let due = next_expiry.map_or(full_due, |at| at.min(full_due));
+    let wait_ms = u64::try_from(due - now).unwrap_or(0);
+    Duration::from_millis(wait_ms).clamp(MIN_NAP, MAX_NAP)
+}
+
+fn interval_ms() -> i64 {
+    i64::try_from(SWEEP_INTERVAL.as_millis()).unwrap_or(i64::MAX)
+}
+
+/// A panic inside one sweep must not end the job for the rest of the session: the thread
+/// would die silently and nothing would ever expire again.
+fn run_guarded<R: Runtime>(app: &AppHandle<R>) {
+    LAST_FULL_SWEEP_MS.store(crate::shelf::store::now_ms(), Ordering::Relaxed);
+    if std::panic::catch_unwind(AssertUnwindSafe(|| run_once(app))).is_err() {
+        log::error!("the expiry sweep panicked; it will run again on schedule");
+    }
 }
 
 fn run_once<R: Runtime>(app: &AppHandle<R>) {
@@ -298,6 +360,57 @@ mod tests {
         let swept = sweep(&f.store, &f.dir, Plan::Lifetime, crate::shelf::store::now_ms()).expect("sweep");
         assert_eq!(swept, Swept::default());
         assert_eq!(swept.total(), 0);
+    }
+
+    /// The "0m forever" bug: the job must wake for an item that comes due before the next
+    /// 10-minute pass, and catch up at once after the machine slept through it.
+    #[test]
+    fn the_job_wakes_when_the_next_item_comes_due() {
+        let start = 1_000_000_000;
+        // Nothing due yet, an item expires in 5 s: sleep about that long, not 10 minutes.
+        assert!(!is_due(start, Some(start + 5_000), start));
+        assert_eq!(nap(start, Some(start + 5_000), start), Duration::from_secs(5));
+        // It has expired: sweep now.
+        assert!(is_due(start + 5_000, Some(start + 5_000), start));
+        // Far-off expiry: never sleep past MAX_NAP, so system sleep cannot stretch the wait.
+        assert_eq!(nap(start, Some(start + DAY_MS), start), MAX_NAP);
+        // Woke from a long sleep with nothing expiring: the overdue full pass runs.
+        assert!(is_due(start + 3 * 60 * MINUTE_MS, None, start));
+        // An empty or all-pinned shelf still gets the periodic pass.
+        assert!(!is_due(start + MINUTE_MS, None, start));
+        assert_eq!(nap(start, None, start), MAX_NAP);
+        // Something overdue that refuses to go never makes the loop spin.
+        assert_eq!(nap(start, Some(start - MINUTE_MS), start), MIN_NAP);
+    }
+
+    #[test]
+    fn next_expiry_ignores_pinned_items() {
+        let f = Fixture::new("next-expiry");
+        assert_eq!(f.store.next_expiry().expect("empty"), None);
+        f.add("pinned.png", None);
+        assert_eq!(f.store.next_expiry().expect("pinned only"), None);
+        let soon = f.add("soon.png", Some(MINUTE_MS));
+        f.add("later.png", Some(DAY_MS));
+        assert_eq!(f.store.next_expiry().expect("next"), soon.expires_at);
+    }
+
+    /// PRD F2.7: between expiry and the sweep, the shelf must not show the item.
+    #[test]
+    fn the_shelf_never_lists_an_expired_item() {
+        let f = Fixture::new("list-hides-expired");
+        f.add("expired.png", Some(-MINUTE_MS));
+        let keeper = f.add("live.png", Some(DAY_MS));
+        let pinned = f.add("pinned.png", None);
+
+        let now = crate::shelf::store::now_ms();
+        let mut listed: Vec<_> = f.store.list_live(now).expect("list").into_iter().map(|i| i.id).collect();
+        listed.sort();
+        let mut expected = vec![keeper.id, pinned.id];
+        expected.sort();
+        assert_eq!(listed, expected);
+        // Still in the table — and visible to cloud cleanup — until the sweep removes it
+        // with its files.
+        assert_eq!(f.store.list().expect("all rows").len(), 3);
     }
 
     #[test]
