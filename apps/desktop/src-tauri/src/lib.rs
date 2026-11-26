@@ -211,6 +211,10 @@ fn setup_shelf<R: Runtime>(app: &AppHandle<R>) {
     #[cfg(target_os = "macos")]
     platform::make_shelf_non_activating(&window);
 
+    // The user can drag the shelf by its header; remember that so resizes and re-shows do
+    // not snap it back to the screen edge.
+    shelf::track_moves(&window);
+
     // Whether the OS gave the window a real backdrop decides whether the shelf may draw
     // itself as glass at all (DESIGN §7). The shelf webview reads this through
     // `shelf_has_vibrancy` on mount.
