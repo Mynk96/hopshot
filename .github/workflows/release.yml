@@ -328,6 +328,14 @@ jobs:
           choose **More → Background**, or select it and press **B**. Your original is kept, so
           you can change the background again later.
 
+          **Also fixed:**
+          - A new screenshot can be dragged out of the shelf straight away, with no pause
+            after capturing.
+          - Screenshots now disappear from the shelf the moment they expire, even after your
+            computer has been asleep.
+          - Drag the shelf by its header to put it anywhere on screen; it stays where you put it.
+          - A new screenshot no longer keeps an orange outline. Only the one you select does.
+
           Hopshot for Windows 10/11 (64-bit) and macOS 13 or newer (Apple Silicon and Intel).
 
           **Windows:** the installer is **unsigned**, so SmartScreen will warn the first time:
