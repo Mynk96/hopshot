@@ -22,7 +22,12 @@ pub enum ClipboardError {
 /// rather than arriving as a file path (PRD F2.5).
 pub fn copy_image(path: &Path) -> Result<(), ClipboardError> {
     let decoded = image::open(path).map_err(|e| ClipboardError::Decode(e.to_string()))?;
-    let rgba = decoded.to_rgba8();
+    copy_rgba(decoded.to_rgba8())
+}
+
+/// [`copy_image`] for pixels already in memory, as a fresh capture's are. Decoding the PNG
+/// that was just written would only repeat work: about 50–90 ms for a Retina screenshot.
+pub fn copy_rgba(rgba: image::RgbaImage) -> Result<(), ClipboardError> {
     let (width, height) = rgba.dimensions();
 
     let image = ImageData {

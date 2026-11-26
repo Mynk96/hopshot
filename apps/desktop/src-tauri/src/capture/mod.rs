@@ -122,13 +122,23 @@ fn try_start<R: Runtime>(app: &AppHandle<R>, mode: Mode) -> Result<(), CaptureEr
                 return Err(CaptureError::StaleMonitor);
             };
             let image = frame.crop(frame.bounds.full_frame());
-            let path = save_png(app, &image)?;
-            log::info!(
-                "full-screen capture saved in {:.1} ms: {}",
-                started.elapsed().as_secs_f64() * 1000.0,
-                path.display()
-            );
-            deliver(app, &path, &image, crate::shelf::store::Source::Capture, true);
+            // The hotkey handler runs on the main thread; encoding there froze the whole app,
+            // shelf included, until the PNG was written.
+            let app = app.clone();
+            std::thread::spawn(move || match save_png(&app, &image) {
+                Ok(path) => {
+                    log::info!(
+                        "full-screen capture saved in {:.1} ms: {}",
+                        started.elapsed().as_secs_f64() * 1000.0,
+                        path.display()
+                    );
+                    deliver(&app, &path, &image, crate::shelf::store::Source::Capture, true);
+                }
+                Err(error) => {
+                    log::error!("the capture could not be saved: {error}");
+                    toast(&app, "error", &error.to_string());
+                }
+            });
         }
         Mode::Region | Mode::Window => {
             for frame in &mut frames {
@@ -192,20 +202,26 @@ pub fn commit<R: Runtime>(
 ) -> Result<PathBuf, CaptureError> {
     let started = Instant::now();
 
+    // Crop and release the frozen frames in one step, so a second commit racing this one
+    // finds nothing to crop (commits run off the main thread).
     let cropped = app
         .state::<FrozenFrames>()
-        .with(monitor_id, |frame| {
+        .take(monitor_id, |frame| {
             crop::to_physical(rect, &frame.bounds).map(|physical| (frame.crop(physical), physical))
         })
         .ok_or(CaptureError::StaleMonitor)?
         .ok_or(CaptureError::EmptySelection)?;
 
-    let (image, physical) = cropped;
-    let path = save_png(app, &image)?;
-
+    // Give the screen back before encoding: the PNG takes 100+ ms on a Retina capture, and
+    // the frozen overlay sitting on top of everything until then read as lag.
     overlay::hide_all(app);
-    app.state::<FrozenFrames>().clear();
     CURRENT_NONCE.store(0, Ordering::Relaxed);
+
+    let (image, physical) = cropped;
+    let path = save_png(app, &image).inspect_err(|error| {
+        log::error!("the capture could not be saved: {error}");
+        toast(app, "error", &error.to_string());
+    })?;
 
     log::info!(
         "captured {}x{} px in {:.1} ms: {}",
@@ -288,13 +304,6 @@ fn deliver<R: Runtime>(
         }
     };
 
-    if copy_allowed && settings.copy_on_capture {
-        match crate::clipboard::copy_image(path) {
-            Ok(()) => toast(app, "info", "Copied to clipboard"),
-            Err(error) => log::warn!("could not copy the capture to the clipboard: {error}"),
-        }
-    }
-
     crate::shelf::changed(app);
 
     if settings.show_shelf_on_capture {
@@ -314,6 +323,18 @@ fn deliver<R: Runtime>(
         if settings.auto_sync {
             crate::cloud::vault::sync_capture_in_background(app, &item);
         }
+    }
+
+    // Last, and on its own thread: putting a Retina capture on the clipboard costs a few
+    // hundred ms, and it used to sit between the capture and the card being draggable.
+    // The pixels are already in memory, so nothing is decoded back from disk.
+    if copy_allowed && settings.copy_on_capture {
+        let app = app.clone();
+        let image = image.clone();
+        std::thread::spawn(move || match crate::clipboard::copy_rgba(image) {
+            Ok(()) => toast(&app, "info", "Copied to clipboard"),
+            Err(error) => log::warn!("could not copy the capture to the clipboard: {error}"),
+        });
     }
 }
 

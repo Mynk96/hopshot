@@ -74,6 +74,21 @@ impl FrozenFrames {
         frames.iter().find(|m| m.monitor_id == monitor_id).map(f)
     }
 
+    /// Run `f` against one frozen frame and, if it yields a result, release every frame in
+    /// the same lock. A commit now runs off the main thread, so two quick commits (a double
+    /// Enter) could otherwise both crop before either cleared the frames.
+    ///
+    /// `None` from `f` (an empty selection) keeps the frames: the overlay stays up so the
+    /// user can select again.
+    pub fn take<T>(&self, monitor_id: u32, f: impl FnOnce(&Frame) -> Option<T>) -> Option<Option<T>> {
+        let mut frames = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let result = frames.iter().find(|m| m.monitor_id == monitor_id).map(f)?;
+        if result.is_some() {
+            frames.clear();
+        }
+        Some(result)
+    }
+
     /// The display bytes for one monitor, copied out for the protocol handler.
     pub fn display_bytes(&self, monitor_id: u32) -> Option<Vec<u8>> {
         self.with(monitor_id, |frame| frame.display_bytes.clone())
@@ -293,6 +308,43 @@ pub fn encode_png(image: &RgbaImage) -> Result<Vec<u8>, FrameError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn frozen(ids: &[u32]) -> FrozenFrames {
+        let frames = FrozenFrames::default();
+        frames.replace(
+            ids.iter()
+                .map(|&monitor_id| Frame {
+                    monitor_id,
+                    bounds: MonitorBounds::from_physical(0, 0, 4, 4, 1.0),
+                    image: RgbaImage::new(4, 4),
+                    display_bytes: Vec::new(),
+                    windows: Vec::new(),
+                })
+                .collect(),
+        );
+        frames
+    }
+
+    /// Commits run off the main thread, so a double Enter must not crop twice.
+    #[test]
+    fn a_second_commit_finds_nothing_to_crop() {
+        let frames = frozen(&[1, 2]);
+        assert_eq!(frames.take(1, |frame| Some(frame.monitor_id)), Some(Some(1)));
+        // Every monitor's frame went with the first commit.
+        assert!(frames.is_empty());
+        assert_eq!(frames.take(1, |frame| Some(frame.monitor_id)), None);
+    }
+
+    /// An empty selection leaves the overlay up, so the frames must stay to select again.
+    #[test]
+    fn an_empty_selection_keeps_the_frames() {
+        let frames = frozen(&[1]);
+        assert_eq!(frames.take(1, |_| None::<()>), Some(None));
+        assert!(!frames.is_empty());
+        // A monitor that is not frozen leaves the others alone too.
+        assert_eq!(frames.take(9, |_| Some(())), None);
+        assert!(!frames.is_empty());
+    }
 
     #[test]
     fn display_frames_are_bmp() {
