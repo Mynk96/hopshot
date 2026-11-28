@@ -1,0 +1,109 @@
+{
+  "snipping-tool-for-mac": {
+    "page": "snipping-tool-for-mac/index.html",
+    "kicker": "Mac guide",
+    "headline": "Snipping Tool for Mac",
+    "sub": "Every Windows snip shortcut, mapped to the Mac, and the best apps compared.",
+    "path": "/snipping-tool-for-mac",
+    "visual": [["Win", "Shift", "S"], ["Cmd", "Shift", "4"]],
+    "hotRow": 1
+  },
+  "how-to-screenshot-on-windows": {
+    "page": "how-to-screenshot-on-windows/index.html",
+    "kicker": "Windows guide",
+    "headline": "How to screenshot on Windows 11 and 10",
+    "sub": "Every shortcut, where screenshots are saved, and what to do when one stops working.",
+    "path": "/how-to-screenshot-on-windows",
+    "visual": [["Win", "Shift", "S"], ["PrtSc"], ["Win", "PrtSc"]]
+  },
+  "how-to-screenshot-on-mac": {
+    "page": "how-to-screenshot-on-mac/index.html",
+    "kicker": "Mac guide",
+    "headline": "How to screenshot on a Mac",
+    "sub": "Every shortcut, on any macOS version, plus Terminal commands and older Macs.",
+    "path": "/how-to-screenshot-on-mac",
+    "visual": [["Cmd", "Shift", "3"], ["Cmd", "Shift", "4"], ["Cmd", "Shift", "5"]],
+    "hotRow": 1
+  },
+  "snipping-tool-not-working": {
+    "page": "snipping-tool-not-working/index.html",
+    "kicker": "Windows fix",
+    "headline": "Snipping Tool not working?",
+    "sub": "Fixes for Win+Shift+S, Print Screen and snips that never show up, by symptom.",
+    "path": "/snipping-tool-not-working",
+    "visual": [["Win", "Shift", "S"], ["PrtSc"]]
+  },
+  "screenshot-not-working-on-mac": {
+    "page": "screenshot-not-working-on-mac/index.html",
+    "kicker": "Mac fix",
+    "headline": "Mac screenshot not working?",
+    "sub": "Fix it by what you see: no file, an error, a black image or a missing thumbnail.",
+    "path": "/screenshot-not-working-on-mac",
+    "visual": [["Cmd", "Shift", "4"], ["Cmd", "Shift", "5"]]
+  },
+  "where-do-screenshots-go-on-mac": {
+    "page": "where-do-screenshots-go-on-mac/index.html",
+    "kicker": "Mac guide",
+    "headline": "Where do screenshots go on Mac?",
+    "sub": "Find them, change the folder, and stop the Desktop pile-up.",
+    "path": "/where-do-screenshots-go-on-mac",
+    "visual": "shelf"
+  },
+  "cleanshot-x-for-windows": {
+    "page": "cleanshot-x-for-windows/index.html",
+    "kicker": "Windows",
+    "headline": "CleanShot X for Windows?",
+    "sub": "It's Mac-only. Here's what to use on a PC instead, compared honestly.",
+    "path": "/cleanshot-x-for-windows",
+    "visual": "shelf"
+  },
+  "hopshot-vs-cleanshot-x": {
+    "page": "hopshot-vs-cleanshot-x/index.html",
+    "kicker": "Comparison",
+    "headline": "Hopshot vs CleanShot X",
+    "sub": "An honest side-by-side: price, platforms, and what each one is for.",
+    "path": "/hopshot-vs-cleanshot-x",
+    "visual": "shelf"
+  },
+  "blog": {
+    "page": "blog/index.html",
+    "kicker": "Blog",
+    "headline": "Screenshot fixes",
+    "sub": "Short guides for Mac, Windows and AI tools.",
+    "path": "/blog",
+    "visual": "shelf"
+  },
+  "mac-screenshot-thumbnail-drag-not-working": {
+    "page": "blog/mac-screenshot-thumbnail-drag-not-working/index.html",
+    "kicker": "Mac fix",
+    "headline": "Screenshot thumbnail won't drag?",
+    "sub": "Why the Mac thumbnail misbehaves, and how to find a screenshot that vanished.",
+    "path": "/blog",
+    "visual": "shelf"
+  },
+  "paste-screenshot-claude-code-windows": {
+    "page": "blog/paste-screenshot-claude-code-windows/index.html",
+    "kicker": "Windows · AI tools",
+    "headline": "Paste screenshots into Claude Code on Windows",
+    "sub": "What to do when Ctrl+V does nothing.",
+    "path": "/blog",
+    "visual": [["Ctrl", "V"], ["Alt", "V"]],
+    "hotRow": 1
+  },
+  "screenshots-into-cursor-chatgpt": {
+    "page": "blog/screenshots-into-cursor-chatgpt/index.html",
+    "kicker": "AI tools",
+    "headline": "Screenshots into Cursor, Claude and ChatGPT",
+    "sub": "The fastest ways to get a screenshot into the prompt.",
+    "path": "/blog",
+    "visual": "shelf"
+  },
+  "send-screenshot-computer-to-phone": {
+    "page": "blog/send-screenshot-computer-to-phone/index.html",
+    "kicker": "Phone",
+    "headline": "Send a screenshot from your computer to your phone",
+    "sub": "From a PC or a Mac, with no cable and no email.",
+    "path": "/blog",
+    "visual": "shelf"
+  }
+}
