@@ -1,0 +1,86 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Source for the per-page link-preview cards in marketing/site/og/<slug>.png.
+     Card text lives in marketing/tools/og-cards.json; marketing/tools/render-og-cards.py renders every card
+     (1200x630, deviceScaleFactor 2, downscaled to 1200x630). The homepage, terms and privacy keep og.png (og-card.html).
+     Copy rule: cleanup is the user's choice (an hour, a day or a week), never "gone tomorrow". -->
+<style>
+@font-face{font-family:Inter;font-weight:400;src:url(../site/fonts/inter-latin-400-normal.woff2)}
+@font-face{font-family:Inter;font-weight:600;src:url(../site/fonts/inter-latin-600-normal.woff2)}
+@font-face{font-family:Inter;font-weight:700;src:url(../site/fonts/inter-latin-700-normal.woff2)}
+@font-face{font-family:Inter;font-weight:800;src:url(../site/fonts/inter-latin-800-normal.woff2)}
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:630px;background:#FBF8F4;font-family:Inter;color:#1C1917;position:relative;overflow:hidden;-webkit-font-smoothing:antialiased}
+.brand{position:absolute;left:80px;top:72px;display:flex;align-items:center;gap:14px;font-weight:700;font-size:28px;letter-spacing:-.02em}
+.brand img{width:42px;height:42px}
+.kicker{display:inline-block;margin-left:10px;font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1C1917;background:#FFE1D3;border-radius:999px;padding:6px 12px}
+.text{position:absolute;left:80px;top:160px;width:640px;height:380px;display:flex;flex-direction:column;justify-content:center}
+h1{font-weight:800;font-size:66px;line-height:1.06;letter-spacing:-.045em;text-wrap:balance}
+p.sub{margin-top:24px;font-size:25px;line-height:1.42;color:#57534E;text-wrap:pretty}
+.url{position:absolute;left:80px;bottom:56px;font-size:20px;font-weight:600;color:#8A837C}
+.url b{color:#FF6B2C}
+/* right-hand visuals (generic illustrations, no OS chrome) */
+.keys{position:absolute;left:780px;top:120px;width:360px;height:390px;display:flex;flex-direction:column;justify-content:center;gap:26px}
+.row{display:flex;align-items:center;gap:12px}
+.key{min-width:76px;height:76px;padding:0 18px;border-radius:16px;background:#fff;border:1px solid #E7E0D8;box-shadow:0 6px 0 #E7E0D8,0 18px 30px rgba(28,25,23,.08);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px;letter-spacing:-.01em}
+.key.hot{background:#FF6B2C;border-color:#F05A1A;box-shadow:0 6px 0 #D9531A,0 18px 30px rgba(255,107,44,.25)}
+.plus{font-weight:700;font-size:22px;color:#B8AFA6}
+.arrow{font-weight:800;font-size:30px;color:#FF6B2C;margin-left:6px}
+.win{position:absolute;left:806px;top:90px;width:275px;height:382px;background:#fff;border:1px solid #E7E0D8;border-radius:22px;box-shadow:0 30px 60px rgba(28,25,23,.10)}
+.win .t{font-weight:700;font-size:15px;margin:16px 0 0 16px}
+.card{position:absolute;left:12px;width:251px;border:1px solid #ECE6DF;border-radius:14px;background:#fff}
+.c1{top:46px;height:138px}
+.c2{top:193px;height:168px;background:#FAFAF9}
+.chips{position:absolute;right:10px;top:10px;display:flex;gap:4px}
+.chip{font-size:11.5px;font-weight:600;padding:3px 7px;border-radius:999px;background:#F3EEE8;color:#8A837C}
+.chip.on{background:#FF6B2C;color:#1C1917}
+.bar{position:absolute;height:5px;border-radius:3px}
+.phone{position:absolute;left:998px;top:262px;width:190px;height:420px;background:#111113;border-radius:34px;padding:6px}
+.screen{width:100%;height:100%;background:#FBF8F4;border-radius:28px;position:relative}
+.ps{position:absolute;left:8px;width:162px;border-radius:12px}
+</style></head><body>
+<div class="brand"><img src="../assets/brand/hopshot-icon.svg">Hopshot<span class="kicker" id="kicker"></span></div>
+<div class="text"><h1 id="h"></h1><p class="sub" id="s"></p></div>
+<div class="url"><b>hopshot.xyz</b><span id="path"></span></div>
+<div id="visual"></div>
+<template id="shelf">
+<div class="win"><div class="t">Hopshot</div>
+ <div class="card c1"><div class="chips"><span class="chip">1h</span><span class="chip on">1d</span><span class="chip">1w</span></div>
+  <svg width="251" height="138" style="position:absolute;left:0;top:0"><path d="M20 105 L50 96 L80 100 L110 78 L140 83 L170 60 L200 64 L230 46 L230 120 L20 120Z" fill="#FFE1D3"/><path d="M20 105 L50 96 L80 100 L110 78 L140 83 L170 60 L200 64 L230 46" fill="none" stroke="#FF8A57" stroke-width="2"/></svg></div>
+ <div class="card c2"><div class="bar" style="left:16px;top:16px;width:135px;background:#C792EA"></div><div class="bar" style="left:42px;top:32px;width:95px;background:#82AAFF"></div><div class="bar" style="left:42px;top:48px;width:140px;background:#C3E88D"></div><div class="bar" style="left:16px;top:64px;width:78px;background:#F78C6C"></div></div>
+</div>
+<div class="phone"><div class="screen">
+ <div class="ps" style="top:32px;height:80px;border:1.5px solid #FF6B2C;background:#fff"><svg width="160" height="78"><path d="M10 62 L35 55 L55 58 L78 44 L98 47 L120 34 L145 26 L145 70 L10 70Z" fill="#FFE1D3"/><path d="M10 62 L35 55 L55 58 L78 44 L98 47 L120 34 L145 26" fill="none" stroke="#FF8A57" stroke-width="1.5"/></svg></div>
+ <div class="ps" style="top:120px;height:42px;background:#EEE8E1"></div>
+ <div class="ps" style="top:170px;height:42px;background:#EEE8E1"></div>
+</div></div>
+</template>
+<script>
+// window.CARD = {kicker, headline, sub, path, visual: "shelf" | [["Cmd","Shift","4"], ...]} is set by the render script.
+function render(c){
+  document.getElementById('kicker').textContent=c.kicker;
+  document.getElementById('h').textContent=c.headline;
+  document.getElementById('s').textContent=c.sub;
+  document.getElementById('path').textContent=c.path;
+  const v=document.getElementById('visual');
+  if(c.visual==='shelf'){v.appendChild(document.getElementById('shelf').content.cloneNode(true));}
+  else{
+    const k=document.createElement('div');k.className='keys';
+    c.visual.forEach((row,ri)=>{
+      const r=document.createElement('div');r.className='row';
+      row.forEach((key,i)=>{
+        if(key==='→'){const a=document.createElement('span');a.className='arrow';a.textContent='→';r.appendChild(a);return;}
+        if(i>0&&row[i-1]!=='→'){const p=document.createElement('span');p.className='plus';p.textContent='+';r.appendChild(p);}
+        const e=document.createElement('span');e.className='key'+(ri===(c.hotRow??0)?' hot':'');e.textContent=key;r.appendChild(e);
+      });
+      k.appendChild(r);
+    });
+    v.appendChild(k);
+  }
+  // shrink the headline until the text block fits
+  const h=document.getElementById('h'),box=document.querySelector('.text');let fs=66;
+  while((h.scrollHeight+document.getElementById('s').scrollHeight+24>box.clientHeight||h.scrollWidth>box.clientWidth)&&fs>40){fs-=2;h.style.fontSize=fs+'px';}
+  return fs;
+}
+if(window.CARD) render(window.CARD);
+</script>
+</body></html>
